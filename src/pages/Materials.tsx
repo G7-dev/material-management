@@ -111,8 +111,20 @@ export default function Materials() {
         return
       }
 
+      console.log('提交申领数据:', {
+        material_id: applyingMaterial.id,
+        quantity: values.quantity,
+        purpose: values.purpose || '',
+        status: 'pending',
+        created_by: user.id,
+        department: values.department,
+        employee_id: values.employee_id,
+        applicant_name: values.applicant_name,
+        requisition_type: 'daily_request'
+      })
+
       // 创建申领记录
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('requisitions')
         .insert({
           material_id: applyingMaterial.id,
@@ -126,8 +138,12 @@ export default function Materials() {
           requisition_type: 'daily_request'
         })
 
-      if (error) throw error
+      if (error) {
+        console.error('数据库插入错误:', error)
+        throw error
+      }
 
+      console.log('申领成功，返回数据:', data)
       message.success('申领申请已提交，等待审批')
       setApplyModalVisible(false)
       form.resetFields()
@@ -135,9 +151,10 @@ export default function Materials() {
       
       // 跳转到申请记录页面
       navigate('/my-requisitions')
-    } catch (error) {
+    } catch (error: any) {
       console.error('提交申领失败:', error)
-      message.error('提交申领失败，请重试')
+      console.error('错误详情:', error.message, error.details, error.hint)
+      message.error(`提交申领失败: ${error.message || '请重试'}`)
     } finally {
       setSubmitting(false)
     }
