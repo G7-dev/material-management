@@ -1,11 +1,23 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Row, Col, Card, Input, Button, Tag, message, Typography, Badge, Empty, Modal, Form, InputNumber } from 'antd'
-import { SearchOutlined, ShoppingCartOutlined, InboxOutlined, TagsOutlined } from '@ant-design/icons'
+import { Row, Col, Card, Input, Button, Tag, message, Typography, Badge, Empty, Modal, Form, InputNumber, Select, Divider } from 'antd'
+import { SearchOutlined, ShoppingCartOutlined, InboxOutlined, TagsOutlined, UserOutlined, HomeOutlined, TeamOutlined, ShoppingOutlined, CalendarOutlined } from '@ant-design/icons'
 import { supabase } from '../lib/supabase'
 import type { Material } from '../lib/supabase'
 
 const { Title, Text } = Typography
+const { Option } = Select
+
+// 部门选项
+const DEPARTMENTS = [
+  { label: '设备部', value: '设备部', icon: '🏭' },
+  { label: '技术部', value: '技术部', icon: '💻' },
+  { label: '能源部', value: '能源部', icon: '⚡' },
+  { label: '生产一部', value: '生产一部', icon: '🏭' },
+  { label: '生产二部', value: '生产二部', icon: '🏭' },
+  { label: '供应部', value: '供应部', icon: '📦' },
+  { label: '储运部', value: '储运部', icon: '🚛' },
+]
 
 /**
  * 日常领用页面 - 卡片式展示
@@ -107,7 +119,11 @@ export default function Materials() {
           quantity: values.quantity,
           purpose: values.purpose || '',
           status: 'pending',
-          created_by: user.id
+          created_by: user.id,
+          department: values.department,
+          employee_id: values.employee_id,
+          applicant_name: values.applicant_name,
+          requisition_type: 'daily_request'
         })
 
       if (error) throw error
@@ -256,7 +272,7 @@ export default function Materials() {
           setApplyingMaterial(null)
         }}
         footer={null}
-        width={500}
+        width={600}
       >
         <Form
           form={form}
@@ -264,28 +280,106 @@ export default function Materials() {
           onFinish={handleSubmitApplication}
           style={{ marginTop: 16 }}
         >
+          {/* 物资信息展示 - 带图片 */}
+          {applyingMaterial && (
+            <Card size="small" style={{ marginBottom: 24, background: '#f9fafb' }}>
+              <div style={{ display: 'flex', gap: 16 }}>
+                {applyingMaterial.image_url ? (
+                  <img 
+                    src={applyingMaterial.image_url} 
+                    alt={applyingMaterial.name}
+                    style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8 }}
+                  />
+                ) : (
+                  <div style={{
+                    width: 80,
+                    height: 80,
+                    background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                    borderRadius: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <InboxOutlined style={{ fontSize: 32, color: 'white' }} />
+                  </div>
+                )}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{applyingMaterial.name}</div>
+                  <div style={{ fontSize: 14, color: '#6b7280', marginBottom: 4 }}>
+                    分类: {applyingMaterial.category}
+                  </div>
+                  <div style={{ fontSize: 14, color: '#6b7280' }}>
+                    当前库存: <Text strong style={{ color: '#1890ff' }}>{applyingMaterial.stock}</Text> {applyingMaterial.unit}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
+
           <Form.Item
             label="物资名称"
           >
-            <Input value={applyingMaterial?.name} disabled style={{ fontWeight: 500 }} />
+            <Input value={applyingMaterial?.name} disabled style={{ fontWeight: 500, background: '#f5f5f5' }} />
           </Form.Item>
 
-          <Form.Item
-            name="quantity"
-            label="申领数量"
-            rules={[
-              { required: true, message: '请输入申领数量' },
-              { type: 'number', min: 1, message: '申领数量至少为1' },
-              { type: 'number', max: applyingMaterial?.stock || 0, message: '不能超过当前库存' }
-            ]}
-          >
-            <InputNumber
-              min={1}
-              max={applyingMaterial?.stock || 1}
-              style={{ width: '100%' }}
-              placeholder="请输入申领数量"
-            />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="quantity"
+                label="申领数量"
+                rules={[
+                  { required: true, message: '请输入申领数量' },
+                  { type: 'number', min: 1, message: '申领数量至少为1' },
+                  { type: 'number', max: applyingMaterial?.stock || 0, message: '不能超过当前库存' }
+                ]}
+              >
+                <InputNumber
+                  min={1}
+                  max={applyingMaterial?.stock || 1}
+                  style={{ width: '100%' }}
+                  placeholder="请输入申领数量"
+                  addonAfter={applyingMaterial?.unit}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="department"
+                label="所属部门"
+                rules={[{ required: true, message: '请选择部门' }]}
+              >
+                <Select placeholder="请选择部门" size="large">
+                  {DEPARTMENTS.map(dept => (
+                    <Option key={dept.value} value={dept.value}>
+                      <span style={{ marginRight: 8 }}>{dept.icon}</span>
+                      {dept.label}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="employee_id"
+                label="工号"
+                rules={[{ required: true, message: '请输入工号' }]}
+              >
+                <Input placeholder="请输入工号" size="large" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="applicant_name"
+                label="申请人姓名"
+                rules={[{ required: true, message: '请输入姓名' }]}
+              >
+                <Input placeholder="请输入姓名" size="large" />
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Form.Item
             name="purpose"
@@ -308,6 +402,8 @@ export default function Materials() {
             />
           </Form.Item>
 
+          <Divider />
+
           <Form.Item style={{ marginBottom: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
               <Button
@@ -316,6 +412,7 @@ export default function Materials() {
                   form.resetFields()
                   setApplyingMaterial(null)
                 }}
+                size="large"
               >
                 取消
               </Button>
@@ -323,9 +420,11 @@ export default function Materials() {
                 type="primary"
                 htmlType="submit"
                 loading={submitting}
+                size="large"
                 style={{
                   background: 'linear-gradient(135deg, #667eea, #764ba2)',
                   border: 'none',
+                  minWidth: 120,
                 }}
               >
                 提交申请
