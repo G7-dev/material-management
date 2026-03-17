@@ -32,22 +32,7 @@ export default function Approvals() {
     try {
       const { data, error } = await supabase
         .from('requisitions')
-        .select(`
-          *, 
-          profiles:user_id(
-            full_name, 
-            email, 
-            department, 
-            employee_id
-          ), 
-          materials:material_id(
-            name, 
-            category, 
-            specification,
-            model,
-            unit
-          )
-        `)
+        .select('*, profiles:user_id(full_name, email, department, employee_id), materials:material_id(name, category, specification, model, unit)')
         .eq('status', activeTab)
         .order('created_at', { ascending: false })
 
