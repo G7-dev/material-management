@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Table, Tag, Form, Input, Select, Space, message } from 'antd'
+import { Card, Table, Tag, Form, Input, Space, message } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import { supabase } from '../../lib/supabase'
 import type { Profile } from '../../lib/supabase'
@@ -8,8 +8,6 @@ import type { Profile } from '../../lib/supabase'
  * 用户管理页面
  */
 export default function UserManagement() {
-  const [form] = Form.useForm()
-
   const [users, setUsers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(false)
 

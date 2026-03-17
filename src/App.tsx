@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { message } from 'antd'
-import { onAuthStateChange, getCurrentProfile } from './lib/auth'
+import { getCurrentProfile } from './lib/auth'
 import type { Profile } from './lib/supabase'
 
 // 页面组件
@@ -68,42 +68,6 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
   }
 
   return <>{children}</>
-}
-
-/**
- * 根据角色自动选择布局的包装组件
- */
-function RoleBasedLayout() {
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
-  const navigate = useNavigate()
-  const location = useLocation()
-
-  useEffect(() => {
-    async function loadProfile() {
-      const userProfile = await getCurrentProfile()
-      setProfile(userProfile)
-      setLoading(false)
-    }
-    loadProfile()
-  }, [])
-
-  // 如果没有获取到 profile,显示加载中
-  if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>加载中...</div>
-  }
-
-  // 如果没有 profile,跳转到登录
-  if (!profile) {
-    return <Navigate to="/login" replace />
-  }
-
-  // 根据角色返回不同的布局
-  if (profile.role === 'admin') {
-    return <AdminLayout />
-  }
-
-  return <EmployeeLayout />
 }
 
 /**

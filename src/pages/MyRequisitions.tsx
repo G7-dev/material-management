@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Card, Table, Tag, Modal, Form, Input, Select, Button, Space, message, Tabs } from 'antd'
+import { Card, Table, Tag, Modal, Form, Input, Select, Button, Space, message } from 'antd'
 import { PlusOutlined, ShoppingOutlined } from '@ant-design/icons'
 import { supabase } from '../lib/supabase'
 import type { Requisition, Material } from '../lib/supabase'
@@ -251,16 +251,16 @@ export default function MyRequisitions() {
                 { label: '日常申领', value: 'daily' },
                 { label: '申购', value: 'purchase' }
               ]}
-              onChange={(value) => {
-                form.setFieldsValue({
-                  material_id: undefined,
-                  purchase_name: undefined,
-                  purchase_specification: undefined,
-                  purchase_model: undefined,
-                  purchase_unit: undefined,
-                  quantity: undefined
-                })
-              }}
+            onChange={() => {
+              form.setFieldsValue({
+                material_id: undefined,
+                purchase_name: undefined,
+                purchase_specification: undefined,
+                purchase_model: undefined,
+                purchase_unit: undefined,
+                quantity: undefined
+              })
+            }}
             />
           </Form.Item>
 

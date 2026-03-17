@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Card, Table, Tag, Button, Modal, Form, Input, Space, message, Tabs } from 'antd'
-import { CheckOutlined, CloseOutlined } from '@ant-design/icons'
+import { CheckOutlined } from '@ant-design/icons'
 import { supabase } from '../../lib/supabase'
 import type { Requisition } from '../../lib/supabase'
 
@@ -139,20 +139,7 @@ export default function Approvals() {
     }
   }
 
-  /**
-   * 获取状态标签
-   */
-  const getStatusTag = (status: string) => {
-    const statusMap: Record<string, { text: string; color: string }> = {
-      pending: { text: '待审批', color: 'processing' },
-      approved: { text: '已通过', color: 'success' },
-      rejected: { text: '已驳回', color: 'error' },
-      completed: { text: '已完成', color: 'success' },
-      cancelled: { text: '已取消', color: 'default' }
-    }
-    const { text, color } = statusMap[status] || { text: status, color: 'default' }
-    return <Tag color={color}>{text}</Tag>
-  }
+
 
   /**
    * 表格列定义
@@ -280,7 +267,7 @@ export default function Approvals() {
             label="审批结果"
             rules={[{ required: true, message: '请选择审批结果' }]}
           >
-            <Button.Group block>
+            <Button.Group>
               <Button
                 type="primary"
                 onClick={() => form.setFieldsValue({ result: 'approved' })}
