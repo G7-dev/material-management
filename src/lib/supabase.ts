@@ -129,8 +129,6 @@ export interface Requisition {
   profiles?: {
     full_name: string
     email: string
-    department: string | null
-    employee_id: string | null
   } | null
 }
 

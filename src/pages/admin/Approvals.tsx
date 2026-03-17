@@ -32,7 +32,7 @@ export default function Approvals() {
     try {
       const { data, error } = await supabase
         .from('requisitions')
-        .select('*, profiles:user_id(full_name, email, department, employee_id), materials:material_id(name, category, specification, model, unit)')
+        .select('*, profiles:user_id(full_name, email), materials:material_id(name, category, specification, model, unit)')
         .eq('status', activeTab)
         .order('created_at', { ascending: false })
 
@@ -221,7 +221,7 @@ export default function Approvals() {
         <Space direction="vertical" size={0}>
           <Text strong>{record.profiles?.full_name || '-'}</Text>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.department || record.profiles?.department || '未分配'}
+            {record.department || '未分配'}
           </Text>
         </Space>
       ),
@@ -231,7 +231,7 @@ export default function Approvals() {
       key: 'employee_id',
       width: 100,
       render: (_: any, record: Requisition) => (
-        <Text code>{record.employee_id || record.profiles?.employee_id || '-'}</Text>
+        <Text code>{record.employee_id || '-'}</Text>
       ),
     },
     {
@@ -463,11 +463,11 @@ export default function Approvals() {
                 <Text strong>{currentRequisition?.profiles?.full_name || '-'}</Text>
               </Descriptions.Item>
               <Descriptions.Item label={<Space><NumberOutlined />工号</Space>}>
-                <Text code>{currentRequisition?.employee_id || currentRequisition?.profiles?.employee_id || '-'}</Text>
+                <Text code>{currentRequisition?.employee_id || '-'}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label={<Space><ShopOutlined />部门</Space>}>
-                <Text>{currentRequisition?.department || currentRequisition?.profiles?.department || '未分配'}</Text>
-              </Descriptions.Item>
+      <Descriptions.Item label={<Space><ShopOutlined />部门</Space>}>
+        <Text>{currentRequisition?.department || '未分配'}</Text>
+      </Descriptions.Item>
               <Descriptions.Item label={<Space><CalendarOutlined />申请日期</Space>}>
                 <Text>
                   {currentRequisition && new Date(currentRequisition.created_at).toLocaleDateString('zh-CN')}
