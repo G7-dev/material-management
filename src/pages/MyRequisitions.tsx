@@ -20,7 +20,7 @@ export default function MyRequisitions() {
   useEffect(() => {
     fetchRequisitions()
     checkAdmin()
-  }, [])
+  }, [isAdminUser])
 
   /**
    * 检查是否为管理员
@@ -139,6 +139,7 @@ export default function MyRequisitions() {
       title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>用途</div>,
       dataIndex: 'purpose',
       key: 'purpose',
+      width: 180,
       align: 'center' as const,
       render: (purpose: string) => (
         <Text style={{ fontSize: 15 }}>
@@ -150,7 +151,7 @@ export default function MyRequisitions() {
       title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>申请日期</div>,
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 140,
+      width: 160,
       align: 'center' as const,
       render: (date: string) => (
         <Text style={{ fontSize: 14, color: '#6b7280' }}>
@@ -161,6 +162,7 @@ export default function MyRequisitions() {
     {
       title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>申请类型</div>,
       key: 'type',
+      width: 90,
       align: 'center' as const,
       render: (_: any, record: Requisition) => (
         record.requisition_type === 'daily_request' ? (
@@ -174,6 +176,7 @@ export default function MyRequisitions() {
       title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>状态</div>,
       dataIndex: 'status',
       key: 'status',
+      width: 80,
       align: 'center' as const,
       render: (status: string) => getStatusTag(status),
     },

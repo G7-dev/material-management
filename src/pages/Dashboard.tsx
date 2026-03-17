@@ -1,18 +1,15 @@
-import { Row, Col, Card, Typography, Badge, Progress, Tag, Timeline, Button, message } from 'antd'
+import { Row, Col, Card, Typography, Badge, Progress, Tag, Button, message } from 'antd'
 import {
   ShoppingOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   RiseOutlined,
-  UserAddOutlined,
   AlertOutlined,
   BarChartOutlined,
-  CalendarOutlined,
   TeamOutlined,
   PlusOutlined,
   FileSearchOutlined,
-  BellOutlined,
   HistoryOutlined,
   AppstoreOutlined,
 } from '@ant-design/icons'
@@ -337,90 +334,6 @@ export default function Dashboard() {
                   暂无库存预警
                 </Text>
               )}
-            </div>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* 第三行: 活动时间线和更多详情 */}
-      <Row gutter={[16, 16]}>
-        {/* 左侧: 最近活动 */}
-        <Col xs={24} lg={12}>
-          <Card 
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <CalendarOutlined style={{ color: '#13c2c2' }} />
-                <Title level={5} style={{ margin: 0 }}>最近活动</Title>
-              </div>
-            }
-            style={{ borderRadius: 8 }}
-          >
-            <Timeline>
-              <Timeline.Item color="green">
-                <Text style={{ fontSize: 14 }}>
-                  <UserAddOutlined style={{ marginRight: 8 }} />
-                  新员工 <Text strong>张三</Text> 注册成功
-                </Text>
-                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginLeft: 20 }}>
-                  2小时前
-                </Text>
-              </Timeline.Item>
-              <Timeline.Item color="blue">
-                <Text style={{ fontSize: 14 }}>
-                  <ShoppingOutlined style={{ marginRight: 8 }} />
-                  申领单 <Text strong>#2024031501</Text> 已审批通过
-                </Text>
-                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginLeft: 20 }}>
-                  3小时前
-                </Text>
-              </Timeline.Item>
-              <Timeline.Item color="orange">
-                <Text style={{ fontSize: 14 }}>
-                  <AlertOutlined style={{ marginRight: 8 }} />
-                  库存预警: <Text strong>A4打印纸</Text> 库存不足
-                </Text>
-                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginLeft: 20 }}>
-                  5小时前
-                </Text>
-              </Timeline.Item>
-            </Timeline>
-          </Card>
-        </Col>
-
-        {/* 右侧: 系统公告 */}
-        <Col xs={24} lg={12}>
-          <Card 
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <BellOutlined style={{ color: '#1890ff' }} />
-                <Title level={5} style={{ margin: 0 }}>系统公告</Title>
-              </div>
-            }
-            style={{ borderRadius: 8 }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ 
-                padding: 12, 
-                background: '#e6f7ff', 
-                borderRadius: 6,
-                borderLeft: '4px solid #1890ff',
-              }}>
-                <Text strong style={{ fontSize: 14 }}>系统升级通知</Text>
-                <Text style={{ fontSize: 13, color: '#595959', display: 'block', marginTop: 4 }}>
-                  系统将于今晚22:00-24:00进行升级维护
-                </Text>
-              </div>
-              <div style={{ 
-                padding: 12, 
-                background: '#f6ffed', 
-                borderRadius: 6,
-                borderLeft: '4px solid #52c41a',
-              }}>
-                <Text strong style={{ fontSize: 14 }}>新功能上线</Text>
-                <Text style={{ fontSize: 13, color: '#595959', display: 'block', marginTop: 4 }}>
-                  新增用户名登录功能,更加便捷
-                </Text>
-              </div>
             </div>
           </Card>
         </Col>
