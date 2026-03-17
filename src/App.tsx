@@ -80,78 +80,51 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
  * 应用主组件
  */
 function App() {
-  // 生成粒子
-  const particles = Array.from({ length: 50 }, (_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    delay: Math.random() * 10,
-    duration: 10 + Math.random() * 10,
-    color: ['#00f0ff', '#00ff9d', '#9d00ff', '#ff00c8'][Math.floor(Math.random() * 4)]
-  }))
-
   return (
     <div className="cyber-background">
-      {/* 粒子动画 */}
-      <div className="particles">
-        {particles.map(particle => (
-          <div
-            key={particle.id}
-            className="particle"
-            style={{
-              left: `${particle.left}%`,
-              animationDelay: `${particle.delay}s`,
-              animationDuration: `${particle.duration}s`,
-              background: particle.color,
-              boxShadow: `0 0 10px ${particle.color}`
-            }}
-          />
-        ))}
-      </div>
-      
-      {/* 扫描线 */}
-      <div className="scan-line" />
-      
       {/* 主要内容 */}
-      <Routes>
-        {/* 公开路由 */}
-        <Route path="/login" element={<Login />} />
+      <div style={{ position: 'relative', zIndex: 100 }}>
+        <Routes>
+          {/* 公开路由 */}
+          <Route path="/login" element={<Login />} />
 
-        {/* 员工布局路由 */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <EmployeeLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="materials" element={<Materials />} />
-          <Route path="purchase-request" element={<PurchaseRequest />} />
-          <Route path="my-requisitions" element={<MyRequisitions />} />
-        </Route>
+          {/* 员工布局路由 */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <EmployeeLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="materials" element={<Materials />} />
+            <Route path="purchase-request" element={<PurchaseRequest />} />
+            <Route path="my-requisitions" element={<MyRequisitions />} />
+          </Route>
 
-        {/* 管理员布局路由 */}
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <AdminLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="approvals" element={<Approvals />} />
-          <Route path="materials" element={<MaterialManagement />} />
-          <Route path="materials/add" element={<AddMaterial />} />
-          <Route path="materials/restock" element={<RestockMaterial />} />
-          <Route path="users" element={<UserManagement />} />
-        </Route>
+          {/* 管理员布局路由 */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Dashboard />} />
+            <Route path="approvals" element={<Approvals />} />
+            <Route path="materials" element={<MaterialManagement />} />
+            <Route path="materials/add" element={<AddMaterial />} />
+            <Route path="materials/restock" element={<RestockMaterial />} />
+            <Route path="users" element={<UserManagement />} />
+          </Route>
 
-        {/* 默认重定向 */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* 默认重定向 */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
     </div>
   )
 }

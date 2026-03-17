@@ -95,6 +95,7 @@ export default function Login() {
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         position: 'relative',
         overflow: 'hidden',
+        zIndex: 10,
       }}>
         {/* 背景装饰元素 */}
         <div style={{
