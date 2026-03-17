@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Row, Col, Card, Input, Button, Tag, message, Typography, Badge, Empty } from 'antd'
+import { Row, Col, Card, Input, Button, Tag, message, Typography, Badge, Empty, Modal, Form, InputNumber } from 'antd'
 import { SearchOutlined, ShoppingCartOutlined, InboxOutlined, TagsOutlined } from '@ant-design/icons'
 import { supabase } from '../lib/supabase'
 import type { Material } from '../lib/supabase'
@@ -16,6 +16,10 @@ export default function Materials() {
   const [materials, setMaterials] = useState<Material[]>([])
   const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
+  const [applyModalVisible, setApplyModalVisible] = useState(false)
+  const [applyingMaterial, setApplyingMaterial] = useState<Material | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [form] = Form.useForm()
 
   useEffect(() => {
     fetchMaterials()
@@ -70,7 +74,57 @@ export default function Materials() {
       message.error('该物资暂缺货,无法申领')
       return
     }
-    navigate('/my-requisitions', { state: { materialId: material.id } })
+    setApplyingMaterial(material)
+    form.setFieldsValue({ quantity: 1 })
+    setApplyModalVisible(true)
+  }
+
+  /**
+   * 提交申领申请
+   */
+  const handleSubmitApplication = async (values: any) => {
+    if (!applyingMaterial) return
+    
+    setSubmitting(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        message.error('请先登录')
+        return
+      }
+
+      // 检查申领数量是否超过库存
+      if (values.quantity > applyingMaterial.stock) {
+        message.error(`申领数量不能超过当前库存 (${applyingMaterial.stock})`)
+        return
+      }
+
+      // 创建申领记录
+      const { error } = await supabase
+        .from('requisitions')
+        .insert({
+          material_id: applyingMaterial.id,
+          quantity: values.quantity,
+          purpose: values.purpose || '',
+          status: 'pending',
+          created_by: user.id
+        })
+
+      if (error) throw error
+
+      message.success('申领申请已提交，等待审批')
+      setApplyModalVisible(false)
+      form.resetFields()
+      setApplyingMaterial(null)
+      
+      // 跳转到申请记录页面
+      navigate('/my-requisitions')
+    } catch (error) {
+      console.error('提交申领失败:', error)
+      message.error('提交申领失败，请重试')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   /**
@@ -187,6 +241,99 @@ export default function Materials() {
 
   return (
     <div style={{ padding: '24px 32px' }}>
+      {/* 申领弹窗 */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ShoppingCartOutlined style={{ color: '#667eea' }} />
+            <Title level={5} style={{ margin: 0 }}>物资申领</Title>
+          </div>
+        }
+        open={applyModalVisible}
+        onCancel={() => {
+          setApplyModalVisible(false)
+          form.resetFields()
+          setApplyingMaterial(null)
+        }}
+        footer={null}
+        width={500}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmitApplication}
+          style={{ marginTop: 16 }}
+        >
+          <Form.Item
+            label="物资名称"
+          >
+            <Input value={applyingMaterial?.name} disabled style={{ fontWeight: 500 }} />
+          </Form.Item>
+
+          <Form.Item
+            name="quantity"
+            label="申领数量"
+            rules={[
+              { required: true, message: '请输入申领数量' },
+              { type: 'number', min: 1, message: '申领数量至少为1' },
+              { type: 'number', max: applyingMaterial?.stock || 0, message: '不能超过当前库存' }
+            ]}
+          >
+            <InputNumber
+              min={1}
+              max={applyingMaterial?.stock || 1}
+              style={{ width: '100%' }}
+              placeholder="请输入申领数量"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="purpose"
+            label="申领用途"
+            rules={[{ required: true, message: '请填写申领用途' }]}
+          >
+            <Input.TextArea
+              rows={3}
+              placeholder="请详细说明申领用途..."
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="notes"
+            label="备注（可选）"
+          >
+            <Input.TextArea
+              rows={2}
+              placeholder="如有特殊要求，请在此说明..."
+            />
+          </Form.Item>
+
+          <Form.Item style={{ marginBottom: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+              <Button
+                onClick={() => {
+                  setApplyModalVisible(false)
+                  form.resetFields()
+                  setApplyingMaterial(null)
+                }}
+              >
+                取消
+              </Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={submitting}
+                style={{
+                  background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                  border: 'none',
+                }}
+              >
+                提交申请
+              </Button>
+            </div>
+          </Form.Item>
+        </Form>
+      </Modal>
       {/* 页面头部 */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
