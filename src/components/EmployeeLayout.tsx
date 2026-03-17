@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { Layout, Menu, Button, Dropdown, Typography, Divider } from 'antd'
+import { Layout, Menu, Button, Typography } from 'antd'
 import {
   DashboardOutlined,
   ShoppingOutlined,
@@ -8,7 +8,6 @@ import {
   LogoutOutlined,
   AppstoreOutlined,
   PlusOutlined,
-  FileAddOutlined,
   ContainerOutlined,
 } from '@ant-design/icons'
 import { signOut } from '../lib/auth'
@@ -32,15 +31,6 @@ export default function EmployeeLayout() {
       console.error('退出登录失败:', error)
     }
   }
-
-  const userMenuItems = [
-    {
-      key: 'logout',
-      icon: <LogoutOutlined style={{ fontSize: 16 }} />,
-      label: <span style={{ fontSize: 14 }}>退出登录</span>,
-      onClick: handleLogout,
-    },
-  ]
 
   // 紧凑的菜单结构,减少空白
   const menuItems = [
