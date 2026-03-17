@@ -29,7 +29,7 @@ export default function Approvals() {
     try {
       const { data, error } = await supabase
         .from('requisitions')
-        .select('*, profiles:user_id(full_name)')
+        .select('*, profiles:user_id(full_name), materials:material_id(name, category)')
         .eq('status', activeTab)
         .order('created_at', { ascending: false })
 
@@ -162,9 +162,11 @@ export default function Approvals() {
       key: 'material',
       render: (_: any, record: Requisition) => {
         if (record.requisition_type === 'daily_request') {
-          return `${record.material_id} - 数量: ${record.request_quantity}`
+          const materialName = record.materials?.name || '未知物资';
+          const quantity = record.quantity || record.request_quantity || 0;
+          return `${materialName} - 数量: ${quantity}`;
         } else {
-          return `${record.purchase_name} - 数量: ${record.purchase_quantity}`
+          return `${record.purchase_name} - 数量: ${record.purchase_quantity}`;
         }
       },
     },
@@ -255,7 +257,7 @@ export default function Approvals() {
               <p><strong>类型:</strong> {currentRequisition?.requisition_type === 'daily_request' ? '日常申领' : '申购'}</p>
               <p><strong>物资:</strong> {
                 currentRequisition?.requisition_type === 'daily_request'
-                  ? `${currentRequisition.material_id} - ${currentRequisition.request_quantity}个`
+                  ? `${currentRequisition.materials?.name || '未知物资'} - ${currentRequisition.quantity || currentRequisition.request_quantity || 0}个`
                   : `${currentRequisition?.purchase_name} - ${currentRequisition?.purchase_quantity}个`
               }</p>
               <p><strong>用途:</strong> {currentRequisition?.purpose || '-'}</p>

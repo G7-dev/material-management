@@ -1,0 +1,264 @@
+/* ========================================
+   物资管理系统 - UI设计规范
+   统一双端（员工端 + 管理端）视觉风格
+   ======================================== */
+
+/* ============= 基础色彩系统 ============= */
+:root {
+  /* 主色调 - 科技蓝 */
+  --primary-color: #1890ff;
+  --primary-light: #40a9ff;
+  --primary-dark: #096dd9;
+  
+  /* 辅助色彩 */
+  --success-color: #52c41a;
+  --warning-color: #faad14;
+  --error-color: #ff4d4f;
+  --info-color: #722ed1;
+  
+  /* 中性色 */
+  --white: #ffffff;
+  --gray-1: #fafafa;
+  --gray-2: #f5f7fa;
+  --gray-3: #f0f2f5;
+  --gray-4: #e8e8e8;
+  --gray-5: #d9d9d9;
+  --gray-6: #bfbfbf;
+  --gray-7: #8c8c8c;
+  --gray-8: #595959;
+  --gray-9: #434343;
+  --gray-10: #262626;
+  --black: #000000;
+  
+  /* 渐变色系 */
+  --gradient-primary: linear-gradient(135deg, #1890ff 0%, #722ed1 100%);
+  --gradient-success: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  --gradient-warning: linear-gradient(135deg, #faad14 0%, #ffc53d 100%);
+  --gradient-error: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
+  
+  /* 背景色 */
+  --bg-primary: #f5f7fa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #fafafa;
+  --bg-hover: rgba(24, 144, 255, 0.05);
+  
+  /* 边框色 */
+  --border-light: #e6f7ff;
+  --border-base: #e8e8e8;
+  --border-dark: #d9d9d9;
+}
+
+/* ============= 字体系统 ============= */
+:root {
+  /* 字体大小 */
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 14px;
+  --font-size-md: 15px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px;
+  
+  /* 字重 */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* 行高 */
+  --line-height-tight: 1.4;
+  --line-height-base: 1.5;
+  --line-height-relaxed: 1.6;
+  
+  /* 字体族 */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/* ============= 阴影系统 ============= */
+:root {
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.06);
+  --shadow-base: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 4px 0 20px rgba(24, 144, 255, 0.15);
+  --shadow-primary: 0 0 10px rgba(24, 144, 255, 0.3);
+  --shadow-success: 0 0 10px rgba(82, 196, 26, 0.3);
+  --shadow-warning: 0 0 10px rgba(250, 173, 20, 0.3);
+}
+
+/* ============= 圆角系统 ============= */
+:root {
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-base: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 16px;
+  --radius-round: 9999px;
+}
+
+/* ============= 间距系统 ============= */
+:root {
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-base: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 20px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+  --spacing-3xl: 48px;
+}
+
+/* ============= 动画系统 ============= */
+:root {
+  /* 动画时长 */
+  --duration-fast: 0.2s;
+  --duration-base: 0.3s;
+  --duration-slow: 0.5s;
+  
+  /* 缓动函数 */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-standard: cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+/* ============= 组件通用样式 ============= */
+
+/* 页面容器 */
+.page-container {
+  padding: var(--spacing-lg);
+  background: var(--bg-primary);
+  min-height: 100%;
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: var(--spacing-base);
+  }
+}
+
+/* 卡片容器 */
+.card-container {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-base);
+  overflow: hidden;
+  transition: all var(--duration-base) var(--ease-out);
+}
+
+.card-container:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* 标题样式 */
+.page-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-10);
+  margin-bottom: var(--spacing-lg);
+}
+
+.section-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+  color: var(--gray-10);
+  margin-bottom: var(--spacing-md);
+}
+
+/* 按钮样式 */
+.btn-primary {
+  background: var(--gradient-primary) !important;
+  border: none !important;
+  border-radius: var(--radius-base) !important;
+  font-weight: var(--font-weight-medium) !important;
+  transition: all var(--duration-base) var(--ease-out) !important;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.btn-secondary {
+  border-radius: var(--radius-base) !important;
+  transition: all var(--duration-base) var(--ease-out) !important;
+}
+
+.btn-secondary:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* 输入框样式 */
+.input-base {
+  border-radius: var(--radius-base) !important;
+  transition: all var(--duration-base) var(--ease-out) !important;
+}
+
+.input-base:focus {
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2) !important;
+}
+
+/* 表格样式 */
+.table-container {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+/* 标签样式 */
+.tag-primary {
+  background: rgba(24, 144, 255, 0.1);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  border-radius: var(--radius-sm);
+}
+
+.tag-success {
+  background: rgba(82, 196, 26, 0.1);
+  border-color: var(--success-color);
+  color: var(--success-color);
+  border-radius: var(--radius-sm);
+}
+
+.tag-warning {
+  background: rgba(250, 173, 20, 0.1);
+  border-color: var(--warning-color);
+  color: var(--warning-color);
+  border-radius: var(--radius-sm);
+}
+
+.tag-error {
+  background: rgba(255, 77, 79, 0.1);
+  border-color: var(--error-color);
+  color: var(--error-color);
+  border-radius: var(--radius-sm);
+}
+
+/* ============= 响应式设计 ============= */
+@media (max-width: 768px) {
+  :root {
+    --spacing-lg: 16px;
+    --spacing-xl: 20px;
+    --font-size-xl: 16px;
+    --font-size-lg: 15px;
+  }
+}
+
+/* ============= 打印样式 ============= */
+@media print {
+  .page-container {
+    background: white !important;
+    padding: 0 !important;
+  }
+  
+  .card-container {
+    box-shadow: none !important;
+    border: 1px solid var(--border-base) !important;
+  }
+}

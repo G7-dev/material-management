@@ -92,7 +92,7 @@ export default function Login() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #1890ff 0%, #722ed1 100%)',
         position: 'relative',
         overflow: 'hidden',
         zIndex: 10,
@@ -121,8 +121,10 @@ export default function Login() {
             overflow: 'hidden',
             zIndex: 1,
           }}
-          bodyStyle={{
-            padding: '40px 32px',
+          styles={{
+            body: {
+              padding: '40px 32px',
+            },
           }}
         >
           {/* Logo 区域 */}
@@ -133,13 +135,13 @@ export default function Login() {
             <div style={{
               width: 64,
               height: 64,
-              background: 'linear-gradient(135deg, #667eea, #764ba2)',
+              background: 'linear-gradient(135deg, #1890ff, #722ed1)',
               borderRadius: 16,
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: 16,
-              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+              boxShadow: '0 4px 12px rgba(24, 144, 255, 0.4)',
             }}>
               <KeyOutlined style={{ fontSize: 32, color: 'white' }} />
             </div>
@@ -147,7 +149,7 @@ export default function Login() {
               fontSize: 24,
               fontWeight: 700,
               marginBottom: 8,
-              background: 'linear-gradient(135deg, #667eea, #764ba2)',
+              background: 'linear-gradient(135deg, #1890ff, #722ed1)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
@@ -262,20 +264,19 @@ function LoginForm({ form, loading, onFinish }: {
       </Form.Item>
 
       <Form.Item style={{ marginBottom: 0 }}>
-        <Button
-          type="primary"
-          htmlType="submit"
-          loading={loading}
-          block
-          size="large"
-          style={{
-            background: 'linear-gradient(135deg, #667eea, #764ba2)',
-            border: 'none',
-            height: 44,
-          }}
-        >
-          登录
-        </Button>
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={loading}
+            block
+            size="large"
+            className="btn-primary"
+            style={{
+              height: 44,
+            }}
+          >
+            登录
+          </Button>
       </Form.Item>
     </Form>
   )

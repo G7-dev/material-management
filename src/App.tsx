@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { message } from 'antd'
+import { message, Spin } from 'antd'
 import { getCurrentProfile } from './lib/auth'
 import type { Profile } from './lib/supabase'
 
-// 导入科技感动画样式
-import './styles/cyberpunk.css'
+// 导入UI设计规范和动画
+import './styles/design-tokens.css'
+import './styles/animations.css'
 
 // 页面组件
 import Login from './pages/Login'
@@ -55,7 +56,17 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
   }, [requiredRole])
 
   if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>加载中...</div>
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        background: 'var(--bg-primary)'
+      }}>
+        <Spin size="large" />
+      </div>
+    )
   }
 
   if (!profile) {
@@ -82,9 +93,6 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
 function App() {
   return (
     <div style={{ position: 'relative', minHeight: '100vh' }}>
-      {/* 背景层 - 确保在内容层之下 */}
-      <div className="cyber-background" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: -1 }} />
-      
       {/* 主要内容层 */}
       <div style={{ position: 'relative', zIndex: 1 }}>
         <Routes>

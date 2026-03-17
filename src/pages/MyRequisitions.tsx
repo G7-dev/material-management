@@ -48,7 +48,7 @@ export default function MyRequisitions() {
       // 如果是管理员,查看所有记录;否则只查看自己的
       let query = supabase
         .from('requisitions')
-        .select('*, profiles:user_id(full_name, email)')
+        .select('*, profiles:user_id(full_name, email), materials:material_id(name, category)')
         .order('created_at', { ascending: false })
 
       if (!isAdminUser) {
@@ -95,7 +95,7 @@ export default function MyRequisitions() {
    */
   const formatMaterialInfo = (record: Requisition) => {
     if (record.requisition_type === 'daily_request') {
-      return record.material_id ? `物资ID: ${record.material_id}` : '未知物资'
+      return record.materials?.name || `物资ID: ${record.material_id}`
     } else {
       return record.purchase_name || '申购物品'
     }
@@ -106,7 +106,7 @@ export default function MyRequisitions() {
    */
   const formatQuantity = (record: Requisition) => {
     if (record.requisition_type === 'daily_request') {
-      return `${record.request_quantity || 0} 个`
+      return `${record.quantity || record.request_quantity || 0} 个`
     } else {
       return `${record.purchase_quantity || 0} ${record.purchase_unit || '个'}`
     }
