@@ -97,7 +97,7 @@ export default function Login() {
         overflow: 'hidden',
         zIndex: 10,
       }}>
-        {/* 背景装饰元素 */}
+        {/* 背景装饰元素 - 添加 pointer-events: none 避免阻挡点击 */}
         <div style={{
           position: 'absolute',
           top: '-50%',
@@ -106,6 +106,7 @@ export default function Login() {
           height: '200%',
           background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)',
           animation: 'spin 20s linear infinite',
+          pointerEvents: 'none',
         }} />
 
         <Card
