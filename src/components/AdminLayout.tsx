@@ -1,13 +1,18 @@
-import { Layout, Menu, Button, Dropdown, Typography } from 'antd'
+import { Layout, Menu, Button, Typography, Badge, Avatar, Tag } from 'antd'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   DashboardOutlined,
+  CheckSquareOutlined,
   InboxOutlined,
   UserOutlined,
   LogoutOutlined,
   AppstoreOutlined,
   ShoppingOutlined,
   HistoryOutlined,
+  PlusOutlined,
+  FileSearchOutlined,
+  WarningOutlined,
+  BellOutlined,
 } from '@ant-design/icons'
 import { signOut } from '../lib/auth'
 
@@ -15,8 +20,8 @@ const { Header, Sider, Content } = Layout
 const { Title, Text } = Typography
 
 /**
- * 现代化管理员布局组件
- * 包含库存管理菜单(仅管理员可见)
+ * 互联网大厂风格的管理员布局
+ * 特点: 色彩丰富、图标突出、信息密度高
  */
 export default function AdminLayout() {
   const navigate = useNavigate()
@@ -31,115 +36,154 @@ export default function AdminLayout() {
     }
   }
 
-  const userMenuItems = [
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: <span style={{ fontSize: 15 }}>退出登录</span>,
-      onClick: handleLogout,
-    },
-  ]
-
-  // 管理员菜单结构
+  // 管理员菜单 - 更丰富的图标和色彩
   const menuItems = [
     {
       key: '/dashboard',
-      icon: <DashboardOutlined style={{ fontSize: 18 }} />,
-      label: <span style={{ fontSize: 15 }}>首页</span>,
+      icon: <DashboardOutlined style={{ fontSize: 18, color: '#1890ff' }} />,
+      label: <span style={{ fontSize: 14, fontWeight: 500 }}>首页</span>,
     },
     {
       key: 'item-request',
-      icon: <ShoppingOutlined style={{ fontSize: 18 }} />,
-      label: <span style={{ fontSize: 15 }}>物品领用</span>,
+      icon: <ShoppingOutlined style={{ fontSize: 18, color: '#52c41a' }} />,
+      label: <span style={{ fontSize: 14, fontWeight: 500 }}>物品领用</span>,
       children: [
         {
           key: '/materials',
-          label: <span style={{ fontSize: 14 }}>日常领用</span>,
+          icon: <InboxOutlined style={{ fontSize: 16, color: '#52c41a' }} />,
+          label: <span style={{ fontSize: 13 }}>日常领用</span>,
         },
         {
           key: '/purchase-request',
-          label: <span style={{ fontSize: 14 }}>物品申购</span>,
+          icon: <PlusOutlined style={{ fontSize: 16, color: '#52c41a' }} />,
+          label: <span style={{ fontSize: 13 }}>物品申购</span>,
         },
       ],
     },
     {
       key: 'inventory-manage',
-      icon: <InboxOutlined style={{ fontSize: 18 }} />,
-      label: <span style={{ fontSize: 15 }}>库存管理</span>,
+      icon: <AppstoreOutlined style={{ fontSize: 18, color: '#fa8c16' }} />,
+      label: <span style={{ fontSize: 14, fontWeight: 500 }}>库存管理</span>,
       children: [
         {
           key: '/admin/materials',
-          label: <span style={{ fontSize: 14 }}>物品上架</span>,
+          icon: <PlusOutlined style={{ fontSize: 16, color: '#fa8c16' }} />,
+          label: <span style={{ fontSize: 13 }}>物品上架</span>,
         },
         {
           key: '/admin/materials',
-          label: <span style={{ fontSize: 14 }}>物品补货</span>,
+          icon: <InboxOutlined style={{ fontSize: 16, color: '#fa8c16' }} />,
+          label: <span style={{ fontSize: 13 }}>物品补货</span>,
         },
       ],
     },
     {
       key: '/my-requisitions',
-      icon: <HistoryOutlined style={{ fontSize: 18 }} />,
-      label: <span style={{ fontSize: 15 }}>申请记录</span>,
+      icon: <HistoryOutlined style={{ fontSize: 18, color: '#722ed1' }} />,
+      label: <span style={{ fontSize: 14, fontWeight: 500 }}>申请记录</span>,
     },
     {
       key: '/admin/users',
-      icon: <UserOutlined style={{ fontSize: 18 }} />,
-      label: <span style={{ fontSize: 15 }}>用户管理</span>,
+      icon: <UserOutlined style={{ fontSize: 18, color: '#eb2f96' }} />,
+      label: <span style={{ fontSize: 14, fontWeight: 500 }}>用户管理</span>,
     },
   ]
 
+  // 顶部快捷操作
+  const quickActions = [
+    { icon: <BellOutlined />, color: '#1890ff', badge: 3 },
+    { icon: <WarningOutlined />, color: '#fa8c16', badge: 2 },
+  ]
+
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f8fafc' }}>
-      {/* 侧边栏 */}
+    <Layout style={{ minHeight: '100vh' }}>
+      {/* 侧边栏 - 深色主题,更有质感 */}
       <Sider
-        width={280}
+        width={240}
         breakpoint="lg"
         collapsedWidth="0"
-        theme="light"
+        theme="dark"
         style={{
-          background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-          boxShadow: '2px 0 8px rgba(0, 0, 0, 0.05)',
-          borderRight: '1px solid #e5e7eb',
-          zIndex: 10,
+          background: '#001529',
+          boxShadow: '2px 0 8px rgba(0, 0, 0, 0.15)',
         }}
       >
-        {/* Logo 区域 */}
+        {/* Logo 区域 - 更醒目 */}
         <div style={{
-          height: 80,
+          height: 64,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          padding: '0 24px',
-          background: 'white',
-          borderBottom: '1px solid #e5e7eb',
+          padding: '0 16px',
+          background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
         }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-          }}>
-            <div style={{
-              width: 40,
-              height: 40,
-              background: 'linear-gradient(135deg, #f59e0b, #dc2626)',
-              borderRadius: 10,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <AppstoreOutlined style={{ fontSize: 22, color: 'white' }} />
-            </div>
-            <Title level={4} style={{ margin: 0, color: '#1f2937', fontSize: 20 }}>
+          <AppstoreOutlined style={{ fontSize: 28, color: 'white', marginRight: 12 }} />
+          <div>
+            <Title level={5} style={{ margin: 0, color: 'white', fontSize: 16, fontWeight: 600 }}>
               管理后台
             </Title>
+            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
+              系统管理中心
+            </Text>
+          </div>
+        </div>
+
+        {/* 管理员信息卡片 */}
+        <div style={{ 
+          padding: 16, 
+          background: 'rgba(24, 144, 255, 0.1)',
+          borderBottom: '1px solid rgba(255,255,255,0.1)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Avatar 
+              size={40} 
+              icon={<UserOutlined />} 
+              style={{ background: 'linear-gradient(135deg, #1890ff, #096dd9)' }}
+            />
+            <div style={{ flex: 1 }}>
+              <Text style={{ color: 'white', fontSize: 14, fontWeight: 500, display: 'block' }}>
+                系统管理员
+              </Text>
+              <Tag color="gold" style={{ fontSize: 11, marginTop: 4 }}>
+                超级管理员
+              </Tag>
+            </div>
+          </div>
+        </div>
+
+        {/* 快捷统计 */}
+        <div style={{ 
+          padding: '12px 16px', 
+          background: 'rgba(0,0,0,0.2)',
+          borderBottom: '1px solid rgba(255,255,255,0.05)',
+        }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ 
+              flex: 1, 
+              background: 'rgba(24, 144, 255, 0.15)', 
+              padding: '8px 12px', 
+              borderRadius: 6,
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 18, fontWeight: 600, color: '#1890ff' }}>5</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>待审批</div>
+            </div>
+            <div style={{ 
+              flex: 1, 
+              background: 'rgba(250, 140, 22, 0.15)', 
+              padding: '8px 12px', 
+              borderRadius: 6,
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 18, fontWeight: 600, color: '#fa8c16' }}>3</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>库存预警</div>
+            </div>
           </div>
         </div>
 
         {/* 菜单区域 */}
-        <div style={{ padding: '24px 16px' }}>
+        <div style={{ padding: '8px 0' }}>
           <Menu
-            theme="light"
+            theme="dark"
             mode="inline"
             selectedKeys={[location.pathname]}
             openKeys={['item-request', 'inventory-manage']}
@@ -150,64 +194,94 @@ export default function AdminLayout() {
               }
             }}
             style={{
-              border: 'none',
               background: 'transparent',
             }}
           />
         </div>
+
+        {/* 底部信息 */}
+        <div style={{ 
+          position: 'absolute', 
+          bottom: 0, 
+          left: 0, 
+          right: 0, 
+          padding: '12px 16px', 
+          background: 'rgba(0,0,0,0.25)',
+          borderTop: '1px solid rgba(255,255,255,0.05)',
+        }}>
+          <Button
+            type="text"
+            icon={<LogoutOutlined />}
+            onClick={handleLogout}
+            style={{ 
+              width: '100%', 
+              justifyContent: 'flex-start', 
+              color: 'rgba(255,255,255,0.85)',
+            }}
+          >
+            退出登录
+          </Button>
+        </div>
       </Sider>
 
       {/* 主内容区 */}
-      <Layout style={{ marginLeft: 280 }}>
-        {/* 顶部导航栏 */}
+      <Layout>
+        {/* 顶部栏 - 更丰富的信息 */}
         <Header style={{
           background: 'white',
-          padding: '0 32px',
-          height: 80,
+          padding: '0 24px',
+          height: 64,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 9,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <Title level={3} style={{ margin: 0, color: '#1f2937', fontSize: 24 }}>
+          {/* 左侧面包屑 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Title level={4} style={{ margin: 0, color: '#262626', fontSize: 16 }}>
               物资领用管理系统
             </Title>
-            <Text style={{ color: '#6b7280', fontSize: 14 }}>
+            <Tag color="blue" style={{ fontSize: 12 }}>
               管理员控制台
-            </Text>
+            </Tag>
           </div>
 
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-            <Button
-              type="text"
-              icon={<UserOutlined style={{ fontSize: 18 }} />}
-              style={{ height: 44, padding: '0 16px' }}
-            >
-              <span style={{ fontSize: 15, marginLeft: 8 }}>系统管理员</span>
-            </Button>
-          </Dropdown>
+          {/* 右侧快捷操作 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {quickActions.map((action, index) => (
+              <Badge key={index} count={action.badge} size="small">
+                <Button 
+                  type="text" 
+                  icon={action.icon} 
+                  style={{ 
+                    fontSize: 18, 
+                    color: action.color,
+                    width: 40,
+                    height: 40,
+                  }} 
+                />
+              </Badge>
+            ))}
+            <Avatar 
+              size={36} 
+              icon={<UserOutlined />} 
+              style={{ 
+                background: 'linear-gradient(135deg, #1890ff, #096dd9)',
+                cursor: 'pointer',
+              }}
+            />
+          </div>
         </Header>
 
-        {/* 内容区域 */}
-        <div style={{
-          marginLeft: 280,
-          padding: '24px',
-          minHeight: 'calc(100vh - 70px)',
+        {/* 内容区域 - 紧贴边缘 */}
+        <Content style={{
+          margin: 0,
+          padding: 0,
+          minHeight: 'calc(100vh - 64px)',
+          background: '#f0f2f5',
         }}>
-          <Content style={{
-            padding: '24px',
-            minHeight: '100%',
-            background: 'white',
-            borderRadius: 8,
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-          }}>
-            <Outlet />
-          </Content>
-        </div>
+          <Outlet />
+        </Content>
       </Layout>
     </Layout>
   )

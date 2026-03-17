@@ -1,65 +1,289 @@
-import { Card, Statistic } from 'antd'
+import { Row, Col, Card, Statistic, Typography, Badge, Progress, Tag, Timeline } from 'antd'
 import {
   ShoppingOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined
+  ClockCircleOutlined,
+  RiseOutlined,
+  UserAddOutlined,
+  AlertOutlined,
+  BarChartOutlined,
+  CalendarOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
+import { useEffect, useState } from 'react'
+
+const { Title, Text } = Typography
 
 /**
- * 首页/仪表盘
+ * 管理员 Dashboard - 丰富的数据展示
+ * 特点: 多图表、色彩丰富、信息密度高
  */
 export default function Dashboard() {
+  const [stats, setStats] = useState({
+    totalMaterials: 5,
+    totalRequisitions: 0,
+    approvedRequisitions: 0,
+    pendingRequisitions: 0,
+  })
+
+  // 模拟加载数据
+  useEffect(() => {
+    // 这里可以添加API请求获取真实数据
+  }, [])
+
   return (
-    <div>
-      <h2 style={{ marginBottom: 24 }}>欢迎使用物资领用管理系统</h2>
+    <div style={{ padding: 0 }}>
+      {/* 顶部统计卡片 - 大厂风格 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} md={6}>
+          <Card style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+            <Statistic
+              title={<span style={{ fontSize: 14, color: '#8c8c8c' }}>可用物资</span>}
+              value={stats.totalMaterials}
+              prefix={<ShoppingOutlined style={{ color: '#1890ff', fontSize: 24 }} />}
+              valueStyle={{ color: '#1890ff', fontSize: 32, fontWeight: 600 }}
+              suffix={<RiseOutlined style={{ color: '#52c41a', marginLeft: 8 }} />}
+            />
+            <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
+              <Text style={{ fontSize: 12 }}>
+                <Badge status="success" text=" 正常运行" />
+              </Text>
+            </div>
+          </Card>
+        </Col>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-        <Card>
-          <Statistic
-            title="可用物资"
-            value={5}
-            prefix={<ShoppingOutlined style={{ color: '#1890ff' }} />}
-            valueStyle={{ color: '#1890ff' }}
-          />
-        </Card>
+        <Col xs={24} sm={12} md={6}>
+          <Card style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+            <Statistic
+              title={<span style={{ fontSize: 14, color: '#8c8c8c' }}>我的申领</span>}
+              value={stats.totalRequisitions}
+              prefix={<FileTextOutlined style={{ color: '#52c41a', fontSize: 24 }} />}
+              valueStyle={{ color: '#52c41a', fontSize: 32, fontWeight: 600 }}
+              suffix={<Text style={{ fontSize: 12, color: '#8c8c8c', marginLeft: 8 }}>件</Text>}
+            />
+            <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
+              <Text style={{ fontSize: 12 }}>
+                <Badge status="processing" text=" 本月申请" />
+              </Text>
+            </div>
+          </Card>
+        </Col>
 
-        <Card>
-          <Statistic
-            title="我的申领"
-            value={0}
-            prefix={<FileTextOutlined style={{ color: '#52c41a' }} />}
-            valueStyle={{ color: '#52c41a' }}
-          />
-        </Card>
+        <Col xs={24} sm={12} md={6}>
+          <Card style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+            <Statistic
+              title={<span style={{ fontSize: 14, color: '#8c8c8c' }}>已通过</span>}
+              value={stats.approvedRequisitions}
+              prefix={<CheckCircleOutlined style={{ color: '#10b981', fontSize: 24 }} />}
+              valueStyle={{ color: '#10b981', fontSize: 32, fontWeight: 600 }}
+              suffix={<CheckCircleOutlined style={{ color: '#10b981', marginLeft: 8 }} />}
+            />
+            <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
+              <Text style={{ fontSize: 12 }}>
+                <Badge status="success" text=" 审批完成" />
+              </Text>
+            </div>
+          </Card>
+        </Col>
 
-        <Card>
-          <Statistic
-            title="已通过"
-            value={0}
-            prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-            valueStyle={{ color: '#52c41a' }}
-          />
-        </Card>
+        <Col xs={24} sm={12} md={6}>
+          <Card style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+            <Statistic
+              title={<span style={{ fontSize: 14, color: '#8c8c8c' }}>待审批</span>}
+              value={stats.pendingRequisitions}
+              prefix={<ClockCircleOutlined style={{ color: '#faad14', fontSize: 24 }} />}
+              valueStyle={{ color: '#faad14', fontSize: 32, fontWeight: 600 }}
+              suffix={<AlertOutlined style={{ color: '#faad14', marginLeft: 8 }} />}
+            />
+            <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
+              <Text style={{ fontSize: 12 }}>
+                <Badge status="warning" text=" 需要处理" />
+              </Text>
+            </div>
+          </Card>
+        </Col>
+      </Row>
 
-        <Card>
-          <Statistic
-            title="待审批"
-            value={0}
-            prefix={<ClockCircleOutlined style={{ color: '#faad14' }} />}
-            valueStyle={{ color: '#faad14' }}
-          />
-        </Card>
-      </div>
+      {/* 第二行: 数据概览和操作快捷入口 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        {/* 左侧: 快捷操作 */}
+        <Col xs={24} md={12} lg={8}>
+          <Card 
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <BarChartOutlined style={{ color: '#1890ff' }} />
+                <Title level={5} style={{ margin: 0 }}>快捷操作</Title>
+              </div>
+            }
+            style={{ borderRadius: 8 }}
+          >
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+              <Button 
+                type="primary" 
+                icon={<ShoppingOutlined />}
+                style={{ height: 48, fontSize: 14 }}
+              >
+                物资申领
+              </Button>
+              <Button 
+                icon={<PlusOutlined />}
+                style={{ height: 48, fontSize: 14 }}
+              >
+                提交申购
+              </Button>
+              <Button 
+                icon={<FileSearchOutlined />}
+                style={{ height: 48, fontSize: 14 }}
+              >
+                查看记录
+              </Button>
+              <Button 
+                icon={<TeamOutlined />}
+                style={{ height: 48, fontSize: 14 }}
+              >
+                用户管理
+              </Button>
+            </div>
+          </Card>
+        </Col>
 
-      <Card style={{ marginTop: 24 }}>
-        <h3>快速开始</h3>
-        <ul style={{ lineHeight: 2, color: '#666' }}>
-          <li>点击左侧菜单的"物资申领"查看并申请所需物资</li>
-          <li>在"我的记录"中查看所有申领历史和审批状态</li>
-          <li>如有急需物资,可以提交申购申请</li>
-        </ul>
-      </Card>
+        {/* 中间: 申请状态分布 */}
+        <Col xs={24} md={12} lg={8}>
+          <Card 
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <FileTextOutlined style={{ color: '#722ed1' }} />
+                <Title level={5} style={{ margin: 0 }}>申请状态</Title>
+              </div>
+            }
+            style={{ borderRadius: 8 }}
+          >
+            <div style={{ padding: '8px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text>待审批</Text>
+                <Tag color="warning">3</Tag>
+              </div>
+              <Progress percent={60} status="active" size="small" strokeColor="#faad14" />
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                本周完成率: 60%
+              </Text>
+            </div>
+          </Card>
+        </Col>
+
+        {/* 右侧: 库存预警 */}
+        <Col xs={24} md={24} lg={8}>
+          <Card 
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <AlertOutlined style={{ color: '#fa8c16' }} />
+                <Title level={5} style={{ margin: 0 }}>库存预警</Title>
+              </div>
+            }
+            style={{ borderRadius: 8 }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 14 }}>A4打印纸</Text>
+                <Badge count={15} style={{ backgroundColor: '#faad14' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 14 }}>中性笔</Text>
+                <Badge count={30} style={{ backgroundColor: '#faad14' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 14 }}>文件夹</Text>
+                <Badge count={5} style={{ backgroundColor: '#faad14' }} />
+              </div>
+            </div>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 第三行: 活动时间线和更多详情 */}
+      <Row gutter={[16, 16]}>
+        {/* 左侧: 最近活动 */}
+        <Col xs={24} lg={12}>
+          <Card 
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <CalendarOutlined style={{ color: '#13c2c2' }} />
+                <Title level={5} style={{ margin: 0 }}>最近活动</Title>
+              </div>
+            }
+            style={{ borderRadius: 8 }}
+          >
+            <Timeline>
+              <Timeline.Item color="green">
+                <Text style={{ fontSize: 14 }}>
+                  <UserAddOutlined style={{ marginRight: 8 }} />
+                  新员工 <Text strong>张三</Text> 注册成功
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginLeft: 20 }}>
+                  2小时前
+                </Text>
+              </Timeline.Item>
+              <Timeline.Item color="blue">
+                <Text style={{ fontSize: 14 }}>
+                  <ShoppingOutlined style={{ marginRight: 8 }} />
+                  申领单 <Text strong>#2024031501</Text> 已审批通过
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginLeft: 20 }}>
+                  3小时前
+                </Text>
+              </Timeline.Item>
+              <Timeline.Item color="orange">
+                <Text style={{ fontSize: 14 }}>
+                  <AlertOutlined style={{ marginRight: 8 }} />
+                  库存预警: <Text strong>A4打印纸</Text> 库存不足
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginLeft: 20 }}>
+                  5小时前
+                </Text>
+              </Timeline.Item>
+            </Timeline>
+          </Card>
+        </Col>
+
+        {/* 右侧: 系统公告 */}
+        <Col xs={24} lg={12}>
+          <Card 
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <BellOutlined style={{ color: '#1890ff' }} />
+                <Title level={5} style={{ margin: 0 }}>系统公告</Title>
+              </div>
+            }
+            style={{ borderRadius: 8 }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ 
+                padding: 12, 
+                background: '#e6f7ff', 
+                borderRadius: 6,
+                borderLeft: '4px solid #1890ff',
+              }}>
+                <Text strong style={{ fontSize: 14 }}>系统升级通知</Text>
+                <Text style={{ fontSize: 13, color: '#595959', display: 'block', marginTop: 4 }}>
+                  系统将于今晚22:00-24:00进行升级维护
+                </Text>
+              </div>
+              <div style={{ 
+                padding: 12, 
+                background: '#f6ffed', 
+                borderRadius: 6,
+                borderLeft: '4px solid #52c41a',
+              }}>
+                <Text strong style={{ fontSize: 14 }}>新功能上线</Text>
+                <Text style={{ fontSize: 13, color: '#595959', display: 'block', marginTop: 4 }}>
+                  新增用户名登录功能,更加便捷
+                </Text>
+              </div>
+            </div>
+          </Card>
+        </Col>
+      </Row>
     </div>
   )
 }
