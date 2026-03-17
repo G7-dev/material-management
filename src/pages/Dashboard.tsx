@@ -1,4 +1,4 @@
-import { Row, Col, Card, Statistic, Typography, Badge, Progress, Tag, Timeline, Button, message } from 'antd'
+import { Row, Col, Card, Typography, Badge, Progress, Tag, Timeline, Button, message } from 'antd'
 import {
   ShoppingOutlined,
   FileTextOutlined,

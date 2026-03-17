@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Card, Form, Input, InputNumber, Button, Upload, message, Row, Col, Typography } from 'antd'
+import { Card, Form, Input, InputNumber, Button, Upload, message, Row, Col, Typography, Tag } from 'antd'
 import { InboxOutlined, PlusOutlined, CheckOutlined } from '@ant-design/icons'
 import { supabase } from '../../lib/supabase'
 import type { UploadProps } from 'antd'
