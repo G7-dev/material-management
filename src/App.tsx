@@ -15,6 +15,8 @@ import EmployeeLayout from './components/EmployeeLayout'
 import Approvals from './pages/admin/Approvals'
 import MaterialManagement from './pages/admin/MaterialManagement'
 import UserManagement from './pages/admin/UserManagement'
+import AddMaterial from './pages/admin/AddMaterial'
+import RestockMaterial from './pages/admin/RestockMaterial'
 
 /**
  * 受保护的路由组件
@@ -108,8 +110,8 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="approvals" element={<Approvals />} />
         <Route path="materials" element={<MaterialManagement />} />
-        <Route path="materials/add" element={<MaterialManagement />} />
-        <Route path="materials/restock" element={<MaterialManagement />} />
+        <Route path="materials/add" element={<AddMaterial />} />
+        <Route path="materials/restock" element={<RestockMaterial />} />
         <Route path="users" element={<UserManagement />} />
       </Route>
 
