@@ -104,6 +104,14 @@ export interface Requisition {
   purchase_unit: string | null
   purchase_quantity: number | null
   purchase_reason: string | null
+  
+  // 申购额外信息
+  estimated_delivery_date: string | null
+
+  // 申请人信息
+  applicant_name: string | null
+  department: string | null
+  employee_id: string | null
 
   purpose: string | null
   urgent: boolean
@@ -114,10 +122,15 @@ export interface Requisition {
   materials?: {
     name: string
     category: string
+    specification: string | null
+    model: string | null
+    unit: string | null
   } | null
   profiles?: {
     full_name: string
     email: string
+    department: string | null
+    employee_id: string | null
   } | null
 }
 
