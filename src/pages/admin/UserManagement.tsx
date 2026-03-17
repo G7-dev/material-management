@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Table, Tag, Form, Input, Space, message } from 'antd'
+import { Card, Table, Tag, Form, Input, message } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import { supabase } from '../../lib/supabase'
 import type { Profile } from '../../lib/supabase'

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Table, Tag, Button, Modal, Form, Input, Space, message, Tabs } from 'antd'
+import { Card, Table, Button, Modal, Form, Input, Space, message, Tabs } from 'antd'
 import { CheckOutlined } from '@ant-design/icons'
 import { supabase } from '../../lib/supabase'
 import type { Requisition } from '../../lib/supabase'
