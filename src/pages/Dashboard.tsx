@@ -1,4 +1,4 @@
-import { Row, Col, Card, Statistic, Typography, Badge, Progress, Tag, Timeline, Button } from 'antd'
+import { Row, Col, Card, Statistic, Typography, Badge, Progress, Tag, Timeline, Button, message } from 'antd'
 import {
   ShoppingOutlined,
   FileTextOutlined,
@@ -13,8 +13,12 @@ import {
   PlusOutlined,
   FileSearchOutlined,
   BellOutlined,
+  HistoryOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 
 const { Title, Text } = Typography
 
@@ -23,17 +27,86 @@ const { Title, Text } = Typography
  * 特点: 多图表、色彩丰富、信息密度高
  */
 export default function Dashboard() {
-  const [stats] = useState({
-    totalMaterials: 5,
+  const navigate = useNavigate()
+  const [stats, setStats] = useState({
+    totalMaterials: 0,
     totalRequisitions: 0,
     approvedRequisitions: 0,
     pendingRequisitions: 0,
   })
+  const [lowStockMaterials, setLowStockMaterials] = useState<Array<{ name: string; stock: number }>>([])
+  const [userRole, setUserRole] = useState<string>('')
 
-  // 模拟加载数据
+  // 从Supabase加载统计数据
   useEffect(() => {
-    // 这里可以添加API请求获取真实数据
+    loadDashboardData()
   }, [])
+
+  /**
+   * 加载仪表板数据
+   */
+  async function loadDashboardData() {
+    try {
+      // 获取物资总数
+      const { count: materialCount } = await supabase
+        .from('materials')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'active')
+
+      // 获取当前用户ID
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // 获取用户角色
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      setUserRole(profileData?.role || 'employee')
+
+      // 获取用户的申领记录
+      const { count: requisitionCount } = await supabase
+        .from('requisitions')
+        .select('*', { count: 'exact', head: true })
+        .eq('created_by', user.id)
+
+      // 获取已通过和待审批的申领数
+      const { count: approvedCount } = await supabase
+        .from('requisitions')
+        .select('*', { count: 'exact', head: true })
+        .eq('created_by', user.id)
+        .eq('status', 'approved')
+
+      const { count: pendingCount } = await supabase
+        .from('requisitions')
+        .select('*', { count: 'exact', head: true })
+        .eq('created_by', user.id)
+        .eq('status', 'pending')
+
+      // 获取库存预警信息
+      const { data: lowStockData, error: lowStockError } = await supabase
+        .from('materials')
+        .select('name, stock')
+        .lt('stock', 10)
+        .eq('status', 'active')
+        .order('stock', { ascending: true })
+        .limit(3)
+
+      setStats({
+        totalMaterials: materialCount || 0,
+        totalRequisitions: requisitionCount || 0,
+        approvedRequisitions: approvedCount || 0,
+        pendingRequisitions: pendingCount || 0,
+      })
+
+      setLowStockMaterials(lowStockData || [])
+    } catch (error) {
+      console.error('加载仪表板数据失败:', error)
+      message.error('加载数据失败')
+    }
+  }
 
   return (
     <div style={{ padding: 0 }}>
@@ -122,31 +195,59 @@ export default function Dashboard() {
             style={{ borderRadius: 8 }}
           >
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-              <Button 
-                type="primary" 
-                icon={<ShoppingOutlined />}
-                style={{ height: 48, fontSize: 14 }}
-              >
-                物资申领
-              </Button>
-              <Button 
-                icon={<PlusOutlined />}
-                style={{ height: 48, fontSize: 14 }}
-              >
-                提交申购
-              </Button>
+              {userRole !== 'admin' ? (
+                <>
+                  <Button 
+                    type="primary" 
+                    icon={<ShoppingOutlined />}
+                    style={{ height: 48, fontSize: 14 }}
+                    onClick={() => navigate('/materials')}
+                  >
+                    物资申领
+                  </Button>
+                  <Button 
+                    icon={<PlusOutlined />}
+                    style={{ height: 48, fontSize: 14 }}
+                    onClick={() => navigate('/purchase-request')}
+                  >
+                    提交申购
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button 
+                    type="primary" 
+                    icon={<HistoryOutlined />}
+                    style={{ height: 48, fontSize: 14 }}
+                    onClick={() => navigate('/admin/approvals')}
+                  >
+                    审批管理
+                  </Button>
+                  <Button 
+                    icon={<AppstoreOutlined />}
+                    style={{ height: 48, fontSize: 14 }}
+                    onClick={() => navigate('/admin/materials')}
+                  >
+                    物资管理
+                  </Button>
+                </>
+              )}
               <Button 
                 icon={<FileSearchOutlined />}
                 style={{ height: 48, fontSize: 14 }}
+                onClick={() => navigate('/my-requisitions')}
               >
                 查看记录
               </Button>
-              <Button 
-                icon={<TeamOutlined />}
-                style={{ height: 48, fontSize: 14 }}
-              >
-                用户管理
-              </Button>
+              {userRole === 'admin' && (
+                <Button 
+                  icon={<TeamOutlined />}
+                  style={{ height: 48, fontSize: 14 }}
+                  onClick={() => navigate('/admin/users')}
+                >
+                  用户管理
+                </Button>
+              )}
             </div>
           </Card>
         </Col>
@@ -165,11 +266,16 @@ export default function Dashboard() {
             <div style={{ padding: '8px 0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <Text>待审批</Text>
-                <Tag color="warning">3</Tag>
+                <Tag color="warning">{stats.pendingRequisitions}</Tag>
               </div>
-              <Progress percent={60} status="active" size="small" strokeColor="#faad14" />
+              <Progress 
+                percent={stats.totalRequisitions > 0 ? Math.round((stats.approvedRequisitions / stats.totalRequisitions) * 100) : 0} 
+                status="active" 
+                size="small" 
+                strokeColor="#faad14" 
+              />
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                本周完成率: 60%
+                完成率: {stats.totalRequisitions > 0 ? Math.round((stats.approvedRequisitions / stats.totalRequisitions) * 100) : 0}%
               </Text>
             </div>
           </Card>
@@ -187,18 +293,18 @@ export default function Dashboard() {
             style={{ borderRadius: 8 }}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 14 }}>A4打印纸</Text>
-                <Badge count={15} style={{ backgroundColor: '#faad14' }} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 14 }}>中性笔</Text>
-                <Badge count={30} style={{ backgroundColor: '#faad14' }} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 14 }}>文件夹</Text>
-                <Badge count={5} style={{ backgroundColor: '#faad14' }} />
-              </div>
+              {lowStockMaterials.length > 0 ? (
+                lowStockMaterials.map((material, index) => (
+                  <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 14 }}>{material.name}</Text>
+                    <Badge count={material.stock} style={{ backgroundColor: '#faad14' }} />
+                  </div>
+                ))
+              ) : (
+                <Text type="secondary" style={{ textAlign: 'center', padding: 16 }}>
+                  暂无库存预警
+                </Text>
+              )}
             </div>
           </Card>
         </Col>

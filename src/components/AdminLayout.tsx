@@ -6,7 +6,6 @@ import {
   UserOutlined,
   LogoutOutlined,
   AppstoreOutlined,
-  ShoppingOutlined,
   HistoryOutlined,
   PlusOutlined,
   WarningOutlined,
@@ -42,43 +41,26 @@ export default function AdminLayout() {
       label: <span style={{ fontSize: 14, fontWeight: 500 }}>首页</span>,
     },
     {
-      key: 'item-request',
-      icon: <ShoppingOutlined style={{ fontSize: 18, color: '#52c41a' }} />,
-      label: <span style={{ fontSize: 14, fontWeight: 500 }}>物品领用</span>,
-      children: [
-        {
-          key: '/materials',
-          icon: <InboxOutlined style={{ fontSize: 16, color: '#52c41a' }} />,
-          label: <span style={{ fontSize: 13 }}>日常领用</span>,
-        },
-        {
-          key: '/purchase-request',
-          icon: <PlusOutlined style={{ fontSize: 16, color: '#52c41a' }} />,
-          label: <span style={{ fontSize: 13 }}>物品申购</span>,
-        },
-      ],
-    },
-    {
       key: 'inventory-manage',
       icon: <AppstoreOutlined style={{ fontSize: 18, color: '#fa8c16' }} />,
       label: <span style={{ fontSize: 14, fontWeight: 500 }}>库存管理</span>,
       children: [
         {
-          key: '/admin/materials',
+          key: '/admin/materials/add',
           icon: <PlusOutlined style={{ fontSize: 16, color: '#fa8c16' }} />,
           label: <span style={{ fontSize: 13 }}>物品上架</span>,
         },
         {
-          key: '/admin/materials',
+          key: '/admin/materials/restock',
           icon: <InboxOutlined style={{ fontSize: 16, color: '#fa8c16' }} />,
           label: <span style={{ fontSize: 13 }}>物品补货</span>,
         },
       ],
     },
     {
-      key: '/my-requisitions',
+      key: '/admin/approvals',
       icon: <HistoryOutlined style={{ fontSize: 18, color: '#722ed1' }} />,
-      label: <span style={{ fontSize: 14, fontWeight: 500 }}>申请记录</span>,
+      label: <span style={{ fontSize: 14, fontWeight: 500 }}>审批管理</span>,
     },
     {
       key: '/admin/users',

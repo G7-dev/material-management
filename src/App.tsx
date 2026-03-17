@@ -108,6 +108,8 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="approvals" element={<Approvals />} />
         <Route path="materials" element={<MaterialManagement />} />
+        <Route path="materials/add" element={<MaterialManagement />} />
+        <Route path="materials/restock" element={<MaterialManagement />} />
         <Route path="users" element={<UserManagement />} />
       </Route>
 
