@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Table, Tag, Typography, Space, Button, message } from 'antd'
-import { EyeOutlined } from '@ant-design/icons'
+import { Card, Table, Tag, Typography, Space, message } from 'antd'
 import { supabase } from '../lib/supabase'
 import type { Requisition } from '../lib/supabase'
 import { isAdmin } from '../lib/auth'
@@ -109,15 +108,16 @@ export default function MyRequisitions() {
     {
       title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>序号</div>,
       key: 'index',
-      width: 60,
+      width: 80,
       align: 'center' as const,
       render: (_: any, __: Requisition, index: number) => (
         <Text strong style={{ color: '#1890ff', fontSize: 14 }}>{index + 1}</Text>
       ),
     },
     {
-      title: <span style={{ fontSize: 16, fontWeight: 600 }}>物品名称</span>,
+      title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>物品名称</div>,
       key: 'material_name',
+      align: 'center' as const,
       render: (_: any, record: Requisition) => (
         <Text style={{ fontSize: 15, fontWeight: 500 }}>
           {formatMaterialInfo(record)}
@@ -125,9 +125,10 @@ export default function MyRequisitions() {
       ),
     },
     {
-      title: <span style={{ fontSize: 16, fontWeight: 600 }}>数量</span>,
+      title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>数量</div>,
       key: 'quantity',
       width: 90,
+      align: 'center' as const,
       render: (_: any, record: Requisition) => (
         <Text style={{ fontSize: 15, color: '#262626' }}>
           {formatQuantity(record)}
@@ -135,9 +136,10 @@ export default function MyRequisitions() {
       ),
     },
     {
-      title: <span style={{ fontSize: 16, fontWeight: 600 }}>用途</span>,
+      title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>用途</div>,
       dataIndex: 'purpose',
       key: 'purpose',
+      align: 'center' as const,
       render: (purpose: string) => (
         <Text style={{ fontSize: 15 }}>
           {purpose || '-'}
@@ -145,10 +147,11 @@ export default function MyRequisitions() {
       ),
     },
     {
-      title: <span style={{ fontSize: 16, fontWeight: 600 }}>申请日期</span>,
+      title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>申请日期</div>,
       dataIndex: 'created_at',
       key: 'created_at',
       width: 140,
+      align: 'center' as const,
       render: (date: string) => (
         <Text style={{ fontSize: 14, color: '#6b7280' }}>
           {date ? new Date(date).toLocaleString('zh-CN') : '-'}
@@ -156,8 +159,9 @@ export default function MyRequisitions() {
       ),
     },
     {
-      title: <span style={{ fontSize: 16, fontWeight: 600 }}>申请类型</span>,
+      title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>申请类型</div>,
       key: 'type',
+      align: 'center' as const,
       render: (_: any, record: Requisition) => (
         record.requisition_type === 'daily_request' ? (
           <Tag color="blue" style={{ fontSize: 13, fontWeight: 500 }}>日常申领</Tag>
@@ -172,31 +176,6 @@ export default function MyRequisitions() {
       key: 'status',
       align: 'center' as const,
       render: (status: string) => getStatusTag(status),
-    },
-    {
-      title: <span style={{ fontSize: 16, fontWeight: 600 }}>操作</span>,
-      key: 'action',
-      render: (_: any, record: Requisition) => (
-        <Space>
-          <Button
-            type="text"
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/my-requisitions/${record.id}`)}
-            style={{ fontSize: 14 }}
-          >
-            查看详情
-          </Button>
-          {isAdminUser && record.status === 'pending' && (
-            <Button
-              type="primary"
-              onClick={() => navigate(`/admin/approvals`, { state: { requisitionId: record.id } })}
-              style={{ fontSize: 14 }}
-            >
-              审批
-            </Button>
-          )}
-        </Space>
-      ),
     },
   ]
 

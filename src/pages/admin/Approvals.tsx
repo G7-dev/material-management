@@ -262,8 +262,10 @@ export default function Approvals() {
     },
     {
       title: '申请日期',
+      dataIndex: 'created_at',
       key: 'created_at',
       width: 140,
+      align: 'center' as const,
       render: (date: string) => (
         <Space direction="vertical" size={0}>
           <Text>{date ? new Date(date).toLocaleDateString('zh-CN') : '-'}</Text>
