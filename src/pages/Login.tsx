@@ -32,10 +32,10 @@ export default function Login() {
   /**
    * 处理登录
    */
-  const handleLogin = async (values: { email: string; password: string }) => {
+  const handleLogin = async (values: { identifier: string; password: string }) => {
     setLoading(true)
     try {
-      await signIn(values.email, values.password)
+      await signIn(values.identifier, values.password)
       message.success('登录成功')
       
       // 获取用户信息,根据角色跳转到不同页面
@@ -237,7 +237,7 @@ function LoginForm({ form, loading, onFinish }: {
       size="large"
     >
       <Form.Item
-        name="email"
+        name="identifier"
         label="邮箱/用户名"
         rules={[
           { required: true, message: '请输入邮箱或用户名' },
