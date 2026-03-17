@@ -9,6 +9,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Materials from './pages/Materials'
 import MyRequisitions from './pages/MyRequisitions'
+import PurchaseRequest from './pages/PurchaseRequest'
 import AdminLayout from './components/AdminLayout'
 import EmployeeLayout from './components/EmployeeLayout'
 import Approvals from './pages/admin/Approvals'
@@ -91,6 +92,7 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="materials" element={<Materials />} />
+        <Route path="purchase-request" element={<PurchaseRequest />} />
         <Route path="my-requisitions" element={<MyRequisitions />} />
       </Route>
 

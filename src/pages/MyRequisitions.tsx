@@ -1,37 +1,38 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { Card, Table, Tag, Modal, Form, Input, Select, Button, Space, message } from 'antd'
-import { PlusOutlined, ShoppingOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
+import { Card, Table, Tag, Typography, Space, Button, message } from 'antd'
+import { EyeOutlined } from '@ant-design/icons'
 import { supabase } from '../lib/supabase'
-import type { Requisition, Material } from '../lib/supabase'
+import type { Requisition } from '../lib/supabase'
+import { isAdmin } from '../lib/auth'
+
+const { Title, Text } = Typography
 
 /**
- * 我的申领记录页面
+ * 申请记录页面
+ * 所有人可查看,管理员可以在此审批
  */
 export default function MyRequisitions() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const [form] = Form.useForm()
-
   const [requisitions, setRequisitions] = useState<Requisition[]>([])
-  const [materials, setMaterials] = useState<Material[]>([])
   const [loading, setLoading] = useState(false)
-  const [modalVisible, setModalVisible] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+  const [isAdminUser, setIsAdminUser] = useState(false)
 
   useEffect(() => {
     fetchRequisitions()
-    fetchMaterials()
-
-    // 如果从物资页面跳转过来,自动打开申领模态框
-    if (location.state?.materialId) {
-      form.setFieldsValue({ type: 'daily', material_id: location.state.materialId })
-      setModalVisible(true)
-    }
-  }, [location.state])
+    checkAdmin()
+  }, [])
 
   /**
-   * 获取我的申领记录
+   * 检查是否为管理员
+   */
+  async function checkAdmin() {
+    const admin = await isAdmin()
+    setIsAdminUser(admin)
+  }
+
+  /**
+   * 获取申领/申购记录
    */
   async function fetchRequisitions() {
     setLoading(true)
@@ -44,102 +45,26 @@ export default function MyRequisitions() {
         return
       }
 
-      const { data, error } = await supabase
+      // 如果是管理员,查看所有记录;否则只查看自己的
+      let query = supabase
         .from('requisitions')
-        .select('*')
-        .eq('user_id', user.id)
+        .select('*, profiles:user_id(full_name, email)')
         .order('created_at', { ascending: false })
+
+      if (!isAdminUser) {
+        query = query.eq('user_id', user.id)
+      }
+
+      const { data, error } = await query
 
       if (error) throw error
 
       setRequisitions(data || [])
     } catch (error) {
-      console.error('获取申领记录失败:', error)
-      message.error('获取申领记录失败')
+      console.error('获取记录失败:', error)
+      message.error('获取记录失败')
     } finally {
       setLoading(false)
-    }
-  }
-
-  /**
-   * 获取物资列表
-   */
-  async function fetchMaterials() {
-    try {
-      const { data, error } = await supabase
-        .from('materials')
-        .select('*')
-        .eq('status', 'active')
-        .order('name', { ascending: true })
-
-      if (error) throw error
-
-      setMaterials(data || [])
-    } catch (error) {
-      console.error('获取物资列表失败:', error)
-    }
-  }
-
-  /**
-   * 提交申领
-   */
-  async function handleSubmit(values: any) {
-    setSubmitting(true)
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        message.error('请先登录')
-        return
-      }
-
-      // 日常申领
-      if (values.type === 'daily') {
-        const { error } = await supabase
-          .from('requisitions')
-          .insert({
-            user_id: user.id,
-            requisition_type: 'daily_request',
-            material_id: values.material_id,
-            request_quantity: values.quantity,
-            purpose: values.purpose,
-            status: 'pending'
-          })
-
-        if (error) throw error
-
-        message.success('申领提交成功,等待审批')
-      }
-      // 申购
-      else if (values.type === 'purchase') {
-        const { error } = await supabase
-          .from('requisitions')
-          .insert({
-            user_id: user.id,
-            requisition_type: 'purchase_request',
-            purchase_name: values.purchase_name,
-            purchase_specification: values.purchase_specification,
-            purchase_model: values.purchase_model,
-            purchase_unit: values.purchase_unit,
-            purchase_quantity: values.quantity,
-            purchase_reason: values.purchase_reason,
-            purpose: values.purpose,
-            status: 'pending'
-          })
-
-        if (error) throw error
-
-        message.success('申购提交成功,等待审批')
-      }
-
-      setModalVisible(false)
-      form.resetFields()
-      fetchRequisitions()
-    } catch (error) {
-      console.error('提交失败:', error)
-      message.error('提交失败,请重试')
-    } finally {
-      setSubmitting(false)
     }
   }
 
@@ -148,234 +73,146 @@ export default function MyRequisitions() {
    */
   const getStatusTag = (status: string) => {
     const statusMap: Record<string, { text: string; color: string }> = {
-      pending: { text: '待审批', color: 'processing' },
+      pending: { text: '待审批', color: 'warning' },
       approved: { text: '已通过', color: 'success' },
       rejected: { text: '已驳回', color: 'error' },
       completed: { text: '已完成', color: 'success' },
       cancelled: { text: '已取消', color: 'default' }
     }
     const { text, color } = statusMap[status] || { text: status, color: 'default' }
-    return <Tag color={color}>{text}</Tag>
+    return <Tag color={color} style={{ fontSize: 14, padding: '4px 12px' }}>{text}</Tag>
   }
 
   /**
-   * 表格列定义
+   * 获取类型标签
    */
+  const getTypeTag = (type: string) => {
+    return type === 'daily_request' ? '日常申领' : '物品申购'
+  }
+
+  /**
+   * 格式化物品信息
+   */
+  const formatMaterialInfo = (record: Requisition) => {
+    if (record.requisition_type === 'daily_request') {
+      return record.material_id ? `物资ID: ${record.material_id}` : '未知物资'
+    } else {
+      return record.purchase_name || '申购物品'
+    }
+  }
+
+  /**
+   * 格式化数量
+   */
+  const formatQuantity = (record: Requisition) => {
+    if (record.requisition_type === 'daily_request') {
+      return `${record.request_quantity || 0} 个`
+    } else {
+      return `${record.purchase_quantity || 0} ${record.purchase_unit || '个'}`
+    }
+  }
+
   const columns = [
     {
-      title: '类型',
+      title: <span style={{ fontSize: 16, fontWeight: 600 }}>申请类型</span>,
       key: 'type',
       render: (_: any, record: Requisition) => (
-        record.requisition_type === 'daily_request' ? '日常申领' : '申购'
+        <Text style={{ fontSize: 15 }}>{getTypeTag(record.requisition_type)}</Text>
       ),
     },
     {
-      title: '物资信息',
+      title: <span style={{ fontSize: 16, fontWeight: 600 }}>物品信息</span>,
       key: 'material',
-      render: (_: any, record: Requisition) => {
-        if (record.requisition_type === 'daily_request') {
-          return `${record.material_id} - ${record.request_quantity}个`
-        } else {
-          return `${record.purchase_name} - ${record.purchase_quantity}个`
-        }
-      },
+      render: (_: any, record: Requisition) => (
+        <div>
+          <Text style={{ fontSize: 15, fontWeight: 500 }}>
+            {formatMaterialInfo(record)}
+          </Text>
+          <div style={{ fontSize: 13, color: '#6b7280' }}>
+            数量: {formatQuantity(record)}
+          </div>
+        </div>
+      ),
     },
     {
-      title: '用途',
+      title: <span style={{ fontSize: 16, fontWeight: 600 }}>用途</span>,
       dataIndex: 'purpose',
       key: 'purpose',
-      render: (purpose: string) => purpose || '-',
+      render: (purpose: string) => (
+        <Text style={{ fontSize: 15 }}>
+          {purpose || '-'}
+        </Text>
+      ),
     },
     {
-      title: '状态',
+      title: <span style={{ fontSize: 16, fontWeight: 600 }}>状态</span>,
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => getStatusTag(status),
     },
     {
-      title: '提交时间',
+      title: <span style={{ fontSize: 16, fontWeight: 600 }}>申请时间</span>,
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (date: string) => new Date(date).toLocaleString('zh-CN'),
+      render: (date: string) => (
+        <Text style={{ fontSize: 14, color: '#6b7280' }}>
+          {new Date(date).toLocaleString('zh-CN')}
+        </Text>
+      ),
+    },
+    {
+      title: <span style={{ fontSize: 16, fontWeight: 600 }}>操作</span>,
+      key: 'action',
+      render: (_: any, record: Requisition) => (
+        <Space>
+          <Button
+            type="text"
+            icon={<EyeOutlined />}
+            onClick={() => navigate(`/my-requisitions/${record.id}`)}
+            style={{ fontSize: 14 }}
+          >
+            查看详情
+          </Button>
+          {isAdminUser && record.status === 'pending' && (
+            <Button
+              type="primary"
+              onClick={() => navigate(`/admin/approvals`, { state: { requisitionId: record.id } })}
+              style={{ fontSize: 14 }}
+            >
+              审批
+            </Button>
+          )}
+        </Space>
+      ),
     },
   ]
 
   return (
     <div>
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>我的申领记录</h2>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setModalVisible(true)}
-        >
-          新建申领
-        </Button>
+      <div style={{ marginBottom: 24 }}>
+        <Title level={2} style={{ fontSize: 28, marginBottom: 8 }}>
+          申请记录
+        </Title>
+        <Text style={{ fontSize: 16, color: '#6b7280' }}>
+          {isAdminUser ? '查看和管理所有申请记录' : '查看您的所有申领和申购记录'}
+        </Text>
       </div>
 
-      <Card>
+      <Card style={{ borderRadius: 12 }}>
         <Table
           columns={columns}
           dataSource={requisitions}
           rowKey="id"
           loading={loading}
-          pagination={{ pageSize: 10 }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => <span style={{ fontSize: 14 }}>共 {total} 条记录</span>,
+          }}
+          style={{ fontSize: 15 }}
         />
       </Card>
-
-      {/* 申领模态框 */}
-      <Modal
-        title={
-          <span>
-            <ShoppingOutlined /> 物资申领
-          </span>
-        }
-        open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        footer={null}
-        width={600}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          initialValues={{ type: 'daily' }}
-        >
-          <Form.Item
-            name="type"
-            label="申领类型"
-            rules={[{ required: true, message: '请选择申领类型' }]}
-          >
-            <Select
-              options={[
-                { label: '日常申领', value: 'daily' },
-                { label: '申购', value: 'purchase' }
-              ]}
-            onChange={() => {
-              form.setFieldsValue({
-                material_id: undefined,
-                purchase_name: undefined,
-                purchase_specification: undefined,
-                purchase_model: undefined,
-                purchase_unit: undefined,
-                quantity: undefined
-              })
-            }}
-            />
-          </Form.Item>
-
-          {/* 日常申领表单 */}
-          <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.type !== currentValues.type}>
-            {({ getFieldValue }) =>
-              getFieldValue('type') === 'daily' ? (
-                <>
-                  <Form.Item
-                    name="material_id"
-                    label="选择物资"
-                    rules={[{ required: true, message: '请选择物资' }]}
-                  >
-                    <Select
-                      placeholder="请选择物资"
-                      showSearch
-                      filterOption={(input, option) =>
-                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                      }
-                      options={materials.map(m => ({
-                        label: `${m.name} (${m.category}) - 库存: ${m.stock}${m.unit}`,
-                        value: m.id
-                      }))}
-                    />
-                  </Form.Item>
-
-                  <Form.Item
-                    name="quantity"
-                    label="申领数量"
-                    rules={[
-                      { required: true, message: '请输入申领数量' },
-                      { type: 'number', min: 1, message: '数量必须大于0' }
-                    ]}
-                  >
-                    <Input type="number" placeholder="请输入申领数量" />
-                  </Form.Item>
-                </>
-              ) : null
-            }
-          </Form.Item>
-
-          {/* 申购表单 */}
-          <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.type !== currentValues.type}>
-            {({ getFieldValue }) =>
-              getFieldValue('type') === 'purchase' ? (
-                <>
-                  <Form.Item
-                    name="purchase_name"
-                    label="物品名称"
-                    rules={[{ required: true, message: '请输入物品名称' }]}
-                  >
-                    <Input placeholder="请输入物品名称" />
-                  </Form.Item>
-
-                  <Form.Item name="purchase_specification" label="规格">
-                    <Input placeholder="请输入规格" />
-                  </Form.Item>
-
-                  <Form.Item name="purchase_model" label="型号">
-                    <Input placeholder="请输入型号" />
-                  </Form.Item>
-
-                  <Form.Item name="purchase_unit" label="单位">
-                    <Input placeholder="如:个、箱、件" />
-                  </Form.Item>
-
-                  <Form.Item
-                    name="quantity"
-                    label="申购数量"
-                    rules={[
-                      { required: true, message: '请输入申购数量' },
-                      { type: 'number', min: 1, message: '数量必须大于0' }
-                    ]}
-                  >
-                    <Input type="number" placeholder="请输入申购数量" />
-                  </Form.Item>
-
-                  <Form.Item
-                    name="purchase_reason"
-                    label="申购理由"
-                    rules={[{ required: true, message: '请输入申购理由' }]}
-                  >
-                    <Input.TextArea
-                      rows={3}
-                      placeholder="请说明申购理由"
-                    />
-                  </Form.Item>
-                </>
-              ) : null
-            }
-          </Form.Item>
-
-          <Form.Item
-            name="purpose"
-            label="用途说明"
-            rules={[{ required: true, message: '请输入用途说明' }]}
-          >
-            <Input.TextArea
-              rows={3}
-              placeholder="请说明物资用途"
-            />
-          </Form.Item>
-
-          <Form.Item>
-            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <Button onClick={() => setModalVisible(false)}>
-                取消
-              </Button>
-              <Button type="primary" htmlType="submit" loading={submitting}>
-                提交
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   )
 }
