@@ -37,6 +37,7 @@ export interface Profile {
   role: UserRole
   department: string | null
   phone: string | null
+  username: string | null
   created_at: string
   updated_at: string
 }

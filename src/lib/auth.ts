@@ -3,14 +3,35 @@ import type { Profile } from './supabase'
 
 /**
  * 用户认证相关函数
+ * 支持邮箱或用户名登录
  */
 
 /**
  * 用户登录
- * @param email 邮箱
+ * @param identifier 邮箱或用户名
  * @param password 密码
  */
-export async function signIn(email: string, password: string) {
+export async function signIn(identifier: string, password: string) {
+  // 检查输入的是邮箱还是用户名
+  const isEmail = identifier.includes('@')
+  
+  let email = identifier
+  
+  // 如果是用户名,查找对应的邮箱
+  if (!isEmail) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('username', identifier)
+      .single()
+    
+    if (!profile?.email) {
+      throw new Error('用户名不存在')
+    }
+    
+    email = profile.email
+  }
+  
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -28,8 +49,9 @@ export async function signIn(email: string, password: string) {
  * @param email 邮箱
  * @param password 密码
  * @param fullName 姓名
+ * @param username 用户名(可选)
  */
-export async function signUp(email: string, password: string, fullName?: string) {
+export async function signUp(email: string, password: string, fullName?: string, username?: string) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -37,6 +59,7 @@ export async function signUp(email: string, password: string, fullName?: string)
       data: {
         full_name: fullName || '',
         role: 'employee', // 默认角色为员工
+        username: username || null,
       },
     },
   })
