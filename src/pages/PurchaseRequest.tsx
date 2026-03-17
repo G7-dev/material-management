@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Form, Input, InputNumber, Button, message, Typography, Row, Col, DatePicker, Select, Divider, Badge, Tag, Space } from 'antd'
-import { PlusOutlined, ShoppingOutlined, InboxOutlined, TagsOutlined, CalendarOutlined, TeamOutlined, HistoryOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { PlusOutlined, ShoppingOutlined, InboxOutlined, TagsOutlined, TeamOutlined, HistoryOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { supabase } from '../lib/supabase'
 import type { Material } from '../lib/supabase'
 import dayjs from 'dayjs'

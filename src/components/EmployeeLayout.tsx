@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { Layout, Menu, Button, Typography, Badge, Tag, Divider } from 'antd'
+import { Layout, Menu, Button, Typography, Badge, Tag } from 'antd'
 import {
   DashboardOutlined,
   ShoppingOutlined,
@@ -9,14 +9,7 @@ import {
   AppstoreOutlined,
   PlusOutlined,
   ContainerOutlined,
-  ShoppingCartOutlined,
-  CalendarOutlined,
-  InboxOutlined,
-  TagsOutlined,
-  UserAddOutlined,
-  BarChartOutlined,
   BellOutlined,
-  SettingOutlined,
 } from '@ant-design/icons'
 import { signOut } from '../lib/auth'
 import { useState, useEffect } from 'react'
