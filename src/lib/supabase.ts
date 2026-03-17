@@ -93,6 +93,9 @@ export interface Requisition {
   // 日常申领相关
   material_id: string | null
   request_quantity: number | null
+  
+  // 兼容字段（与request_quantity相同）
+  quantity: number | null
 
   // 申购相关
   purchase_name: string | null
@@ -106,6 +109,16 @@ export interface Requisition {
   urgent: boolean
   created_at: string
   updated_at: string
+  
+  // 关联查询字段
+  materials?: {
+    name: string
+    category: string
+  } | null
+  profiles?: {
+    full_name: string
+    email: string
+  } | null
 }
 
 // 审批结果
