@@ -86,7 +86,7 @@ export default function Dashboard() {
         .eq('status', 'pending')
 
       // 获取库存预警信息
-      const { data: lowStockData, error: lowStockError } = await supabase
+      const { data: lowStockData } = await supabase
         .from('materials')
         .select('name, stock')
         .lt('stock', 10)
