@@ -81,9 +81,12 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
  */
 function App() {
   return (
-    <div className="cyber-background">
-      {/* 主要内容 */}
-      <div style={{ position: 'relative', zIndex: 100 }}>
+    <div style={{ position: 'relative', minHeight: '100vh' }}>
+      {/* 背景层 - 确保在内容层之下 */}
+      <div className="cyber-background" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: -1 }} />
+      
+      {/* 主要内容层 */}
+      <div style={{ position: 'relative', zIndex: 1 }}>
         <Routes>
           {/* 公开路由 */}
           <Route path="/login" element={<Login />} />
