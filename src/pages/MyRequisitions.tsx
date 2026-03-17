@@ -84,13 +84,6 @@ export default function MyRequisitions() {
   }
 
   /**
-   * 获取类型标签
-   */
-  const getTypeTag = (type: string) => {
-    return type === 'daily_request' ? '日常申领' : '物品申购'
-  }
-
-  /**
    * 格式化物品信息
    */
   const formatMaterialInfo = (record: Requisition) => {
@@ -114,24 +107,31 @@ export default function MyRequisitions() {
 
   const columns = [
     {
-      title: <span style={{ fontSize: 16, fontWeight: 600 }}>申请类型</span>,
-      key: 'type',
-      render: (_: any, record: Requisition) => (
-        <Text style={{ fontSize: 15 }}>{getTypeTag(record.requisition_type)}</Text>
+      title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>序号</div>,
+      key: 'index',
+      width: 60,
+      align: 'center' as const,
+      render: (_: any, __: Requisition, index: number) => (
+        <Text strong style={{ color: '#1890ff', fontSize: 14 }}>{index + 1}</Text>
       ),
     },
     {
-      title: <span style={{ fontSize: 16, fontWeight: 600 }}>物品信息</span>,
-      key: 'material',
+      title: <span style={{ fontSize: 16, fontWeight: 600 }}>物品名称</span>,
+      key: 'material_name',
       render: (_: any, record: Requisition) => (
-        <div>
-          <Text style={{ fontSize: 15, fontWeight: 500 }}>
-            {formatMaterialInfo(record)}
-          </Text>
-          <div style={{ fontSize: 13, color: '#6b7280' }}>
-            数量: {formatQuantity(record)}
-          </div>
-        </div>
+        <Text style={{ fontSize: 15, fontWeight: 500 }}>
+          {formatMaterialInfo(record)}
+        </Text>
+      ),
+    },
+    {
+      title: <span style={{ fontSize: 16, fontWeight: 600 }}>数量</span>,
+      key: 'quantity',
+      width: 90,
+      render: (_: any, record: Requisition) => (
+        <Text style={{ fontSize: 15, color: '#262626' }}>
+          {formatQuantity(record)}
+        </Text>
       ),
     },
     {
@@ -145,20 +145,33 @@ export default function MyRequisitions() {
       ),
     },
     {
-      title: <span style={{ fontSize: 16, fontWeight: 600 }}>状态</span>,
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => getStatusTag(status),
-    },
-    {
-      title: <span style={{ fontSize: 16, fontWeight: 600 }}>申请时间</span>,
+      title: <span style={{ fontSize: 16, fontWeight: 600 }}>申请日期</span>,
       dataIndex: 'created_at',
       key: 'created_at',
+      width: 140,
       render: (date: string) => (
         <Text style={{ fontSize: 14, color: '#6b7280' }}>
-          {new Date(date).toLocaleString('zh-CN')}
+          {date ? new Date(date).toLocaleString('zh-CN') : '-'}
         </Text>
       ),
+    },
+    {
+      title: <span style={{ fontSize: 16, fontWeight: 600 }}>申请类型</span>,
+      key: 'type',
+      render: (_: any, record: Requisition) => (
+        record.requisition_type === 'daily_request' ? (
+          <Tag color="blue" style={{ fontSize: 13, fontWeight: 500 }}>日常申领</Tag>
+        ) : (
+          <Tag color="orange" style={{ fontSize: 13, fontWeight: 600 }}>物品申购</Tag>
+        )
+      ),
+    },
+    {
+      title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>状态</div>,
+      dataIndex: 'status',
+      key: 'status',
+      align: 'center' as const,
+      render: (status: string) => getStatusTag(status),
     },
     {
       title: <span style={{ fontSize: 16, fontWeight: 600 }}>操作</span>,
@@ -188,16 +201,40 @@ export default function MyRequisitions() {
   ]
 
   return (
-    <div>
+    <div style={{ padding: '24px 32px', background: '#f5f7fa', minHeight: '100%' }}>
+      {/* 页面标题 */}
       <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ fontSize: 28, marginBottom: 8 }}>
+        <Title level={3} style={{ fontSize: 24, marginBottom: 8, fontWeight: 600 }}>
           申请记录
         </Title>
-        <Text style={{ fontSize: 16, color: '#6b7280' }}>
+        <Text style={{ fontSize: 14, color: '#6b7280' }}>
           {isAdminUser ? '查看和管理所有申请记录' : '查看您的所有申领和申购记录'}
         </Text>
       </div>
 
+      {/* 统计卡片 */}
+      <Card style={{ marginBottom: 24, borderRadius: 8 }} bodyStyle={{ padding: '16px' }}>
+        <Space size={40}>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12 }}>总申请数</Text>
+            <Title level={4} style={{ margin: 0, fontSize: 20, color: '#1890ff' }}>{requisitions.length}</Title>
+          </div>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12 }}>待审批</Text>
+            <Title level={4} style={{ margin: 0, fontSize: 20, color: '#faad14' }}>
+              {requisitions.filter(r => r.status === 'pending').length}
+            </Title>
+          </div>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12 }}>已通过</Text>
+            <Title level={4} style={{ margin: 0, fontSize: 20, color: '#52c41a' }}>
+              {requisitions.filter(r => r.status === 'approved' || r.status === 'completed').length}
+            </Title>
+          </div>
+        </Space>
+      </Card>
+
+      {/* 申请列表 */}
       <Card style={{ borderRadius: 12 }}>
         <Table
           columns={columns}

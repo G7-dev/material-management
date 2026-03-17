@@ -266,10 +266,12 @@ export default function Approvals() {
       width: 140,
       render: (date: string) => (
         <Space direction="vertical" size={0}>
-          <Text>{new Date(date).toLocaleDateString('zh-CN')}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {new Date(date).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-          </Text>
+          <Text>{date ? new Date(date).toLocaleDateString('zh-CN') : '-'}</Text>
+          {date && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {new Date(date).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          )}
         </Space>
       ),
     },
@@ -470,7 +472,7 @@ export default function Approvals() {
       </Descriptions.Item>
               <Descriptions.Item label={<Space><CalendarOutlined />申请日期</Space>}>
                 <Text>
-                  {currentRequisition && new Date(currentRequisition.created_at).toLocaleDateString('zh-CN')}
+                  {currentRequisition?.created_at ? new Date(currentRequisition.created_at).toLocaleDateString('zh-CN') : '-'}
                 </Text>
               </Descriptions.Item>
               <Descriptions.Item label={<Space><AlertOutlined />申请类型</Space>} span={2}>
@@ -495,7 +497,7 @@ export default function Approvals() {
               {currentRequisition?.requisition_type === 'purchase_request' && (
                 <Descriptions.Item label="期望到货日期">
                   <Tag color="orange">
-                    {currentRequisition.estimated_delivery_date 
+                    {currentRequisition?.estimated_delivery_date 
                       ? new Date(currentRequisition.estimated_delivery_date).toLocaleDateString('zh-CN')
                       : '未指定'}
                   </Tag>

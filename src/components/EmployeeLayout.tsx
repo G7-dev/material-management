@@ -97,7 +97,21 @@ export default function EmployeeLayout() {
     {
       key: '/my-requisitions',
       icon: <HistoryOutlined style={{ fontSize: 20, color: '#722ed1' }} />,
-      label: <span style={{ fontSize: 15, fontWeight: 500 }}>申请记录</span>,
+      label: (
+        <span style={{ fontSize: 15, fontWeight: 500, display: 'flex', alignItems: 'center' }}>
+          申请记录
+          {stats.pendingCount > 0 && (
+            <Badge 
+              count={stats.pendingCount} 
+              style={{ 
+                backgroundColor: '#ff4d4f', 
+                marginLeft: 8,
+                boxShadow: '0 0 0 2px #fff'
+              }} 
+            />
+          )}
+        </span>
+      ),
     },
   ]
 
