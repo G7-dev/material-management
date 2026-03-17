@@ -7,8 +7,8 @@ import {
   UserOutlined,
   LogoutOutlined,
   AppstoreOutlined,
-  PlusOutlined,
-  SyncOutlined,
+  ShoppingOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons'
 import { signOut } from '../lib/auth'
 

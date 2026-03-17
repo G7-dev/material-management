@@ -7,7 +7,6 @@ import {
   UserOutlined,
   LogoutOutlined,
   AppstoreOutlined,
-  FormOutlined,
 } from '@ant-design/icons'
 import { signOut } from '../lib/auth'
 

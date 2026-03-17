@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Form, Input, InputNumber, Button, Space, message, Typography } from 'antd'
+import { Card, Form, Input, InputNumber, Button, message, Typography } from 'antd'
 import { PlusOutlined, ShoppingOutlined } from '@ant-design/icons'
 import { supabase } from '../lib/supabase'
 
