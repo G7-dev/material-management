@@ -1,4 +1,4 @@
-import { Row, Col, Card, Statistic, Typography, Badge, Progress, Tag, Timeline } from 'antd'
+import { Row, Col, Card, Statistic, Typography, Badge, Progress, Tag, Timeline, Button } from 'antd'
 import {
   ShoppingOutlined,
   FileTextOutlined,
@@ -10,6 +10,9 @@ import {
   BarChartOutlined,
   CalendarOutlined,
   TeamOutlined,
+  PlusOutlined,
+  FileSearchOutlined,
+  BellOutlined,
 } from '@ant-design/icons'
 import { useEffect, useState } from 'react'
 
@@ -20,7 +23,7 @@ const { Title, Text } = Typography
  * 特点: 多图表、色彩丰富、信息密度高
  */
 export default function Dashboard() {
-  const [stats, setStats] = useState({
+  const [stats] = useState({
     totalMaterials: 5,
     totalRequisitions: 0,
     approvedRequisitions: 0,

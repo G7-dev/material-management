@@ -2,7 +2,6 @@ import { Layout, Menu, Button, Typography, Badge, Avatar, Tag } from 'antd'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   DashboardOutlined,
-  CheckSquareOutlined,
   InboxOutlined,
   UserOutlined,
   LogoutOutlined,
@@ -10,7 +9,6 @@ import {
   ShoppingOutlined,
   HistoryOutlined,
   PlusOutlined,
-  FileSearchOutlined,
   WarningOutlined,
   BellOutlined,
 } from '@ant-design/icons'
