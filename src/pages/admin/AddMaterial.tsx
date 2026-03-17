@@ -144,21 +144,34 @@ export default function AddMaterial() {
   }
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ 
+      padding: '40px 24px', 
+      display: 'flex', 
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+      minHeight: 'calc(100vh - 64px)'
+    }}>
       <Card
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <PlusOutlined style={{ color: '#667eea', fontSize: 24 }} />
-            <Title level={3} style={{ margin: 0, color: '#1f2937' }}>物品上架（Cloudinary）</Title>
+            <Title level={3} style={{ margin: 0, color: '#1f2937' }}>物品上架</Title>
+            <Tag color="blue" style={{ marginLeft: 'auto' }}>Cloudinary存储</Tag>
           </div>
         }
-        style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+        style={{ 
+          borderRadius: 16, 
+          boxShadow: '0 8px 32px rgba(102, 126, 234, 0.2)',
+          width: '100%',
+          maxWidth: 900,
+          border: '1px solid rgba(102, 126, 234, 0.1)'
+        }}
+        bodyStyle={{ padding: '32px 48px' }}
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
-          style={{ maxWidth: 800 }}
         >
           {/* 图片上传 - Cloudinary */}
           <Form.Item

@@ -201,8 +201,8 @@ export default function Approvals() {
   ]
 
   return (
-    <div>
-      <h2 style={{ marginBottom: 24 }}>审批管理</h2>
+    <div style={{ padding: '24px 32px' }}>
+      <h2 style={{ marginBottom: 24, marginTop: 24 }}>审批管理</h2>
 
       <Tabs
         activeKey={activeTab}

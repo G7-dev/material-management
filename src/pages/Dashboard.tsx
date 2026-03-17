@@ -109,73 +109,105 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={{ padding: 0 }}>
-      {/* 顶部统计卡片 - 大厂风格 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+    <div style={{ padding: '32px', background: 'linear-gradient(135deg, #f5f7fa 0%, #e4e7f1 100%)', minHeight: 'calc(100vh - 64px)' }}>
+      {/* 顶部统计卡片 - 优化后的统一风格 */}
+      <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
         <Col xs={24} sm={12} md={6}>
-          <Card style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-            <Statistic
-              title={<span style={{ fontSize: 14, color: '#8c8c8c' }}>可用物资</span>}
-              value={stats.totalMaterials}
-              prefix={<ShoppingOutlined style={{ color: '#1890ff', fontSize: 24 }} />}
-              valueStyle={{ color: '#1890ff', fontSize: 32, fontWeight: 600 }}
-              suffix={<RiseOutlined style={{ color: '#52c41a', marginLeft: 8 }} />}
-            />
-            <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
-              <Text style={{ fontSize: 12 }}>
-                <Badge status="success" text=" 正常运行" />
-              </Text>
+          <Card style={{ 
+            borderRadius: 12, 
+            boxShadow: '0 6px 20px rgba(24, 144, 255, 0.15)',
+            height: '100%',
+            border: '1px solid rgba(24, 144, 255, 0.1)',
+            overflow: 'hidden'
+          }}>
+            <div style={{ padding: '24px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontSize: 13, color: '#8c8c8c', marginBottom: 4 }}>可用物资</div>
+                  <div style={{ fontSize: 26, color: '#1890ff', fontWeight: 700 }}>{stats.totalMaterials}</div>
+                </div>
+                <ShoppingOutlined style={{ color: '#1890ff', fontSize: 32, opacity: 0.85 }} />
+              </div>
+              <div style={{ paddingTop: 12, borderTop: '1px solid #f0f0f0', display: 'flex', alignItems: 'center' }}>
+                <Badge status="success" />
+                <Text style={{ fontSize: 12, marginLeft: 8 }}>正常运行</Text>
+                <RiseOutlined style={{ color: '#52c41a', marginLeft: 'auto', fontSize: 14 }} />
+              </div>
             </div>
           </Card>
         </Col>
 
         <Col xs={24} sm={12} md={6}>
-          <Card style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-            <Statistic
-              title={<span style={{ fontSize: 14, color: '#8c8c8c' }}>我的申领</span>}
-              value={stats.totalRequisitions}
-              prefix={<FileTextOutlined style={{ color: '#52c41a', fontSize: 24 }} />}
-              valueStyle={{ color: '#52c41a', fontSize: 32, fontWeight: 600 }}
-              suffix={<Text style={{ fontSize: 12, color: '#8c8c8c', marginLeft: 8 }}>件</Text>}
-            />
-            <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
-              <Text style={{ fontSize: 12 }}>
-                <Badge status="processing" text=" 本月申请" />
-              </Text>
+          <Card style={{ 
+            borderRadius: 12, 
+            boxShadow: '0 6px 20px rgba(82, 196, 26, 0.15)',
+            height: '100%',
+            border: '1px solid rgba(82, 196, 26, 0.1)',
+            overflow: 'hidden'
+          }}>
+            <div style={{ padding: '24px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontSize: 13, color: '#8c8c8c', marginBottom: 4 }}>我的申领</div>
+                  <div style={{ fontSize: 26, color: '#52c41a', fontWeight: 700 }}>{stats.totalRequisitions}</div>
+                </div>
+                <FileTextOutlined style={{ color: '#52c41a', fontSize: 32, opacity: 0.85 }} />
+              </div>
+              <div style={{ paddingTop: 12, borderTop: '1px solid #f0f0f0', display: 'flex', alignItems: 'center' }}>
+                <Badge status="processing" />
+                <Text style={{ fontSize: 12, marginLeft: 8 }}>本月申请</Text>
+                <Text style={{ fontSize: 12, color: '#8c8c8c', marginLeft: 'auto' }}>件</Text>
+              </div>
             </div>
           </Card>
         </Col>
 
         <Col xs={24} sm={12} md={6}>
-          <Card style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-            <Statistic
-              title={<span style={{ fontSize: 14, color: '#8c8c8c' }}>已通过</span>}
-              value={stats.approvedRequisitions}
-              prefix={<CheckCircleOutlined style={{ color: '#10b981', fontSize: 24 }} />}
-              valueStyle={{ color: '#10b981', fontSize: 32, fontWeight: 600 }}
-              suffix={<CheckCircleOutlined style={{ color: '#10b981', marginLeft: 8 }} />}
-            />
-            <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
-              <Text style={{ fontSize: 12 }}>
-                <Badge status="success" text=" 审批完成" />
-              </Text>
+          <Card style={{ 
+            borderRadius: 12, 
+            boxShadow: '0 6px 20px rgba(16, 185, 129, 0.15)',
+            height: '100%',
+            border: '1px solid rgba(16, 185, 129, 0.1)',
+            overflow: 'hidden'
+          }}>
+            <div style={{ padding: '24px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontSize: 13, color: '#8c8c8c', marginBottom: 4 }}>已通过</div>
+                  <div style={{ fontSize: 26, color: '#10b981', fontWeight: 700 }}>{stats.approvedRequisitions}</div>
+                </div>
+                <CheckCircleOutlined style={{ color: '#10b981', fontSize: 32, opacity: 0.85 }} />
+              </div>
+              <div style={{ paddingTop: 12, borderTop: '1px solid #f0f0f0', display: 'flex', alignItems: 'center' }}>
+                <Badge status="success" />
+                <Text style={{ fontSize: 12, marginLeft: 8 }}>审批完成</Text>
+                <CheckCircleOutlined style={{ color: '#10b981', marginLeft: 'auto', fontSize: 14 }} />
+              </div>
             </div>
           </Card>
         </Col>
 
         <Col xs={24} sm={12} md={6}>
-          <Card style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-            <Statistic
-              title={<span style={{ fontSize: 14, color: '#8c8c8c' }}>待审批</span>}
-              value={stats.pendingRequisitions}
-              prefix={<ClockCircleOutlined style={{ color: '#faad14', fontSize: 24 }} />}
-              valueStyle={{ color: '#faad14', fontSize: 32, fontWeight: 600 }}
-              suffix={<AlertOutlined style={{ color: '#faad14', marginLeft: 8 }} />}
-            />
-            <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
-              <Text style={{ fontSize: 12 }}>
-                <Badge status="warning" text=" 需要处理" />
-              </Text>
+          <Card style={{ 
+            borderRadius: 12, 
+            boxShadow: '0 6px 20px rgba(250, 173, 20, 0.15)',
+            height: '100%',
+            border: '1px solid rgba(250, 173, 20, 0.1)',
+            overflow: 'hidden'
+          }}>
+            <div style={{ padding: '24px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontSize: 13, color: '#8c8c8c', marginBottom: 4 }}>待审批</div>
+                  <div style={{ fontSize: 26, color: '#faad14', fontWeight: 700 }}>{stats.pendingRequisitions}</div>
+                </div>
+                <ClockCircleOutlined style={{ color: '#faad14', fontSize: 32, opacity: 0.85 }} />
+              </div>
+              <div style={{ paddingTop: 12, borderTop: '1px solid #f0f0f0', display: 'flex', alignItems: 'center' }}>
+                <Badge status="warning" />
+                <Text style={{ fontSize: 12, marginLeft: 8 }}>需要处理</Text>
+                <AlertOutlined style={{ color: '#faad14', marginLeft: 'auto', fontSize: 14 }} />
+              </div>
             </div>
           </Card>
         </Col>

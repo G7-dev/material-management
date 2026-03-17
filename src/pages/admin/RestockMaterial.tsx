@@ -17,6 +17,7 @@ export default function RestockMaterial() {
   const [restockingMaterial, setRestockingMaterial] = useState<Material | null>(null)
   const [restockQuantity, setRestockQuantity] = useState(10)
   const [restocking, setRestocking] = useState(false)
+  const [showOnlyLowStock, setShowOnlyLowStock] = useState(false)
 
   useEffect(() => {
     fetchMaterials()
@@ -53,6 +54,13 @@ export default function RestockMaterial() {
     if (stock < safeStock) return { color: '#f59e0b', text: '库存不足', type: 'warning' }
     return { color: '#10b981', text: '库存充足', type: 'success' }
   }
+
+  /**
+   * 筛选库存不足的物资
+   */
+  const filteredMaterials = showOnlyLowStock 
+    ? materials.filter(m => m.stock < m.safe_stock)
+    : materials
 
   /**
    * 打开补货弹窗
@@ -263,19 +271,20 @@ export default function RestockMaterial() {
               物品补货
             </Title>
             <Text style={{ fontSize: 16, color: '#6b7280' }}>
-              查看库存状态，快速补充物资
+              {showOnlyLowStock ? '显示库存不足的物资' : '查看库存状态，快速补充物资'}
             </Text>
           </div>
           <Button
             type="primary"
             icon={<AlertOutlined />}
             size="large"
+            onClick={() => setShowOnlyLowStock(!showOnlyLowStock)}
             style={{
-              background: '#faad14',
-              borderColor: '#faad14',
+              background: showOnlyLowStock ? '#52c41a' : '#faad14',
+              borderColor: showOnlyLowStock ? '#52c41a' : '#faad14',
             }}
           >
-            库存预警
+            {showOnlyLowStock ? '显示全部' : '库存预警'}
           </Button>
         </div>
       </div>
@@ -294,7 +303,7 @@ export default function RestockMaterial() {
         </div>
       ) : (
         <Row gutter={[24, 24]}>
-          {materials.map(material => (
+          {filteredMaterials.map(material => (
             <Col key={material.id} xs={24} sm={12} md={8} lg={6} xl={6}>
               <MaterialCard material={material} />
             </Col>

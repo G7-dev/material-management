@@ -1,4 +1,4 @@
-import { Layout, Menu, Button, Typography, Badge, Avatar, Tag } from 'antd'
+import { Layout, Menu, Button, Typography, Badge, Avatar, Tag, message } from 'antd'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   DashboardOutlined,
@@ -69,61 +69,89 @@ export default function AdminLayout() {
     },
   ]
 
-  // 顶部快捷操作
+  // 顶部快捷操作 - 霓虹风格
   const quickActions = [
-    { icon: <BellOutlined />, color: '#1890ff', badge: 3 },
-    { icon: <WarningOutlined />, color: '#fa8c16', badge: 2 },
+    { 
+      icon: <BellOutlined />, 
+      color: '#00f0ff', 
+      badge: 3,
+      onClick: () => message.info('通知功能开发中...')
+    },
+    { 
+      icon: <WarningOutlined />, 
+      color: '#ffaa00', 
+      badge: 2,
+      onClick: () => {
+        message.info('跳转到库存预警...')
+        navigate('/admin/materials/restock')
+      }
+    },
   ]
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      {/* 侧边栏 - 深色主题,更有质感 */}
+    <Layout style={{ minHeight: '100vh', background: 'var(--cyber-darker)' }}>
+      {/* 侧边栏 - 霓虹科技风格 */}
       <Sider
         width={240}
         breakpoint="lg"
         collapsedWidth="0"
-        theme="dark"
         style={{
-          background: '#001529',
-          boxShadow: '2px 0 8px rgba(0, 0, 0, 0.15)',
+          background: 'linear-gradient(180deg, var(--cyber-darker) 0%, #001a33 100%)',
+          boxShadow: '0 0 30px rgba(0, 240, 255, 0.3)',
+          borderRight: '1px solid rgba(0, 240, 255, 0.2)',
         }}
       >
-        {/* Logo 区域 - 更醒目 */}
+        {/* Logo 区域 - 霓虹科技风 */}
         <div style={{
           height: 64,
           display: 'flex',
           alignItems: 'center',
           padding: '0 16px',
-          background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+          background: 'linear-gradient(135deg, var(--cyber-primary) 0%, var(--cyber-purple) 100%)',
+          boxShadow: '0 0 20px rgba(0, 240, 255, 0.5)',
+          position: 'relative',
+          overflow: 'hidden',
         }}>
-          <AppstoreOutlined style={{ fontSize: 28, color: 'white', marginRight: 12 }} />
+          <div className="cyber-flicker">
+            <AppstoreOutlined style={{ fontSize: 28, color: 'var(--cyber-darker)', marginRight: 12 }} />
+          </div>
           <div>
-            <Title level={5} style={{ margin: 0, color: 'white', fontSize: 16, fontWeight: 600 }}>
+            <Title level={5} style={{ margin: 0, color: 'var(--cyber-darker)', fontSize: 16, fontWeight: 700 }}>
               管理后台
             </Title>
-            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
+            <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.7)' }}>
               系统管理中心
             </Text>
           </div>
         </div>
 
-        {/* 管理员信息卡片 */}
+        {/* 管理员信息卡片 - 霓虹风格 */}
         <div style={{ 
           padding: 16, 
-          background: 'rgba(24, 144, 255, 0.1)',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          background: 'rgba(0, 240, 255, 0.05)',
+          borderBottom: '1px solid rgba(0, 240, 255, 0.2)',
+          borderTop: '1px solid rgba(0, 240, 255, 0.2)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <Avatar 
               size={40} 
               icon={<UserOutlined />} 
-              style={{ background: 'linear-gradient(135deg, #1890ff, #096dd9)' }}
+              style={{ 
+                background: 'linear-gradient(135deg, var(--cyber-primary), var(--cyber-purple))',
+                boxShadow: '0 0 15px rgba(0, 240, 255, 0.5)'
+              }}
             />
             <div style={{ flex: 1 }}>
-              <Text style={{ color: 'white', fontSize: 14, fontWeight: 500, display: 'block' }}>
+              <Text style={{ 
+                color: 'var(--cyber-primary)', 
+                fontSize: 14, 
+                fontWeight: 600, 
+                display: 'block',
+                textShadow: '0 0 10px rgba(0, 240, 255, 0.5)'
+              }}>
                 系统管理员
               </Text>
-              <Tag color="gold" style={{ fontSize: 11, marginTop: 4 }}>
+              <Tag className="cyber-tag" style={{ fontSize: 11, marginTop: 4 }}>
                 超级管理员
               </Tag>
             </div>
@@ -233,6 +261,7 @@ export default function AdminLayout() {
                 <Button 
                   type="text" 
                   icon={action.icon} 
+                  onClick={action.onClick}
                   style={{ 
                     fontSize: 18, 
                     color: action.color,
