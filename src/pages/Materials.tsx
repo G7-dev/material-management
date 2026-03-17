@@ -131,7 +131,7 @@ export default function Materials() {
           quantity: values.quantity,
           purpose: values.purpose || '',
           status: 'pending',
-          created_by: user.id,
+          user_id: user.id,  // 修复：user_id 而不是 created_by
           department: values.department,
           employee_id: values.employee_id,
           applicant_name: values.applicant_name,
