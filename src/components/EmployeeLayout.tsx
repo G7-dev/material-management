@@ -29,7 +29,7 @@ export default function EmployeeLayout() {
 
   useEffect(() => {
     fetchStats()
-  }, [])
+  }, [location.pathname])
 
   /**
    * 获取统计信息
@@ -43,14 +43,14 @@ export default function EmployeeLayout() {
       const { count: pendingCount } = await supabase
         .from('requisitions')
         .select('*', { count: 'exact', head: true })
-        .eq('created_by', user.id)
+        .eq('user_id', user.id)
         .eq('status', 'pending')
 
       // 获取总申请数量
       const { count: totalCount } = await supabase
         .from('requisitions')
         .select('*', { count: 'exact', head: true })
-        .eq('created_by', user.id)
+        .eq('user_id', user.id)
 
       setStats({
         pendingCount: pendingCount || 0,

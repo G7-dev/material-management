@@ -108,7 +108,7 @@ export default function MyRequisitions() {
     {
       title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>序号</div>,
       key: 'index',
-      width: 80,
+      width: 40,
       align: 'center' as const,
       render: (_: any, __: Requisition, index: number) => (
         <Text strong style={{ color: '#1890ff', fontSize: 14 }}>{index + 1}</Text>
@@ -117,6 +117,7 @@ export default function MyRequisitions() {
     {
       title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>物品名称</div>,
       key: 'material_name',
+      width: 120,
       align: 'center' as const,
       render: (_: any, record: Requisition) => (
         <Text style={{ fontSize: 15, fontWeight: 500 }}>
@@ -127,7 +128,7 @@ export default function MyRequisitions() {
     {
       title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>数量</div>,
       key: 'quantity',
-      width: 90,
+      width: 80,
       align: 'center' as const,
       render: (_: any, record: Requisition) => (
         <Text style={{ fontSize: 15, color: '#262626' }}>
@@ -139,7 +140,7 @@ export default function MyRequisitions() {
       title: <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 600 }}>用途</div>,
       dataIndex: 'purpose',
       key: 'purpose',
-      width: 180,
+      width: 220,
       align: 'center' as const,
       render: (purpose: string) => (
         <Text style={{ fontSize: 15 }}>
