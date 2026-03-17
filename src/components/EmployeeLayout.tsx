@@ -137,19 +137,20 @@ export default function EmployeeLayout() {
       </Sider>
 
       {/* 主内容区 */}
-      <Layout style={{ marginLeft: 280 }}>
+      <Layout style={{ marginLeft: 0 }}>
         {/* 顶部导航栏 */}
         <Header style={{
           background: 'white',
-          padding: '0 32px',
-          height: 80,
+          padding: '0 24px',
+          height: 70,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+          boxShadow: '0 1px 4px rgba(0, 0, 0, 0.05)',
           position: 'sticky',
           top: 0,
           zIndex: 9,
+          marginLeft: 280,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <Title level={3} style={{ margin: 0, color: '#1f2937', fontSize: 24 }}>
@@ -172,16 +173,21 @@ export default function EmployeeLayout() {
         </Header>
 
         {/* 内容区域 */}
-        <Content style={{
-          margin: '24px 32px',
-          padding: '32px',
-          minHeight: 'calc(100vh - 128px)',
-          background: 'white',
-          borderRadius: 12,
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+        <div style={{
+          marginLeft: 280,
+          padding: '24px',
+          minHeight: 'calc(100vh - 70px)',
         }}>
-          <Outlet />
-        </Content>
+          <Content style={{
+            padding: '24px',
+            minHeight: '100%',
+            background: 'white',
+            borderRadius: 8,
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          }}>
+            <Outlet />
+          </Content>
+        </div>
       </Layout>
     </Layout>
   )

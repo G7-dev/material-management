@@ -193,16 +193,21 @@ export default function AdminLayout() {
         </Header>
 
         {/* 内容区域 */}
-        <Content style={{
-          margin: '24px 32px',
-          padding: '32px',
-          minHeight: 'calc(100vh - 128px)',
-          background: 'white',
-          borderRadius: 12,
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+        <div style={{
+          marginLeft: 280,
+          padding: '24px',
+          minHeight: 'calc(100vh - 70px)',
         }}>
-          <Outlet />
-        </Content>
+          <Content style={{
+            padding: '24px',
+            minHeight: '100%',
+            background: 'white',
+            borderRadius: 8,
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          }}>
+            <Outlet />
+          </Content>
+        </div>
       </Layout>
     </Layout>
   )
