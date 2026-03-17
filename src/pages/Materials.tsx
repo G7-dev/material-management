@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Row, Col, Card, Input, Button, Tag, message, Typography, Badge, Empty } from 'antd'
-import { SearchOutlined, ShoppingCartOutlined, InboxOutlined, TagsOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { SearchOutlined, ShoppingCartOutlined, InboxOutlined, TagsOutlined } from '@ant-design/icons'
 import { supabase } from '../lib/supabase'
 import type { Material } from '../lib/supabase'
 
@@ -78,7 +78,6 @@ export default function Materials() {
    */
   const MaterialCard = ({ material }: { material: Material }) => {
     const stockStatus = getStockStatus(material.stock, material.safe_stock)
-    const isLowStock = material.stock < material.safe_stock
     const isOutOfStock = material.stock <= 0
 
     return (
