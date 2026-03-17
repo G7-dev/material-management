@@ -67,19 +67,19 @@ export default function Dashboard() {
       const { count: requisitionCount } = await supabase
         .from('requisitions')
         .select('*', { count: 'exact', head: true })
-        .eq('created_by', user.id)
+        .eq('user_id', user.id)
 
       // 获取已通过和待审批的申领数
       const { count: approvedCount } = await supabase
         .from('requisitions')
         .select('*', { count: 'exact', head: true })
-        .eq('created_by', user.id)
+        .eq('user_id', user.id)
         .eq('status', 'approved')
 
       const { count: pendingCount } = await supabase
         .from('requisitions')
         .select('*', { count: 'exact', head: true })
-        .eq('created_by', user.id)
+        .eq('user_id', user.id)
         .eq('status', 'pending')
 
       // 获取库存预警信息
