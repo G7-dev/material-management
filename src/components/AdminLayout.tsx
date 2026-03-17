@@ -2,7 +2,6 @@ import { Layout, Menu, Button, Dropdown, Typography } from 'antd'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   DashboardOutlined,
-  CheckSquareOutlined,
   InboxOutlined,
   UserOutlined,
   LogoutOutlined,
