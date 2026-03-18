@@ -56,6 +56,7 @@ export function Sidebar() {
   // Dynamic pending approval count
   const [pendingCount, setPendingCount] = useState(0);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>('当前用户');
 
   useEffect(() => {
     const update = () => {
@@ -67,25 +68,30 @@ export function Sidebar() {
     return () => clearInterval(interval);
   }, []);
 
-  // Get user role
+  // Get user role and name
   useEffect(() => {
-    const getUserRole = async () => {
+    const getUserInfo = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('role')
+            .select('role, full_name, username')
             .eq('id', user.id)
             .single();
+          
           setUserRole(profile?.role || null);
+          
+          // Set user name: full_name > username > '当前用户'
+          const name = profile?.full_name || profile?.username || '当前用户';
+          setUserName(name);
         }
       } catch (error) {
-        console.error('Failed to get user role:', error);
+        console.error('Failed to get user info:', error);
       }
     };
 
-    getUserRole();
+    getUserInfo();
   }, []);
 
   const adminNavItemsDynamic: NavItem[] = [
@@ -121,7 +127,7 @@ export function Sidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-foreground truncate">
-              {isAdmin ? '系统管理员' : '当前用户'}
+              {isAdmin ? '系统管理员' : userName}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />

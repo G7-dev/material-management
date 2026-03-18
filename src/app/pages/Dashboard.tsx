@@ -42,8 +42,49 @@ const CATEGORY_COLOR: Record<string, string> = {
 export function Dashboard() {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const navigate = useNavigate();
+  const [stats, setStats] = useState([
+    { label: '当前领用', value: '0', icon: ShoppingBag, color: 'text-primary', bgColor: 'bg-primary/5', change: '+0%' },
+    { label: '等待申购', value: '0', icon: FileCheck, color: 'text-emerald-600', bgColor: 'bg-emerald-500/5', change: '+0%' },
+    { label: '已通过', value: '0', icon: CheckCircle, color: 'text-purple-600', bgColor: 'bg-purple-500/5', change: '+0%' },
+    { label: '待签收', value: '0', icon: Clock, color: 'text-amber-600', bgColor: 'bg-amber-500/5', change: '+0%' },
+  ]);
   const totalCount = collectionRanking.reduce((s, i) => s + i.count, 0);
   const topItem = collectionRanking[0];
+
+  // 加载实时统计数据
+  useEffect(() => {
+    const loadStats = () => {
+      const records = getApplicationRecords();
+      
+      // 计算各状态数量
+      const pendingCount = records.filter(r => r.status === 'pending').length;
+      const approvedCount = records.filter(r => r.status === 'approved').length;
+      const rejectedCount = records.filter(r => r.status === 'rejected').length;
+      
+      // 计算等待申购（物品申购且待审核）
+      const waitingPurchase = records.filter(r => 
+        r.applicationType === '物品申购' && r.status === 'pending'
+      ).length;
+      
+      // 计算当前领用（日常领用且已通过）
+      const currentCollection = records.filter(r =>
+        r.applicationType === '日常领用' && r.status === 'approved'
+      ).length;
+      
+      // 更新统计数据
+      setStats([
+        { label: '当前领用', value: String(currentCollection), icon: ShoppingBag, color: 'text-primary', bgColor: 'bg-primary/5', change: `+${currentCollection}%` },
+        { label: '等待申购', value: String(waitingPurchase), icon: FileCheck, color: 'text-emerald-600', bgColor: 'bg-emerald-500/5', change: `+${waitingPurchase}%` },
+        { label: '已通过', value: String(approvedCount), icon: CheckCircle, color: 'text-purple-600', bgColor: 'bg-purple-500/5', change: `+${approvedCount}%` },
+        { label: '待签收', value: String(pendingCount), icon: Clock, color: 'text-amber-600', bgColor: 'bg-amber-500/5', change: `+${pendingCount}%` },
+      ]);
+    };
+
+    loadStats();
+    // 每30秒刷新一次数据
+    const interval = setInterval(loadStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="p-8 space-y-8">

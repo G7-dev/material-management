@@ -10,6 +10,7 @@ import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { getStoredItems, updateStoredItemStock, deleteStoredItem, type StoredItem } from '../utils/itemStore';
 import { saveApplicationRecord } from '../utils/applicationStore';
+import { getAllInventoryItems, updateItemStock } from '../data/unifiedInventoryData';
 
 // ── Size / Spec variant ───────────────────────────────────────────────────────
 interface SizeVariant {
@@ -132,19 +133,22 @@ function ApplyModal({
       department,
     });
     
-    // Update inventory stock
-    if (item.id.startsWith('stored_')) {
-      // For stored items, update the stock
-      const currentStock = item.quantity;
-      const newStock = Math.max(0, currentStock - quantity);
+    // Update inventory stock using unified data source
+    try {
+      // Find the item in unified inventory
+      const inventoryItems = getAllInventoryItems();
+      const targetItem = inventoryItems.find(invItem => invItem.name === item.name);
       
-      if (newStock === 0) {
-        // Delete item if stock reaches 0
-        deleteStoredItem(item.id);
-      } else {
-        // Update stock
-        updateStoredItemStock(item.id, newStock);
+      if (targetItem) {
+        // Calculate new stock
+        const currentStock = targetItem.stock;
+        const newStock = Math.max(0, currentStock - quantity);
+        
+        // Update stock in unified data source
+        updateItemStock(targetItem.id, newStock);
       }
+    } catch (error) {
+      console.error('Failed to update inventory stock:', error);
     }
     
     setTimeout(() => {
@@ -561,7 +565,7 @@ export function DailyCollection() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">日常领用</h1>
-                <p className="text-white/70 text-sm mt-0.5">选择您需要的物资进���申领，快速完成审批流程</p>
+                <p className="text-white/70 text-sm mt-0.5">选择您需要的物资进行申领，快速完成审批流程</p>
               </div>
             </div>
           </div>

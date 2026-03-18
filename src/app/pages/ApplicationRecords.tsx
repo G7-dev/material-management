@@ -21,6 +21,12 @@ import {
 export function ApplicationRecords() {
   const [records, setRecords] = useState<ApplicationRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState({
+    applicant: '',
+    itemName: '',
+    applicationType: '',
+    status: ''
+  });
 
   useEffect(() => {
     setRecords(getApplicationRecords());
@@ -31,12 +37,19 @@ export function ApplicationRecords() {
     setRecords(getApplicationRecords());
   };
 
-  const filtered = records.filter(
-    (r) =>
+  const filtered = records.filter((r) => {
+    const matchSearch =
       !searchQuery ||
       r.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.applicationType.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      r.applicationType.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchApplicant = !filters.applicant || r.applicant === filters.applicant;
+    const matchItemName = !filters.itemName || r.itemName.toLowerCase().includes(filters.itemName.toLowerCase());
+    const matchAppType = !filters.applicationType || r.applicationType === filters.applicationType;
+    const matchStatus = !filters.status || r.status === filters.status;
+    
+    return matchSearch && matchApplicant && matchItemName && matchAppType && matchStatus;
+  });
 
   const pendingCount = records.filter((r) => r.status === 'pending').length;
   const approvedCount = records.filter((r) => r.status === 'approved').length;
@@ -86,7 +99,7 @@ export function ApplicationRecords() {
 
       {/* Filters and Search */}
       <Card className="p-5 border-border">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mb-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
@@ -97,10 +110,87 @@ export function ApplicationRecords() {
               className="pl-11 h-11 bg-muted/50 border-border"
             />
           </div>
-          <Button className="gap-2 h-11 px-6 bg-primary hover:bg-primary/90">
+          <Button 
+            className="gap-2 h-11 px-6 bg-primary hover:bg-primary/90"
+            onClick={() => {
+              const panel = document.getElementById('advanced-filters-app');
+              if (panel) {
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+              }
+            }}
+          >
             <Filter className="w-4 h-4" />
-            筛选
+            高级筛选
           </Button>
+        </div>
+        
+        {/* Advanced Filters Panel */}
+        <div id="advanced-filters-app" className="hidden">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            {/* Applicant Filter */}
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">申请人</label>
+              <Input
+                type="text"
+                value={filters.applicant}
+                onChange={(e) => setFilters(prev => ({ ...prev, applicant: e.target.value }))}
+                placeholder="输入姓名"
+                className="h-9 bg-muted/30 border-border text-sm"
+              />
+            </div>
+            
+            {/* Item Name Filter */}
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">物品名称</label>
+              <Input
+                type="text"
+                value={filters.itemName}
+                onChange={(e) => setFilters(prev => ({ ...prev, itemName: e.target.value }))}
+                placeholder="输入物品名"
+                className="h-9 bg-muted/30 border-border text-sm"
+              />
+            </div>
+            
+            {/* Application Type Filter */}
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">申请类型</label>
+              <select
+                value={filters.applicationType}
+                onChange={(e) => setFilters(prev => ({ ...prev, applicationType: e.target.value }))}
+                className="w-full h-9 rounded-lg border border-border bg-muted/30 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
+              >
+                <option value="">全部类型</option>
+                <option value="日常领用">日常领用</option>
+                <option value="物品申购">物品申购</option>
+              </select>
+            </div>
+            
+            {/* Status Filter */}
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">审批状态</label>
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                className="w-full h-9 rounded-lg border border-border bg-muted/30 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
+              >
+                <option value="">全部状态</option>
+                <option value="pending">待审核</option>
+                <option value="approved">已批准</option>
+                <option value="rejected">已驳回</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 pb-1">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => setFilters({ applicant: '', itemName: '', applicationType: '', status: '' })}
+              className="h-8 text-xs"
+            >
+              重置筛选
+            </Button>
+          </div>
         </div>
       </Card>
 

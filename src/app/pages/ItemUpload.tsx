@@ -327,6 +327,7 @@ export function ItemUpload() {
   const [isUploading, setIsUploading]     = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [savedItem, setSavedItem]         = useState<typeof EMPTY_FORM | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [draftSaved, setDraftSaved]       = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
@@ -473,13 +474,25 @@ export function ItemUpload() {
                     setPreviewImage(URL.createObjectURL(file));
                   }
                 }}
-                onClick={() => setPreviewImage('https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=600&q=80')}
+                onClick={() => fileInputRef.current?.click()}
                 className={`border-2 border-dashed rounded-xl p-10 cursor-pointer transition-all duration-300 group ${
                   dragOver
                     ? 'border-primary bg-primary/5 scale-[1.01]'
                     : 'border-border hover:border-primary/50 hover:bg-primary/3'
                 }`}
               >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file && file.type.startsWith('image/')) {
+                      setPreviewImage(URL.createObjectURL(file));
+                    }
+                  }}
+                  accept="image/*"
+                  className="hidden"
+                />
                 <div className="flex flex-col items-center justify-center text-center">
                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300 ${
                     dragOver ? 'bg-primary/20 scale-110' : 'bg-primary/8 group-hover:bg-primary/15'
