@@ -17,9 +17,11 @@ import {
   deleteApplicationRecord,
   type ApplicationRecord,
 } from '../utils/applicationStore';
+import { supabase } from '../../lib/supabase';
 
 export function ApplicationRecords() {
   const [records, setRecords] = useState<ApplicationRecord[]>([]);
+  const [requisitions, setRequisitions] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({
     applicant: '',
@@ -28,9 +30,60 @@ export function ApplicationRecords() {
     status: ''
   });
 
+  // Load both application records and purchase requisitions
   useEffect(() => {
-    setRecords(getApplicationRecords());
+    const loadData = async () => {
+      // Load local application records
+      setRecords(getApplicationRecords());
+      
+      // Load purchase requisitions from Supabase
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data, error } = await supabase
+            .from('requisitions')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+          if (error) throw error;
+          setRequisitions(data || []);
+        }
+      } catch (error) {
+        console.error('Failed to load requisitions:', error);
+      }
+    };
+
+    loadData();
   }, []);
+
+  // Handle confirm receipt
+  const handleConfirmReceipt = async (requisitionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('requisitions')
+        .update({ status: 'confirmed' })
+        .eq('id', requisitionId);
+
+      if (error) throw error;
+
+      toast.success('已确认收货');
+      
+      // Reload data
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('requisitions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        setRequisitions(data || []);
+      }
+    } catch (error) {
+      console.error('Failed to confirm receipt:', error);
+      toast.error('确认收货失败');
+    }
+  };
 
   const handleDelete = (id: string) => {
     deleteApplicationRecord(id);
@@ -211,52 +264,100 @@ export function ApplicationRecords() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-16">
-                    <div className="flex flex-col items-center">
-                      <Package className="w-10 h-10 text-muted-foreground/30 mb-3" />
-                      <p className="text-muted-foreground text-sm">暂无申请记录</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((record, index) => (
-                  <TableRow key={record.id} className="hover:bg-muted/30 transition-colors">
+              {/* Show requisitions first */}
+              {requisitions.map((req, index) => {
+                const statusConfig = {
+                  pending: { cls: 'bg-amber-50 text-amber-600', label: '待审批' },
+                  approved: { cls: 'bg-emerald-50 text-emerald-600', label: '已批准' },
+                  arrival_notified: { cls: 'bg-blue-50 text-blue-600', label: '已到货', showConfirm: true },
+                  confirmed: { cls: 'bg-purple-50 text-purple-600', label: '已确认' },
+                  archived: { cls: 'bg-gray-50 text-gray-600', label: '已归档' },
+                };
+                const status = statusConfig[req.status as keyof typeof statusConfig] || { cls: 'bg-muted text-muted-foreground', label: '未知' };
+                
+                return (
+                  <TableRow key={`req-${req.id}`} className="hover:bg-muted/30 transition-colors">
                     <TableCell>
                       <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-sm font-medium text-foreground">
                         {index + 1}
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium text-foreground">{record.itemName}</TableCell>
+                    <TableCell className="font-medium text-foreground">{req.purchase_name}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {record.quantity} {record.unit}
+                      {req.purchase_quantity} {req.purchase_unit}
                     </TableCell>
-                    <TableCell className="text-muted-foreground max-w-[200px] truncate">{record.usage}</TableCell>
-                    <TableCell className="text-muted-foreground">{record.applicationDate}</TableCell>
+                    <TableCell className="text-muted-foreground">{req.purchase_specification || '-'}</TableCell>
+                    <TableCell className="text-muted-foreground">{new Date(req.created_at).toLocaleDateString('zh-CN')}</TableCell>
                     <TableCell>
-                      <Badge className="bg-primary/10 text-primary border border-primary/20 hover:bg-primary/10">
-                        {record.applicationType}
+                      <Badge className="bg-primary/10 text-primary border border-primary/20">
+                        物品申购
                       </Badge>
                     </TableCell>
-                    <TableCell>{statusBadge(record.status, record.statusLabel)}</TableCell>
+                    <TableCell>
+                      <Badge className={`${status.cls} border`}>
+                        {status.label}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        {record.status === 'pending' && (
+                        {/* Show confirm button for arrival_notified */}
+                        {req.status === 'arrival_notified' && (
                           <Button
                             size="sm"
-                            variant="ghost"
-                            className="text-red-500 hover:text-red-600 hover:bg-red-500/5"
-                            onClick={() => handleDelete(record.id)}
+                            className="h-7 px-2 text-xs bg-gradient-to-r from-blue-500 to-blue-600 hover:shadow-lg"
+                            onClick={() => handleConfirmReceipt(req.id)}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                            确认收货
                           </Button>
+                        )}
+                        
+                        {/* Green notification for arrival_notified */}
+                        {req.status === 'arrival_notified' && (
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="已到货通知" />
                         )}
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
+                );
+              })}
+              
+              {/* Then show regular application records */}
+              {records.map((record, index) => (
+                <TableRow key={record.id} className="hover:bg-muted/30 transition-colors">
+                  <TableCell>
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-sm font-medium text-foreground">
+                      {requisitions.length + index + 1}
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-medium text-foreground">{record.itemName}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {record.quantity} {record.unit}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground max-w-[200px] truncate">{record.usage}</TableCell>
+                  <TableCell className="text-muted-foreground">{record.applicationDate}</TableCell>
+                  <TableCell>
+                    <Badge className="bg-primary/10 text-primary border border-primary/20 hover:bg-primary/10">
+                      {record.applicationType}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{statusBadge(record.status, record.statusLabel)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      {record.status === 'pending' && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-500 hover:text-red-600 hover:bg-red-500/5"
+                          onClick={() => handleDelete(record.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </div>

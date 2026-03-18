@@ -174,23 +174,6 @@ export function ItemPurchase() {
       
       toast.success('申购申请提交成功！已推送给系统管理员');
       
-      // Save to localStorage for admin approval (sync with applicationStore)
-      try {
-        saveApplicationRecord({
-          itemId: (data as any)?.[0]?.id || `req_${Date.now()}`,
-          itemName: itemName,
-          quantity: quantity,
-          unit: unit || '个',
-          usage: purchaseReason || itemCategory,
-          applicationType: '物品申购',
-          applicant: profile?.full_name || '未知用户',
-          department: department,
-        });
-      } catch (syncError) {
-        console.warn('Failed to sync with localStorage:', syncError);
-        // Don't block the user if localStorage sync fails
-      }
-      
       // Reset form
       setItemName('');
       setItemCategory('');

@@ -93,6 +93,7 @@ export function Sidebar() {
     { name: '物品上架', path: '/item-upload', icon: PackagePlus },
     { name: '物品补货', path: '/item-permission', icon: PackageCheck },
     { name: '低库存预警', path: '/low-stock-alert', icon: Bell, badge: getLowStockCount() },
+    { name: '申购管理', path: '/purchase-management', icon: Package, badge: pendingCount },
     { name: '审批管理', path: '/approval-management', icon: CheckSquare, badge: pendingCount },
   ];
 

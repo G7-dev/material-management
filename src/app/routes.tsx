@@ -84,6 +84,7 @@ export const router = createBrowserRouter([
           { path: "item-upload", Component: ItemUpload },
           { path: "item-permission", Component: ItemPermission },
           { path: "low-stock-alert", Component: LowStockAlert },
+          { path: "purchase-management", Component: PurchaseManagement },
           { path: "approval-management", Component: ApprovalManagement },
         ],
       },
