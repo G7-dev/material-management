@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Sparkles, AlertCircle, Plus, Calendar, Building2, User, Hash, FileText } from 'lucide-react';
+import { ShoppingCart, Sparkles, AlertCircle, FileText, User, Send } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
 import { message } from 'antd';
 import { supabase } from '../lib/supabase'
 import type { Material } from '../lib/supabase'
@@ -159,49 +160,33 @@ export default function PurchaseRequest() {
                   物品名称<span className="text-rose-500 ml-1">*</span>
                 </label>
                 <Select
-                  style={{ width: '100%' }}
-                  placeholder="请选择或输入物品名称"
-                  showSearch
-                  allowClear
-                  value={formData.purchase_name || undefined}
-                  onChange={(value) => setFormData({...formData, purchase_name: value})}
-                  dropdownRender={menu => (
-                    <div>
-                      {menu}
-                      {lowStockMaterials.length > 0 && (
-                        <>
-                          <div className="px-3 py-2 text-xs text-amber-600 bg-amber-50 border-t border-amber-200">
-                            库存不足物品（建议优先申购）
-                          </div>
-                          {lowStockMaterials.map(material => (
-                            <div
-                              key={material.id}
-                              className="px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
-                              onClick={() => setFormData({...formData, purchase_name: material.name})}
-                            >
-                              {material.name} 
-                              <span className="text-gray-500 ml-2">
-                                (库存: {material.stock} {material.unit})
-                              </span>
-                            </div>
-                          ))}
-                        </>
-                      )}
-                      <div className="px-3 py-2 text-xs text-gray-500 border-t border-gray-200">
-                        所有物品
-                      </div>
+                  value={formData.purchase_name || ''}
+                  onChange={(e) => setFormData({...formData, purchase_name: e.target.value})}
+                  placeholder="请选择物品名称"
+                  options={allMaterials.map(material => ({
+                    value: material.name,
+                    label: `${material.name} (${material.category})`
+                  }))}
+                />
+                {lowStockMaterials.length > 0 && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="text-xs font-medium text-amber-800 mb-2">库存不足物品（建议优先申购）</div>
+                    <div className="space-y-2">
+                      {lowStockMaterials.map(material => (
+                        <div
+                          key={material.id}
+                          className="flex items-center justify-between text-sm cursor-pointer hover:bg-amber-100 p-2 rounded"
+                          onClick={() => setFormData({...formData, purchase_name: material.name})}
+                        >
+                          <span>{material.name}</span>
+                          <span className="text-amber-700">
+                            库存: {material.stock} {material.unit}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  )}
-                >
-                  {allMaterials.map(material => (
-                    <Option key={material.id} value={material.name}>
-                      {material.name}
-                      <span className="text-gray-500 ml-2">
-                        ({material.category})
-                      </span>
-                    </Option>
-                  ))}
-                </Select>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">
@@ -209,7 +194,7 @@ export default function PurchaseRequest() {
                 </label>
                 <Select
                   value={formData.purchase_specification || ''}
-                  onChange={(value) => setFormData({...formData, purchase_specification: value})}
+                  onChange={(e) => setFormData({...formData, purchase_specification: e.target.value})}
                   placeholder="请选择物品分类"
                   options={[
                     { value: '办公耗材', label: '办公耗材' },
@@ -348,12 +333,16 @@ export default function PurchaseRequest() {
               <label className="block text-sm font-semibold text-gray-900 mb-2">
                 所属部门<span className="text-rose-500 ml-1">*</span>
               </label>
-              <Select
-                value={formData.department || ''}
-                onChange={(value) => setFormData({...formData, department: value})}
-                placeholder="请选择部门"
-                options={DEPARTMENTS.map(d => ({ value: d.value, label: d.label }))}
-              />
+              <select
+                value={formData.department}
+                onChange={(e) => setFormData({...formData, department: e.target.value})}
+                className="w-full h-12 rounded-xl border border-gray-300 bg-white px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 cursor-pointer"
+              >
+                <option value="">请选择部门</option>
+                {DEPARTMENTS.map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+              </select>
             </div>
           </div>
 

@@ -1,0 +1,37 @@
+物资管理系统 - 手动修复步骤
+
+请在PowerShell中依次执行以下命令：
+
+步骤 1: 删除旧的配置文件
+--------------------------------
+Remove-Item -Path postcss.config.js -Force
+Remove-Item -Path tailwind.config.js -Force
+
+
+步骤 2: 重新安装所有依赖
+--------------------------------
+npm install --legacy-peer-deps --no-audit
+
+
+步骤 3: 初始化Tailwind配置
+--------------------------------
+npx tailwindcss init -p --force
+
+
+步骤 4: 启动开发服务器
+--------------------------------
+npm run dev
+
+
+如果步骤2失败，请尝试：
+--------------------------------
+npm cache clean --force
+Remove-Item -Recurse -Force node_modules
+npm install --legacy-peer-deps --no-audit
+
+
+如果仍然有问题，请检查：
+1. Node.js版本是否为18+
+2. 是否已安装所有依赖
+3. package.json中是否有重复的dependencies键
+4. 是否有权限问题（以管理员身份运行）

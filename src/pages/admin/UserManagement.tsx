@@ -9,7 +9,7 @@ import { message } from 'antd';
 
 export default function UserManagement() {
   const [users, setUsers] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {

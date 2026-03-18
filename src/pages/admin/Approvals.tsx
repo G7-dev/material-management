@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
-  CheckSquare, Search, AlertCircle, Clock, FileText, Package, X, CheckCircle2, XCircle,
-  User, Building2, Hash, Calendar, FileCheck, AlertTriangle
+  CheckSquare, AlertCircle, Clock, FileText, Package, CheckCircle2, XCircle,
+  User, Building2, Hash, Calendar, FileCheck, AlertTriangle, TrendingUp
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { supabase } from '../../lib/supabase';
 import type { Requisition } from '../../lib/supabase';
@@ -17,13 +15,12 @@ const { TabPane } = Tabs;
 export default function Approvals() {
   const [activeTab, setActiveTab] = useState('pending');
   const [requisitions, setRequisitions] = useState<Requisition[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   const [approveModalVisible, setApproveModalVisible] = useState(false);
   const [currentRequisition, setCurrentRequisition] = useState<Requisition | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [selectedResult, setSelectedResult] = useState<'approved' | 'rejected' | null>(null);
   const [opinion, setOpinion] = useState('');
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetchRequisitions();

@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { PackagePlus, Edit, Trash2, RefreshCw, Package, Search, Plus, X } from 'lucide-react';
+import { PackagePlus, Edit, Trash2, RefreshCw, Package, Search, Plus } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { supabase } from '../../lib/supabase';
 import type { Material } from '../../lib/supabase';
@@ -11,7 +10,7 @@ import { message } from 'antd';
 
 export default function MaterialManagement() {
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [restockModalVisible, setRestockModalVisible] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);

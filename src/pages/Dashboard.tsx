@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ShoppingBag, FileCheck, CheckCircle, Clock, TrendingUp, Package, Calendar, ArrowRight, BarChart2 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { supabase } from '../lib/supabase';
+// import { supabase } from '../lib/supabase';
 import { isAdmin } from '../lib/auth';
 
 const stats = [
@@ -47,7 +47,7 @@ const CATEGORY_COLOR: Record<string, string> = {
 
 export default function Dashboard() {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const navigate = useNavigate();
+  const navigate =useNavigate();
   const [isAdminUser, setIsAdminUser] = useState(false);
   
   const totalCount = collectionRanking.reduce((s, i) => s + i.count, 0);

@@ -3,8 +3,9 @@ import { X } from "lucide-react"
 import { cn } from "../../lib/utils"
 
 interface ModalProps {
-  open: boolean
-  onClose: () => void
+  open?: boolean
+  onClose?: () => void
+  onCancel?: () => void
   title?: React.ReactNode
   children: React.ReactNode
   footer?: React.ReactNode
@@ -12,14 +13,16 @@ interface ModalProps {
   className?: string
 }
 
-const Modal = ({ open, onClose, title, children, footer, width = 600, className }: ModalProps) => {
+const Modal = ({ open, onClose, onCancel, title, children, footer, width = 600, className }: ModalProps) => {
   if (!open) return null
+
+  const handleClose = onClose || onCancel
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
-        onClick={onClose}
+        onClick={handleClose}
         aria-hidden="true"
       />
       <div 
@@ -36,7 +39,7 @@ const Modal = ({ open, onClose, title, children, footer, width = 600, className 
               {title}
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
             >
               <X className="w-4 h-4" />

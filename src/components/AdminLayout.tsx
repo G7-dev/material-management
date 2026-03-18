@@ -26,7 +26,7 @@ export default function AdminLayout() {
     pendingApprovals: 0,
     lowStockCount: 0
   });
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, _setCollapsed] = useState(false);
 
   useEffect(() => {
     fetchAdminStats();

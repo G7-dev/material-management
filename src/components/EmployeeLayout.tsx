@@ -20,7 +20,7 @@ export default function EmployeeLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingCount, setPendingCount] = useState(0);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, _setCollapsed] = useState(false);
 
   useEffect(() => {
     fetchPendingCount();

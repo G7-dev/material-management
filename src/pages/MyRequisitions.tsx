@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Calendar, Search, TrendingUp, Package, FileCheck, Clock, CheckCircle } from 'lucide-react';
+import { FileText, Search, TrendingUp, Package, Clock, CheckCircle } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { supabase } from '../lib/supabase';
 import type { Requisition } from '../lib/supabase';
@@ -12,7 +13,7 @@ import { message } from 'antd';
 export default function MyRequisitions() {
   const navigate = useNavigate();
   const [requisitions, setRequisitions] = useState<Requisition[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdminUser, setIsAdminUser] = useState(false);
 

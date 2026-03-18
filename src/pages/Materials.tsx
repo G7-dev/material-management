@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Package, ShoppingBag, Search, Building2, User, Hash, FileText, Plus, Minus, ArrowRight } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -13,9 +12,9 @@ import { Modal } from '../components/ui/Modal'
 const DEPARTMENTS = ['设备部', '技术部', '能源部', '生产一部', '生产二部', '供应部', '储运部']
 
 export default function Materials() {
-  const navigate = useNavigate()
+  // const navigate = useNavigate()
   const [materials, setMaterials] = useState<Material[]>([])
-  const [loading, setLoading] = useState(false)
+  // const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null)
   const [applyModalVisible, setApplyModalVisible] = useState(false)
@@ -34,7 +33,7 @@ export default function Materials() {
   }, [])
 
   async function fetchMaterials() {
-    setLoading(true)
+    // setLoading(true)
     try {
       const { data, error } = await supabase
         .from('materials')
@@ -48,7 +47,7 @@ export default function Materials() {
       console.error('获取物资列表失败:', error)
       message.error('获取物资列表失败')
     } finally {
-      setLoading(false)
+      // setLoading(false)
     }
   }
 
