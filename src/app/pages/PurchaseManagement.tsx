@@ -288,13 +288,14 @@ export function PurchaseManagement() {
   // Handle notification
   const handleNotification = async (id: string, notificationTime: string) => {
     try {
+      // Use filter instead of eq to avoid encoding issues
       const { error } = await supabase
         .from('requisitions')
         .update({ 
           status: 'arrival_notified',
           notification_time: notificationTime
         })
-        .eq('id', id);
+        .filter('id', 'eq', id);
 
       if (error) throw error;
 
@@ -375,7 +376,7 @@ export function PurchaseManagement() {
       const { data } = await supabase
         .from('requisitions')
         .select('*')
-        .eq('status', 'confirmed');
+        .filter('status', 'eq', 'confirmed');
 
       if (data) {
         for (const req of data) {
