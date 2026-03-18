@@ -31,7 +31,7 @@ const STATIC_ITEMS: UnifiedInventoryItem[] = [
     name: '123',
     category: '办用品',
     spec: '规格: B-5',
-    stock: 2,
+    stock: 8, // 总库存 = 所有规格库存之和: 2+0+5+1 = 8
     threshold: 5,
     unit: '个',
     lastRestock: '2026-03-15',

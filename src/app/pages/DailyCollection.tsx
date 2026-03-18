@@ -36,11 +36,20 @@ interface DisplayItem {
 // ── Departments ───────────────────────────────────────────────────────────────
 const DEPARTMENTS = ['设备部', '技术部', '生产一部', '生产二部', '供应部', '储运部', '能源部', 'TPM'];
 
+// ── Helper: Calculate total stock from sizes ─────────────────────────────────
+function calculateTotalStock(item: DisplayItem): number {
+  if (item.sizes && item.sizes.length > 0) {
+    return item.sizes.reduce((sum, size) => sum + size.stock, 0);
+  }
+  return item.quantity;
+}
+
 // ── Status helper ─────────────────────────────────────────────────────────────
 function getStatusInfo(item: DisplayItem) {
-  if (item.quantity <= 0)
+  const totalStock = calculateTotalStock(item);
+  if (totalStock <= 0)
     return { label: '无库存', cls: 'bg-red-500/10 text-red-600 border-red-500/25', dot: 'bg-red-500', disabled: true };
-  if (item.quantity <= item.lowStockThreshold)
+  if (totalStock <= item.lowStockThreshold)
     return { label: '低库存', cls: 'bg-amber-500/10 text-amber-600 border-amber-500/25', dot: 'bg-amber-500', disabled: false };
   return { label: '库存充足', cls: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/25', dot: 'bg-emerald-500', disabled: false };
 }
@@ -64,7 +73,8 @@ function ApplyModal({
   const [submitting, setSubmitting] = useState(false);
 
   const hasSizes = item.sizes && item.sizes.length > 0;
-  const maxStock = selectedSize ? selectedSize.stock : item.quantity;
+  const totalStock = calculateTotalStock(item);
+  const maxStock = selectedSize ? selectedSize.stock : totalStock;
 
   const canSubmit =
     name.trim() &&
@@ -171,7 +181,7 @@ function ApplyModal({
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-bold text-foreground truncate">{item.name}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{item.specModel} · 总库存 {item.quantity} {item.unit || '个'}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{item.specModel} · 总库存 {totalStock} {item.unit || '个'}</p>
             </div>
           </div>
 
@@ -415,7 +425,7 @@ function ItemCard({ item, onApply }: { item: DisplayItem; onApply: () => void })
               {item.category || '未分类'}
             </span>
             <span className="text-foreground font-bold">
-              总库存 <span className="text-indigo-600">{item.quantity}</span>
+              总库存 <span className="text-indigo-600">{totalStock}</span>
             </span>
           </div>
           {hasSizes && (
