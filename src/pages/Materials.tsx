@@ -7,7 +7,8 @@ import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
 import { supabase } from '../lib/supabase'
 import type { Material } from '../lib/supabase'
-import { message, Modal } from 'antd'
+import { message } from 'antd'
+import { Modal } from '../components/ui/Modal'
 
 const DEPARTMENTS = ['设备部', '技术部', '能源部', '生产一部', '生产二部', '供应部', '储运部']
 
@@ -263,11 +264,29 @@ export default function Materials() {
           </div>
         }
         open={applyModalVisible}
-        onCancel={() => setApplyModalVisible(false)}
-        footer={null}
+        onClose={() => setApplyModalVisible(false)}
         width={600}
+        footer={
+          <>
+            <Button 
+              variant="outline" 
+              className="flex-1 h-11 rounded-xl"
+              onClick={() => setApplyModalVisible(false)}
+            >
+              取消
+            </Button>
+            <Button 
+              className="flex-1 h-11 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white"
+              onClick={handleSubmit}
+              disabled={!canApply || submitting}
+              loading={submitting}
+            >
+              提交申请
+            </Button>
+          </>
+        }
       >
-        <div className="px-6 pb-6 space-y-5">
+        <div className="space-y-5">
           {/* Item info */}
           <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 rounded-xl border border-indigo-100/60">
             <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
@@ -376,25 +395,6 @@ export default function Materials() {
               className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 resize-none"
             />
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex gap-3 p-6 border-t border-gray-200 bg-gray-50">
-          <Button 
-            variant="outline" 
-            className="flex-1 h-11 rounded-xl"
-            onClick={() => setApplyModalVisible(false)}
-          >
-            取消
-          </Button>
-          <Button 
-            className="flex-1 h-11 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white"
-            onClick={handleSubmit}
-            disabled={!canApply || submitting}
-            loading={submitting}
-          >
-            提交申请
-          </Button>
         </div>
       </Modal>
     </div>

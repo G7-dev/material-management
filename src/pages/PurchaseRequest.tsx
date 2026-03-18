@@ -4,12 +4,10 @@ import { ShoppingCart, Sparkles, AlertCircle, Plus, Calendar, Building2, User, H
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { message, DatePicker, Select, Row, Col } from 'antd';
+import { message } from 'antd';
 import { supabase } from '../lib/supabase'
 import type { Material } from '../lib/supabase'
 import dayjs from 'dayjs'
-
-const { Option } = Select
 
 const DEPARTMENTS = [
   { label: '设备部', value: '设备部' },
@@ -210,16 +208,16 @@ export default function PurchaseRequest() {
                   物品分类<span className="text-rose-500 ml-1">*</span>
                 </label>
                 <Select
-                  style={{ width: '100%' }}
-                  placeholder="请选择物品分类"
-                  value={formData.purchase_specification || undefined}
+                  value={formData.purchase_specification || ''}
                   onChange={(value) => setFormData({...formData, purchase_specification: value})}
-                >
-                  <Option value="办公耗材">办公耗材</Option>
-                  <Option value="清洁工具">清洁工具</Option>
-                  <Option value="电子设备">电子设备</Option>
-                  <Option value="办公用品">办公用品</Option>
-                </Select>
+                  placeholder="请选择物品分类"
+                  options={[
+                    { value: '办公耗材', label: '办公耗材' },
+                    { value: '清洁工具', label: '清洁工具' },
+                    { value: '电子设备', label: '电子设备' },
+                    { value: '办公用品', label: '办公用品' }
+                  ]}
+                />
               </div>
             </div>
 
@@ -276,12 +274,12 @@ export default function PurchaseRequest() {
                 <label className="block text-sm font-semibold text-gray-900 mb-2">
                   预计到货日期<span className="text-rose-500 ml-1">*</span>
                 </label>
-                <DatePicker 
-                  style={{ width: '100%', height: 48 }}
-                  placeholder="请选择预计到货日期"
+                <input
+                  type="date"
+                  className="w-full h-12 rounded-xl border border-gray-300 bg-white px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40"
                   value={formData.estimated_delivery_date}
-                  onChange={(date) => setFormData({...formData, estimated_delivery_date: date})}
-                  disabledDate={(current) => current && current < dayjs().startOf('day')}
+                  onChange={(e) => setFormData({...formData, estimated_delivery_date: e.target.value})}
+                  min={dayjs().format('YYYY-MM-DD')}
                 />
               </div>
             </div>
@@ -350,16 +348,12 @@ export default function PurchaseRequest() {
               <label className="block text-sm font-semibold text-gray-900 mb-2">
                 所属部门<span className="text-rose-500 ml-1">*</span>
               </label>
-              <select
-                value={formData.department}
-                onChange={(e) => setFormData({...formData, department: e.target.value})}
-                className="w-full h-12 rounded-xl border border-gray-300 bg-white px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 cursor-pointer"
-              >
-                <option value="">请选择部门</option>
-                {DEPARTMENTS.map((d) => (
-                  <option key={d.value} value={d.value}>{d.label}</option>
-                ))}
-              </select>
+              <Select
+                value={formData.department || ''}
+                onChange={(value) => setFormData({...formData, department: value})}
+                placeholder="请选择部门"
+                options={DEPARTMENTS.map(d => ({ value: d.value, label: d.label }))}
+              />
             </div>
           </div>
 
