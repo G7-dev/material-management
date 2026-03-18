@@ -11,7 +11,7 @@ import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { AppSelect } from '../components/ui/app-select';
 import { getStoredItems, updateStoredItemStock, deleteStoredItem, type StoredItem } from '../utils/itemStore';
-import { getAllInventoryItems, updateItemStock, deleteInventoryItem, type UnifiedInventoryItem } from '../data/unifiedInventoryData';
+import { getAllInventoryItems, updateItemStock, updateItemStockWithSizes, deleteInventoryItem, type UnifiedInventoryItem } from '../data/unifiedInventoryData';
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -449,9 +449,21 @@ export function ItemPermission() {
       const itemSizes = { ...(prev[itemId] ?? {}) };
       itemSizes[sizeId] = (itemSizes[sizeId] ?? 0) + quantity;
 
-      // Persist updated stock using unified data source
+      // Calculate new total stock
       const newTotal = Object.values(itemSizes).reduce((a, b) => a + b, 0);
-      updateItemStock(itemId, newTotal);
+      
+      // Get the item to get its sizes
+      const item = allItems.find(i => i.id === itemId);
+      if (item) {
+        // Create updated sizes array
+        const newSizes = item.sizes.map(size => ({
+          ...size,
+          stock: itemSizes[size.id] ?? size.stock
+        }));
+        
+        // Update both total stock and size stocks using unified data source
+        updateItemStockWithSizes(itemId, newTotal, newSizes);
+      }
 
       return { ...prev, [itemId]: itemSizes };
     });

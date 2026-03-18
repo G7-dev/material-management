@@ -212,6 +212,7 @@ export function deleteInventoryItem(itemId: number): void {
 
 // Static item stock overrides (for static items)
 const STATIC_STOCK_KEY = 'static_item_stock_overrides';
+const STATIC_SIZE_KEY = 'static_item_size_stock_overrides';
 
 function getStaticStockOverrides(): Record<number, number> {
   try {
@@ -228,6 +229,15 @@ function setStaticStockOverride(itemId: number, stock: number): void {
   localStorage.setItem(STATIC_STOCK_KEY, JSON.stringify(overrides));
 }
 
+function getStaticSizeOverrides(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(STATIC_SIZE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
 // Update item stock (both stored and static items)
 export function updateItemStock(itemId: number, newStock: number): void {
   const target = getAllInventoryItems().find(i => i.id === itemId);
@@ -242,17 +252,62 @@ export function updateItemStock(itemId: number, newStock: number): void {
   window.dispatchEvent(new CustomEvent('inventoryUpdated'));
 }
 
+// Update item stock and sizes (for items with size variants)
+export function updateItemStockWithSizes(itemId: number, newStock: number, newSizes: SizeVariant[]): void {
+  const target = getAllInventoryItems().find(i => i.id === itemId);
+  if (target?._storedId) {
+    // For stored items, we need to update both the main stock and size stocks
+    updateStoredItemStock(target._storedId, newStock);
+    // Note: Size stocks for stored items are stored in a different structure
+    // This would need additional logic to persist size stocks for stored items
+  } else {
+    // Static item - update override
+    setStaticStockOverride(itemId, newStock);
+    
+    // Also update size stock overrides
+    const sizeOverrides = getStaticSizeOverrides();
+    newSizes.forEach(size => {
+      const key = `${itemId}_${size.id}`;
+      sizeOverrides[key] = size.stock;
+    });
+    localStorage.setItem(STATIC_SIZE_KEY, JSON.stringify(sizeOverrides));
+  }
+  
+  // 触发库存更新事件，通知所有页面刷新数据
+  window.dispatchEvent(new CustomEvent('inventoryUpdated'));
+}
+
 // Get all inventory items (static + uploaded, excluding deleted) with stock overrides applied
 export function getAllInventoryItems(): UnifiedInventoryItem[] {
   const custom = getStoredItems().map((s, i) => storedToUnified(s, i));
   const deletedIds = getDeletedItemIds();
   const stockOverrides = getStaticStockOverrides();
+  const sizeOverrides = getStaticSizeOverrides();
   
   const all = [...STATIC_ITEMS, ...custom].map(item => {
+    let updatedItem = { ...item };
+    
+    // Apply stock override if exists
     if (stockOverrides[item.id] !== undefined) {
-      return { ...item, stock: stockOverrides[item.id] };
+      updatedItem.stock = stockOverrides[item.id];
     }
-    return item;
+    
+    // Apply size stock overrides if any exist for this item
+    const hasSizeOverrides = item.sizes.some(size => 
+      sizeOverrides[`${item.id}_${size.id}`] !== undefined
+    );
+    
+    if (hasSizeOverrides) {
+      updatedItem.sizes = item.sizes.map(size => {
+        const overrideKey = `${item.id}_${size.id}`;
+        if (sizeOverrides[overrideKey] !== undefined) {
+          return { ...size, stock: sizeOverrides[overrideKey] };
+        }
+        return size;
+      });
+    }
+    
+    return updatedItem;
   });
   
   return all.filter(item => !deletedIds.includes(item.id));

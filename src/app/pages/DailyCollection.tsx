@@ -9,7 +9,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { saveApplicationRecord } from '../utils/applicationStore';
-import { getAllInventoryItems, updateItemStock, type UnifiedInventoryItem } from '../data/unifiedInventoryData';
+import { getAllInventoryItems, updateItemStock, updateItemStockWithSizes, type UnifiedInventoryItem } from '../data/unifiedInventoryData';
 
 // ── Size / Spec variant ───────────────────────────────────────────────────────
 interface SizeVariant {
@@ -98,12 +98,30 @@ function ApplyModal({
       const targetItem = inventoryItems.find(invItem => invItem.name === item.name);
       
       if (targetItem) {
-        // Calculate new stock
-        const currentStock = targetItem.stock;
-        const newStock = Math.max(0, currentStock - quantity);
-        
-        // Update stock in unified data source
-        updateItemStock(targetItem.id, newStock);
+        // Update stock based on whether a size is selected
+        if (selectedSize) {
+          // If a size is selected, update the size stock and recalculate total stock
+          const sizeIndex = targetItem.sizes.findIndex(s => s.id === selectedSize.id);
+          if (sizeIndex !== -1) {
+            // Update size stock
+            const newSizeStock = Math.max(0, targetItem.sizes[sizeIndex].stock - quantity);
+            
+            // Create new sizes array with updated stock
+            const newSizes = [...targetItem.sizes];
+            newSizes[sizeIndex] = { ...newSizes[sizeIndex], stock: newSizeStock };
+            
+            // Calculate new total stock as sum of all size stocks
+            const newTotalStock = newSizes.reduce((sum, s) => sum + s.stock, 0);
+            
+            // Update both total stock and size stocks in unified data
+            updateItemStockWithSizes(targetItem.id, newTotalStock, newSizes);
+          }
+        } else {
+          // No size selected, just update total stock
+          const currentStock = targetItem.stock;
+          const newStock = Math.max(0, currentStock - quantity);
+          updateItemStock(targetItem.id, newStock);
+        }
       }
     } catch (error) {
       console.error('Failed to update inventory stock:', error);
