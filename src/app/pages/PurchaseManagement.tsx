@@ -212,6 +212,7 @@ function ViewModal({ requisition, onClose }: ViewModalProps) {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
+// Purchase Management Component
 export function PurchaseManagement() {
   const [requisitions, setRequisitions] = useState<Requisition[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
