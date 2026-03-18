@@ -620,7 +620,7 @@ export function ItemPermission() {
 
                 {/* Tags */}
                 <div className="absolute top-2 right-2 flex flex-wrap gap-1 justify-end">
-                  {item.tags.map((tag, idx) => (
+                  {item.tags?.map((tag, idx) => (
                     <Badge
                       key={idx}
                       variant="secondary"

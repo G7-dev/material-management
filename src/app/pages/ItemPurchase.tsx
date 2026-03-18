@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  ShoppingCart, Sparkles, Upload, Send, ShieldCheck, X, User,
+  ShoppingCart, Sparkles, Upload, Send, ShieldCheck,
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -26,7 +26,7 @@ export function ItemPurchase() {
   const [purchaseReason, setPurchaseReason] = useState('');
   const [department, setDepartment] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+
   
   const DEPARTMENTS = ['设备部', '技术部', '生产一部', '生产二部', '供应部', '储运部', '能源部', 'TPM'];
   
@@ -46,7 +46,7 @@ export function ItemPurchase() {
           if (profile?.department) {
             setDepartment(profile.department);
           }
-          setCurrentUser(user);
+
         }
       } catch (error) {
         console.error('Failed to load user department:', error);
@@ -177,7 +177,7 @@ export function ItemPurchase() {
       // Save to localStorage for admin approval (sync with applicationStore)
       try {
         saveApplicationRecord({
-          itemId: data?.id || `req_${Date.now()}`,
+          itemId: (data as any)?.[0]?.id || `req_${Date.now()}`,
           itemName: itemName,
           quantity: quantity,
           unit: unit || '个',

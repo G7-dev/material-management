@@ -12,6 +12,7 @@ import { ItemUpload } from "./pages/ItemUpload";
 import { ItemPermission } from "./pages/ItemPermission";
 import { ApprovalManagement } from "./pages/ApprovalManagement";
 import { LowStockAlert } from "./pages/LowStockAlert";
+import { Package } from "lucide-react";
 
 // Auth wrapper component
 function AuthWrapper() {

@@ -196,21 +196,7 @@ function removeDeletedItemId(id: number): void {
   localStorage.setItem('deleted_inventory_items', JSON.stringify(deleted));
 }
 
-// Get all inventory items (static + uploaded, excluding deleted)
-export function getAllInventoryItems(): UnifiedInventoryItem[] {
-  const custom = getStoredItems().map((s, i) => storedToUnified(s, i));
-  const deletedIds = getDeletedItemIds();
-  const all = [...STATIC_ITEMS, ...custom];
-  return all.filter(item => !deletedIds.includes(item.id));
-}
 
-// Update item stock
-export function updateItemStock(itemId: number, newStock: number): void {
-  const target = getAllInventoryItems().find(i => i.id === itemId);
-  if (target?._storedId) {
-    updateStoredItemStock(target._storedId, newStock);
-  }
-}
 
 // Delete item (static items are marked as deleted, stored items are actually deleted)
 export function deleteInventoryItem(itemId: number): void {
@@ -222,6 +208,51 @@ export function deleteInventoryItem(itemId: number): void {
   }
   // Mark as deleted (for static items)
   addDeletedItemId(itemId);
+}
+
+// Static item stock overrides (for static items)
+const STATIC_STOCK_KEY = 'static_item_stock_overrides';
+
+function getStaticStockOverrides(): Record<number, number> {
+  try {
+    const raw = localStorage.getItem(STATIC_STOCK_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function setStaticStockOverride(itemId: number, stock: number): void {
+  const overrides = getStaticStockOverrides();
+  overrides[itemId] = stock;
+  localStorage.setItem(STATIC_STOCK_KEY, JSON.stringify(overrides));
+}
+
+// Update item stock (both stored and static items)
+export function updateItemStock(itemId: number, newStock: number): void {
+  const target = getAllInventoryItems().find(i => i.id === itemId);
+  if (target?._storedId) {
+    updateStoredItemStock(target._storedId, newStock);
+  } else {
+    // Static item - update override
+    setStaticStockOverride(itemId, newStock);
+  }
+}
+
+// Get all inventory items (static + uploaded, excluding deleted) with stock overrides applied
+export function getAllInventoryItems(): UnifiedInventoryItem[] {
+  const custom = getStoredItems().map((s, i) => storedToUnified(s, i));
+  const deletedIds = getDeletedItemIds();
+  const stockOverrides = getStaticStockOverrides();
+  
+  const all = [...STATIC_ITEMS, ...custom].map(item => {
+    if (stockOverrides[item.id] !== undefined) {
+      return { ...item, stock: stockOverrides[item.id] };
+    }
+    return item;
+  });
+  
+  return all.filter(item => !deletedIds.includes(item.id));
 }
 
 // Get severity level

@@ -510,6 +510,7 @@ export function ItemUpload() {
                   </div>
                   <button
                     type="button"
+                    onClick={() => fileInputRef.current?.click()}
                     className="mt-3 px-4 py-2 border border-border rounded-lg text-sm text-foreground hover:bg-muted transition-colors"
                   >
                     浏览文件

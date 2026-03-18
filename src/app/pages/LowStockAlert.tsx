@@ -12,7 +12,6 @@ import { Input } from '../components/ui/input';
 import {
   getAllInventoryItems,
   updateItemStock,
-  deleteInventoryItem,
   type UnifiedInventoryItem,
   getSeverity,
   SEVERITY_CONFIG,

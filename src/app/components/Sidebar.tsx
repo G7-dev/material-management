@@ -37,13 +37,7 @@ const userNavItems: NavItem[] = [
   { name: '申请记录', path: '/application-records', icon: FileText },
 ];
 
-const adminNavItemsBase: NavItem[] = [
-  { name: '管理平台', path: '/management', icon: Settings },
-  { name: '物品上架', path: '/item-upload', icon: PackagePlus },
-  { name: '物品补货', path: '/item-permission', icon: PackageCheck },
-  { name: '低库存预警', path: '/low-stock-alert', icon: Bell },
-  { name: '审批管理', path: '/approval-management', icon: CheckSquare },
-];
+
 
 export function Sidebar() {
   const location = useLocation();
