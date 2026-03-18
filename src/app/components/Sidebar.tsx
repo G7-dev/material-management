@@ -12,6 +12,13 @@ import {
   Bell,
 } from 'lucide-react';
 import { cn } from './ui/utils';
+
+interface NavItem {
+  name: string;
+  path: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: number;
+}
 import { inventoryItems, getSeverity } from '../data/inventoryData';
 import { useState, useEffect } from 'react';
 import { getApplicationRecords } from '../utils/applicationStore';
@@ -22,14 +29,14 @@ const lowStockCount = inventoryItems.filter(
   item => getSeverity(item.stock, item.threshold) !== 'normal'
 ).length;
 
-const userNavItems = [
+const userNavItems: NavItem[] = [
   { name: '工作台', path: '/', icon: LayoutDashboard },
   { name: '日常领用', path: '/daily-collection', icon: Package },
   { name: '物品申购', path: '/item-purchase', icon: ShoppingCart },
   { name: '申请记录', path: '/application-records', icon: FileText },
 ];
 
-const adminNavItems = [
+const adminNavItems: NavItem[] = [
   { name: '管理平台', path: '/management', icon: Settings },
   { name: '物品上架', path: '/item-upload', icon: PackagePlus },
   { name: '物品补货', path: '/item-permission', icon: PackageCheck },
@@ -80,7 +87,7 @@ export function Sidebar() {
     getUserRole();
   }, []);
 
-  const adminNavItemsDynamic = [
+  const adminNavItemsDynamic: NavItem[] = [
     { name: '管理平台', path: '/management', icon: Settings },
     { name: '物品上架', path: '/item-upload', icon: PackagePlus },
     { name: '物品补货', path: '/item-permission', icon: PackageCheck },
@@ -151,7 +158,7 @@ export function Sidebar() {
                 >
                   <Icon className="w-4 h-4" />
                   <span className="text-sm font-medium flex-1">{item.name}</span>
-                  {'badge' in item && item.badge > 0 && (
+                  {typeof item.badge === 'number' && item.badge > 0 && (
                     <span className={cn(
                       'min-w-[18px] h-[18px] px-1 rounded-full text-[11px] font-semibold flex items-center justify-center leading-none',
                       isActive

@@ -1,15 +1,137 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import {
-  ShoppingCart, Sparkles, AlertCircle, Upload, Send, ShieldCheck,
+  ShoppingCart, Sparkles, Upload, Send, ShieldCheck, X,
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { AppSelect } from '../components/ui/app-select';
+import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
 
 export function ItemPurchase() {
-  const [_quantity, setQuantity] = useState(1);
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  
+  // Form state
+  const [itemName, setItemName] = useState('');
+  const [itemCategory, setItemCategory] = useState('');
+  const [specification, setSpecification] = useState('');
+  const [unit, setUnit] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [expectedDate, setExpectedDate] = useState('');
+  const [purchaseReason, setPurchaseReason] = useState('');
+  
+  // Form validation
+  const validateForm = () => {
+    if (!itemName.trim()) {
+      toast.error('请输入物品名称');
+      return false;
+    }
+    if (!itemCategory) {
+      toast.error('请选择物品分类');
+      return false;
+    }
+    if (!specification.trim()) {
+      toast.error('请输入规格型号');
+      return false;
+    }
+    if (!quantity || quantity <= 0) {
+      toast.error('请输入有效的申购数量');
+      return false;
+    }
+    if (!expectedDate) {
+      toast.error('请选择预计到货日期');
+      return false;
+    }
+    return true;
+  };
+  
+  // Submit purchase request
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('请先登录');
+        navigate('/login');
+        return;
+      }
+      
+      // Get user profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+      
+      // Submit to requisitions table
+      const { data, error } = await supabase
+        .from('requisitions')
+        .insert({
+          user_id: user.id,
+          requisition_type: 'purchase_request',
+          status: 'pending',
+          purchase_name: itemName,
+          purchase_specification: specification,
+          purchase_model: itemCategory, // 使用分类作为模型
+          purchase_unit: unit || '个',
+          purchase_quantity: quantity,
+          purchase_reason: purchaseReason,
+          purpose: itemCategory, // 将分类也存入用途
+          estimated_delivery_date: expectedDate,
+          applicant_name: profile?.full_name || '未知用户',
+          created_at: new Date().toISOString(),
+        });
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast.success('申购申请提交成功！已推送给系统管理员');
+      
+      // Reset form
+      setItemName('');
+      setItemCategory('');
+      setSpecification('');
+      setUnit('');
+      setQuantity(1);
+      setExpectedDate('');
+      setPurchaseReason('');
+      
+      // Navigate to application records after 2 seconds
+      setTimeout(() => {
+        navigate('/application-records');
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error('Submit error:', error);
+      toast.error(`提交失败: ${error.message || '请重试'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle cancel
+  const handleCancel = () => {
+    if (itemName || specification || purchaseReason) {
+      if (window.confirm('确定要取消申购吗？所有填写的内容将会丢失。')) {
+        navigate('/');
+      }
+    } else {
+      navigate('/');
+    }
+  };
 
   return (
     <div className="p-8 space-y-6 max-w-4xl">
@@ -25,29 +147,12 @@ export function ItemPurchase() {
         <p className="text-muted-foreground mt-1">申请添加新物品至库存，提交后将直接推送至系统管理员处理</p>
       </div>
 
-      {/* Alert */}
-      <Card className="p-4 border-0 bg-gradient-to-br from-amber-50 to-orange-50 shadow-md">
-        <div className="flex gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-md shadow-amber-500/20 flex-shrink-0">
-            <AlertCircle className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-amber-900 mb-1">备注不一般物品逾期</h3>
-            <p className="text-sm text-amber-700">备注 [12] 条</p>
-          </div>
-        </div>
-      </Card>
+
 
       {/* Form */}
       <Card className="p-8 border-0 bg-white shadow-xl">
-        <div className="space-y-8">
-          {/* Section: Apply Method */}
-          <div className="flex items-center gap-3 pb-4 border-b border-border">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-md shadow-indigo-500/20">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
-            <h3 className="font-semibold text-foreground text-lg">申购申请提示</h3>
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-8">
+  
 
           {/* Section: Product Info */}
           <div>
@@ -81,6 +186,8 @@ export function ItemPurchase() {
                   物品名称<span className="text-rose-500 ml-1">*</span>
                 </label>
                 <Input
+                  value={itemName}
+                  onChange={(e) => setItemName(e.target.value)}
                   placeholder="输入 E.g. 办公用品"
                   className="h-12 bg-gradient-to-br from-slate-50 to-slate-100/50 border-border"
                 />
@@ -90,6 +197,8 @@ export function ItemPurchase() {
                   物品分类<span className="text-rose-500 ml-1">*</span>
                 </label>
                 <AppSelect
+                  value={itemCategory}
+                  onChange={setItemCategory}
                   height="h-12"
                   placeholder="请选择物品分类"
                   options={[
@@ -107,67 +216,52 @@ export function ItemPurchase() {
             {/* Specifications */}
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">规格型号</label>
+                <label className="block text-sm font-semibold text-foreground mb-2">
+                  规格型号<span className="text-rose-500 ml-1">*</span>
+                </label>
                 <Input
+                  value={specification}
+                  onChange={(e) => setSpecification(e.target.value)}
                   placeholder="型号、A4, 100张、营业号"
                   className="h-12 bg-gradient-to-br from-slate-50 to-slate-100/50 border-border"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
-                  型号<span className="text-rose-500 ml-1">*</span>
-                </label>
+                <label className="block text-sm font-semibold text-foreground mb-2">单位</label>
                 <Input
-                  placeholder="型号、长、宽、厚、磅 (g)"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  placeholder="个、里、包、厘"
                   className="h-12 bg-gradient-to-br from-slate-50 to-slate-100/50 border-border"
                 />
               </div>
             </div>
 
-            {/* Detail Info */}
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            {/* Quantity and Expected Date */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-semibold text-foreground mb-2">
-                  吉通规格<span className="text-rose-500 ml-1">*</span>
-                </label>
-                <Input
-                  placeholder="型号、个、里、包、厘"
-                  className="h-12 bg-gradient-to-br from-slate-50 to-slate-100/50 border-border"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
-                  上报数量<span className="text-rose-500 ml-1">*</span>
+                  申购数量<span className="text-rose-500 ml-1">*</span>
                 </label>
                 <Input
                   type="number"
-                  placeholder="请输入数量"
-                  className="h-12 bg-gradient-to-br from-slate-50 to-slate-100/50 border-border"
+                  value={quantity}
                   onChange={(e) => setQuantity(Number(e.target.value))}
+                  placeholder="请输入申购数量"
+                  className="h-12 bg-gradient-to-br from-slate-50 to-slate-100/50 border-border"
                 />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-foreground mb-2">
-                  组件库存台<span className="text-rose-500 ml-1">*</span>
+                  预计到货日期<span className="text-rose-500 ml-1">*</span>
                 </label>
                 <Input
-                  placeholder="组件库存台"
+                  type="date"
+                  value={expectedDate}
+                  onChange={(e) => setExpectedDate(e.target.value)}
                   className="h-12 bg-gradient-to-br from-slate-50 to-slate-100/50 border-border"
-                  defaultValue="厂区组厅台"
-                  readOnly
                 />
               </div>
-            </div>
-
-            {/* Expected Date */}
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-foreground mb-2">
-                预计到货日期<span className="text-rose-500 ml-1">*</span>
-              </label>
-              <Input
-                type="date"
-                className="h-12 bg-gradient-to-br from-slate-50 to-slate-100/50 border-border"
-              />
             </div>
           </div>
 
@@ -196,6 +290,8 @@ export function ItemPurchase() {
             <div>
               <label className="block text-sm font-semibold text-foreground mb-2">申购理由</label>
               <Textarea
+                value={purchaseReason}
+                onChange={(e) => setPurchaseReason(e.target.value)}
                 placeholder="请填写申购原因及需求说明（选填）"
                 className="min-h-[120px] bg-gradient-to-br from-slate-50 to-slate-100/50 border-border resize-none"
               />
@@ -204,15 +300,19 @@ export function ItemPurchase() {
 
           {/* Actions */}
           <div className="flex gap-3 pt-6">
-            <Button className="flex-1 h-12 bg-gradient-to-r from-pink-500 to-rose-500 hover:shadow-xl hover:shadow-pink-500/30 transition-all duration-200">
+            <Button 
+              type="submit" 
+              disabled={loading}
+              className="flex-1 h-12 bg-gradient-to-r from-pink-500 to-rose-500 hover:shadow-xl hover:shadow-pink-500/30 transition-all duration-200"
+            >
               <Send className="w-4 h-4 mr-2" />
-              提交申购
+              {loading ? '提交中...' : '提交申购'}
             </Button>
-            <Button variant="outline" className="px-8 h-12 border-2 border-border">
+            <Button variant="outline" type="button" onClick={handleCancel} className="px-8 h-12 border-2 border-border">
               取消
             </Button>
           </div>
-        </div>
+        </form>
       </Card>
     </div>
   );
