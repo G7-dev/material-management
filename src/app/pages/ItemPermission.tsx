@@ -244,8 +244,6 @@ function RestockModal({ item, sizeStock, onClose, onConfirm }: RestockModalProps
     item.sizes.length === 1 ? item.sizes[0] : null
   );
   const [quantity, setQuantity] = useState('');
-  const [location, setLocation] = useState('');
-  const [note, setNote]         = useState('');
 
   const qty        = parseInt(quantity) || 0;
   const currentQty = selectedSize ? (sizeStock[selectedSize.id] ?? selectedSize.stock) : 0;
@@ -297,8 +295,8 @@ function RestockModal({ item, sizeStock, onClose, onConfirm }: RestockModalProps
             }}
           />
 
-          {/* Form fields */}
-          <div className="space-y-4">
+          {/* Form fields - compact layout */}
+          <div className="space-y-3">
             {/* 补货数量 */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
@@ -315,43 +313,14 @@ function RestockModal({ item, sizeStock, onClose, onConfirm }: RestockModalProps
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="请输入本次补货数量"
-                className="h-11 bg-muted/50 border-border"
+                className="h-10 bg-muted/50 border-border"
                 disabled={!selectedSize}
-              />
-            </div>
-
-            {/* 入库位置 */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">入库位置</label>
-              <AppSelect
-                value={location}
-                onChange={setLocation}
-                options={[
-                  { value: '备件库存',   label: '备件库存'   },
-                  { value: '主仓库A区', label: '主仓库A区' },
-                  { value: '主仓库B区', label: '主仓库B区' },
-                  { value: '临时存放区', label: '临时存放区' },
-                ]}
-                placeholder="选择入库位置（选填）"
-                className="h-11"
-              />
-            </div>
-
-            {/* 补货备注 */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">补货备注</label>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="填写补货原因、来源批次等信息（选填）"
-                rows={2}
-                className="w-full px-3 py-2.5 rounded-md border border-border bg-muted/50 text-foreground text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors placeholder:text-muted-foreground"
               />
             </div>
 
             {/* After-stock preview */}
             {selectedSize && qty > 0 && (
-              <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-emerald-500/8 border border-emerald-500/20">
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-500/8 border border-emerald-500/20">
                 <TrendingUp className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                 <p className="text-sm text-emerald-700">
                   <span className="font-semibold">{selectedSize.label}</span> 补货后库存将变为{' '}
@@ -490,8 +459,49 @@ export function ItemPermission() {
   const isAnyLow = (item: Item) =>
     item.sizes.some(s => (sizeStockData[item.id]?.[s.id] ?? s.stock) <= 2);
 
-  const filteredItems = allItems.filter(item => {
-    if (deletedIds.includes(item.id)) return false;
+  // Merge items with same name into one item with multiple size variants
+  const mergedItems = (() => {
+    const itemMap = new Map<string, Item>();
+    
+    allItems.forEach(item => {
+      if (deletedIds.includes(item.id)) return;
+      
+      const existingItem = itemMap.get(item.name);
+      if (existingItem) {
+        // Merge sizes if item already exists
+        const newSize: SizeVariant = {
+          id: `size_${existingItem.sizes.length}`,
+          label: item.spec || '默认',
+          spec: item.spec || '',
+          stock: getTotalStock(item)
+        };
+        existingItem.sizes.push(newSize);
+        
+        // If either has image, keep it
+        if (item.image && !existingItem.image) {
+          existingItem.image = item.image;
+        }
+      } else {
+        // Create new item with size array
+        const newItem: Item = {
+          ...item,
+          sizes: item.sizes && item.sizes.length > 0 
+            ? [...item.sizes]
+            : [{
+                id: 'default',
+                label: item.spec || '默认',
+                spec: item.spec || '',
+                stock: getTotalStock(item)
+              }]
+        };
+        itemMap.set(item.name, newItem);
+      }
+    });
+    
+    return Array.from(itemMap.values());
+  })();
+
+  const filteredItems = mergedItems.filter(item => {
     const matchSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||

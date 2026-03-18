@@ -14,6 +14,7 @@ import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { AppSelect } from '../components/ui/app-select';
 import { saveStoredItem } from '../utils/itemStore';
+import { getAllInventoryItems } from '../data/unifiedInventoryData';
 
 const tips = [
   { icon: ImageIcon, text: '建议上传清晰正面图，分辨率不低于 800×800px' },
@@ -330,17 +331,63 @@ export function ItemUpload() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [draftSaved, setDraftSaved]       = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
+  const nameInputRef = useRef<HTMLDivElement>(null);
 
   const completedFields = Object.values(formData).filter(v => v.trim() !== '').length;
   const totalFields     = Object.keys(formData).length;
   const progress        = Math.round((completedFields / totalFields) * 100);
 
   const handleFieldChange = (key: string, value: string) => {
-    setFormData(prev => ({ ...prev, [key]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [key]: value };
+      
+      // Auto-fill category and unit if name matches existing item
+      if (key === 'name' && value) {
+        const existingItems = getAllInventoryItems();
+        const matchedItem = existingItems.find(item => 
+          item.name.toLowerCase() === value.toLowerCase()
+        );
+        
+        if (matchedItem) {
+          updated.category = matchedItem.category;
+          updated.unit = matchedItem.unit;
+        }
+      }
+      
+      return updated;
+    });
+    
+    // Show/hide name suggestions
+    if (key === 'name') {
+      setShowNameSuggestions(value.length > 0);
+    }
+  };
+
+  const getNameSuggestions = () => {
+    if (!formData.name) return [];
+    const existingItems = getAllInventoryItems();
+    return existingItems
+      .filter(item => 
+        item.name.toLowerCase().includes(formData.name.toLowerCase()) &&
+        item.name.toLowerCase() !== formData.name.toLowerCase()
+      )
+      .slice(0, 5);
   };
 
   const isDirty       = Object.values(formData).some(v => v !== '' && v !== TODAY) || !!previewImage;
   const requiredFilled = formData.name && formData.category && formData.quantity && formData.stockPlatform;
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!nameInputRef.current?.contains(e.target as Node)) {
+        setShowNameSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const handleUpload = async () => {
     if (!requiredFilled || isUploading) return;
@@ -529,7 +576,7 @@ export function ItemUpload() {
               <h3 className="font-semibold text-foreground">基本信息</h3>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              <div className="relative" ref={nameInputRef}>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   物品名称 <span className="text-destructive">*</span>
                 </label>
@@ -539,6 +586,31 @@ export function ItemUpload() {
                   placeholder="E.g. 办公用品名称"
                   className="h-11 bg-muted/50 border-border"
                 />
+                
+                {/* Name suggestions dropdown */}
+                {showNameSuggestions && getNameSuggestions().length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 rounded-xl border border-border bg-white shadow-xl overflow-hidden">
+                    {getNameSuggestions().map((item, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            name: item.name,
+                            category: item.category,
+                            unit: item.unit
+                          }));
+                          setShowNameSuggestions(false);
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted/50 transition-colors flex items-center justify-between"
+                      >
+                        <span className="text-foreground font-medium">{item.name}</span>
+                        <span className="text-xs text-muted-foreground">{item.category}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">

@@ -20,6 +20,13 @@ import {
 import { AppSelect } from '../components/ui/app-select';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+interface SizeVariant {
+  id: string;
+  label: string;
+  spec: string;
+  stock: number;
+}
+
 interface ItemOverride {
   name?: string;
   category?: string;
@@ -32,14 +39,25 @@ interface ItemOverride {
 interface RestockModalProps {
   item: UnifiedInventoryItem & { currentStock: number; currentThreshold: number };
   onClose: () => void;
-  onConfirm: (itemId: number, qty: number) => void;
+  onConfirm: (itemId: number, sizeId: string, qty: number) => void;
 }
 function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
+  const [selectedSize, setSelectedSize] = useState<SizeVariant | null>(
+    item.sizes.length === 1 ? item.sizes[0] : null
+  );
   const [qty, setQty] = useState('');
   const sev = getSeverity(item.currentStock, item.currentThreshold);
   const cfg = SEVERITY_CONFIG[sev];
   const numQty = Number(qty);
-  const afterStock = item.currentStock + numQty;
+  const currentQty = selectedSize ? selectedSize.stock : item.currentStock;
+  const afterStock = currentQty + numQty;
+  const canConfirm = selectedSize && numQty > 0;
+
+  const handleConfirm = () => {
+    if (!canConfirm) return;
+    onConfirm(item.id, selectedSize.id, numQty);
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -81,16 +99,70 @@ function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
               </div>
             </div>
 
+            {/* Size selection grid */}
+            {item.sizes && item.sizes.length > 0 && (
+              <div className="mb-5">
+                <div className="flex items-center gap-1.5 mb-3">
+                  <Package className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-sm font-medium text-foreground">选择规格</span>
+                  {selectedSize && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      当前：{selectedSize.stock} 件
+                    </span>
+                  )}
+                </div>
+                <div
+                  className="grid gap-2 mb-4"
+                  style={{ gridTemplateColumns: `repeat(${Math.min(item.sizes.length, 4)}, 1fr)` }}
+                >
+                  {item.sizes.map(size => {
+                    const isSelected = selectedSize?.id === size.id;
+                    const isEmpty = size.stock === 0;
+                    const isLow = size.stock > 0 && size.stock <= 2;
+
+                    return (
+                      <button
+                        key={size.id}
+                        onClick={() => setSelectedSize(size)}
+                        className={`flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl border transition-all duration-200 text-center ${
+                          isSelected
+                            ? 'border-primary/60 bg-primary/8 shadow-sm ring-2 ring-primary/20'
+                            : isEmpty
+                              ? 'border-red-500/25 bg-red-500/4 hover:border-red-500/40'
+                              : isLow
+                                ? 'border-amber-500/25 bg-amber-500/4 hover:border-amber-500/40'
+                                : 'border-border bg-muted/30 hover:border-primary/30 hover:bg-primary/4'
+                        }`}
+                      >
+                        <span className={`text-xs font-semibold leading-none ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                          {size.label}
+                        </span>
+                        <span className={`text-base font-bold leading-none ${
+                          isEmpty ? 'text-red-500' :
+                          isLow ? 'text-amber-500' :
+                          isSelected ? 'text-primary' :
+                          'text-emerald-600'
+                        }`}>
+                          {size.stock}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-none">件</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="mb-5 space-y-1.5">
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span>当前 <span className={`font-semibold ${cfg.color}`}>{item.currentStock} {item.unit}</span></span>
+                <span>当前 <span className={`font-semibold ${cfg.color}`}>{currentQty} {item.unit}</span></span>
                 <span>阈值 <span className="font-semibold text-foreground">{item.currentThreshold} {item.unit}</span></span>
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{
-                    width: `${Math.min(100, Math.round((item.currentStock / item.currentThreshold) * 100))}%`,
+                    width: `${Math.min(100, Math.round((currentQty / item.currentThreshold) * 100))}%`,
                     background: cfg.bar,
                   }}
                 />
@@ -132,8 +204,8 @@ function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
 
             <div className="flex gap-3 mt-6">
               <Button
-                onClick={() => { if (qty && numQty > 0) { onConfirm(item.id, numQty); onClose(); } }}
-                disabled={!qty || numQty <= 0}
+                onClick={handleConfirm}
+                disabled={!canConfirm}
                 className="flex-1 h-11 bg-gradient-to-r from-primary to-secondary hover:shadow-lg hover:shadow-primary/25 disabled:opacity-50 transition-all"
               >
                 <PackagePlus className="w-4 h-4 mr-2" />确认补货

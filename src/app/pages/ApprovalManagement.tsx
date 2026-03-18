@@ -562,15 +562,17 @@ export function ApprovalManagement() {
                     </TableCell>
                     <TableCell className="text-muted-foreground text-center">{approval.applicationDate}</TableCell>
                     <TableCell className="text-center">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 px-2 text-xs border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30 flex items-center gap-1"
-                        onClick={() => setViewingItem(approval)}
-                      >
-                        <Eye className="w-3 h-3" />
-                        查看
-                      </Button>
+                      <div className="flex justify-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30 flex items-center gap-1"
+                          onClick={() => setViewingItem(approval)}
+                        >
+                          <Eye className="w-3 h-3" />
+                          查看
+                        </Button>
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex flex-col items-center gap-1">
@@ -661,6 +663,12 @@ interface ViewModalProps {
   onClose: () => void;
 }
 function ViewModal({ approval, onClose }: ViewModalProps) {
+  // Define status styles locally since this is a nested component
+  const statusStyle: Record<ApprovalStatus, string> = {
+    pending:  'bg-amber-50 text-amber-600',
+    approved: 'bg-emerald-50 text-emerald-600',
+    rejected: 'bg-red-50 text-red-600',
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />

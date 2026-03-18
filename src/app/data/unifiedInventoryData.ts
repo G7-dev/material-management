@@ -167,6 +167,7 @@ function storedToUnified(s: StoredItem, index: number): UnifiedInventoryItem {
         stock: qty,
       },
     ],
+    image: s.image, // 添加图片字段
     _storedId: s.id,
   };
 }
