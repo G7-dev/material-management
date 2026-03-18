@@ -239,7 +239,8 @@ function RejectModal({ approval, onClose, onConfirm }: RejectModalProps) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export function ApprovalManagement() {
-  const [approvals, setApprovals]         = useState<Approval[]>(loadApprovals);
+  const [approvals, setApprovals]         = useState<Approval[]>([]);
+  const [archivedRequisitions, setArchivedRequisitions] = useState<any[]>([]);
   const [approvingItem, setApprovingItem] = useState<Approval | null>(null);
   const [rejectingItem, setRejectingItem] = useState<Approval | null>(null);
   const [viewingItem, setViewingItem]     = useState<Approval | null>(null);
@@ -256,16 +257,60 @@ export function ApprovalManagement() {
   useEffect(() => {
     saveApprovals(approvals);
   }, [approvals]);
+  
+  // Load approvals from localStorage and archived requisitions from Supabase
+  useEffect(() => {
+    const loadData = async () => {
+      // Load from localStorage (daily collection applications)
+      const localApprovals = loadApprovals();
+      setApprovals(localApprovals);
+      
+      // Load archived requisitions from Supabase
+      try {
+        const { data, error } = await supabase
+          .from('requisitions')
+          .select('*')
+          .eq('status', 'archived')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const archived: any[] = (data || []).map((item: any) => ({
+          id: item.id,
+          applicant: item.applicant_name || '未知用户',
+          role: '员工',
+          workId: '-',
+          department: item.department || '未指定',
+          itemName: item.purchase_name,
+          quantity: `${item.purchase_quantity || 0} ${item.purchase_unit || '个'}`,
+          purpose: item.purchase_reason || '申购',
+          applicationType: '物品申购',
+          applicationDate: new Date(item.created_at).toLocaleDateString('zh-CN'),
+          status: 'approved',
+          statusLabel: '已归档',
+          rejectReason: undefined,
+          archivedAt: item.notification_time || item.created_at,
+        }));
+        
+        setArchivedRequisitions(archived);
+      } catch (error) {
+        console.error('Failed to load archived requisitions:', error);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const pending  = approvals.filter(a => a.status === 'pending').length;
   const approved = approvals.filter(a => a.status === 'approved').length;
   const rejected = approvals.filter(a => a.status === 'rejected').length;
+  const archivedCount = archivedRequisitions.length;
 
   const stats = [
     { label: '待审核',  value: String(pending),  color: 'text-amber-500',  bg: 'bg-amber-50',  icon: Clock        },
     { label: '今日已审', value: String(approved + rejected), color: 'text-blue-500', bg: 'bg-blue-50', icon: FileText },
     { label: '已驳回',  value: String(rejected), color: 'text-red-500',    bg: 'bg-red-50',    icon: AlertCircle  },
-    { label: '已批准',  value: String(approved), color: 'text-green-500',  bg: 'bg-green-50',  icon: CheckSquare  },
+    { label: '已归档',  value: String(archivedCount), color: 'text-gray-500',  bg: 'bg-gray-50',  icon: CheckSquare  },
   ];
 
   const handleApprove = (id: string) => {
@@ -313,7 +358,17 @@ export function ApprovalManagement() {
     updateApplicationStatus(id, 'rejected', reason);
   };
 
-  const filtered = approvals.filter(a => {
+  // Combine approvals and archived requisitions
+  const allRecords = [
+    ...approvals,
+    ...archivedRequisitions.map(ar => ({
+      ...ar,
+      id: ar.id,
+      status: 'archived' as const,
+    }))
+  ];
+
+  const filtered = allRecords.filter(a => {
     const matchTab = activeTab === 'all' || a.status === activeTab;
     
     // Enhanced search
@@ -332,11 +387,12 @@ export function ApprovalManagement() {
     return matchTab && matchSearch && matchApplicant && matchItemName && matchAppType && matchStatus;
   });
 
-  const tabs: { key: ApprovalStatus | 'all'; label: string; count: number }[] = [
+  const tabs: { key: ApprovalStatus | 'all' | 'archived'; label: string; count: number }[] = [
     { key: 'pending',  label: '待审核', count: pending          },
     { key: 'approved', label: '已批准', count: approved         },
     { key: 'rejected', label: '已驳回', count: rejected         },
-    { key: 'all',      label: '全部',   count: approvals.length },
+    { key: 'archived', label: '已归档', count: archivedCount    },
+    { key: 'all',      label: '全部',   count: allRecords.length },
   ];
 
   const statusStyle: Record<ApprovalStatus, string> = {

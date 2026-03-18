@@ -391,6 +391,19 @@ export function ItemUpload() {
 
   const handleUpload = async () => {
     if (!requiredFilled || isUploading) return;
+    
+    // Check for duplicates (name + specModel)
+    const existingItems = getAllInventoryItems();
+    const isDuplicate = existingItems.some(item => 
+      item.name.toLowerCase() === formData.name.toLowerCase() &&
+      item.spec.toLowerCase() === formData.specModel.toLowerCase()
+    );
+    
+    if (isDuplicate) {
+      toast.error('该物品已存在，无法重复上架');
+      return;
+    }
+    
     setIsUploading(true);
     await new Promise(r => setTimeout(r, 1600));
 

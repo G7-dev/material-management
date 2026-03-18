@@ -99,22 +99,19 @@ function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
               </div>
             </div>
 
-            {/* Size selection grid */}
+            {/* Size selection grid - optimized layout */}
             {item.sizes && item.sizes.length > 0 && (
               <div className="mb-5">
-                <div className="flex items-center gap-1.5 mb-3">
-                  <Package className="w-3.5 h-3.5 text-primary" />
-                  <span className="text-sm font-medium text-foreground">选择规格</span>
+                <div className="flex items-center gap-2 mb-3">
+                  <Package className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">选择规格</span>
                   {selectedSize && (
                     <span className="ml-2 text-xs text-muted-foreground">
                       当前：{selectedSize.stock} 件
                     </span>
                   )}
                 </div>
-                <div
-                  className="grid gap-2 mb-4"
-                  style={{ gridTemplateColumns: `repeat(${Math.min(item.sizes.length, 4)}, 1fr)` }}
-                >
+                <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(item.sizes.length, 3)}, 1fr)` }}>
                   {item.sizes.map(size => {
                     const isSelected = selectedSize?.id === size.id;
                     const isEmpty = size.stock === 0;
@@ -124,20 +121,20 @@ function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
                       <button
                         key={size.id}
                         onClick={() => setSelectedSize(size)}
-                        className={`flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl border transition-all duration-200 text-center ${
+                        className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border transition-all duration-200 text-center min-h-[80px] ${
                           isSelected
-                            ? 'border-primary/60 bg-primary/8 shadow-sm ring-2 ring-primary/20'
+                            ? 'border-primary/60 bg-primary/8 shadow-sm ring-2 ring-primary/20 scale-[1.02]'
                             : isEmpty
                               ? 'border-red-500/25 bg-red-500/4 hover:border-red-500/40'
                               : isLow
                                 ? 'border-amber-500/25 bg-amber-500/4 hover:border-amber-500/40'
-                                : 'border-border bg-muted/30 hover:border-primary/30 hover:bg-primary/4'
+                                : 'border-border bg-muted/30 hover:border-primary/30 hover:bg-primary/4 hover:scale-[1.01]'
                         }`}
                       >
-                        <span className={`text-xs font-semibold leading-none ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                        <span className={`text-sm font-semibold ${isSelected ? 'text-primary' : 'text-foreground'}`}>
                           {size.label}
                         </span>
-                        <span className={`text-base font-bold leading-none ${
+                        <span className={`text-2xl font-bold ${
                           isEmpty ? 'text-red-500' :
                           isLow ? 'text-amber-500' :
                           isSelected ? 'text-primary' :
@@ -145,7 +142,7 @@ function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
                         }`}>
                           {size.stock}
                         </span>
-                        <span className="text-[10px] text-muted-foreground leading-none">件</span>
+                        <span className="text-[11px] text-muted-foreground font-medium">{item.unit}</span>
                       </button>
                     );
                   })}
