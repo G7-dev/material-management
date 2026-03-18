@@ -1,45 +1,37 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Row, Col, Card, Input, Button, Tag, message, Typography, Badge, Empty, Modal, Form, InputNumber, Select, Divider } from 'antd'
-import { SearchOutlined, ShoppingCartOutlined, InboxOutlined, TagsOutlined } from '@ant-design/icons'
+import { Package, ShoppingBag, Search, Building2, User, Hash, FileText, Plus, Minus, ArrowRight } from 'lucide-react'
+import { Card } from '../components/ui/Card'
+import { Button } from '../components/ui/Button'
+import { Input } from '../components/ui/Input'
+import { Badge } from '../components/ui/Badge'
 import { supabase } from '../lib/supabase'
 import type { Material } from '../lib/supabase'
+import { message, Modal } from 'antd'
 
-const { Title, Text } = Typography
-const { Option } = Select
+const DEPARTMENTS = ['设备部', '技术部', '能源部', '生产一部', '生产二部', '供应部', '储运部']
 
-// 部门选项
-const DEPARTMENTS = [
-  { label: '设备部', value: '设备部', icon: '🏭' },
-  { label: '技术部', value: '技术部', icon: '💻' },
-  { label: '能源部', value: '能源部', icon: '⚡' },
-  { label: '生产一部', value: '生产一部', icon: '🏭' },
-  { label: '生产二部', value: '生产二部', icon: '🏭' },
-  { label: '供应部', value: '供应部', icon: '📦' },
-  { label: '储运部', value: '储运部', icon: '🚛' },
-]
-
-/**
- * 日常领用页面 - 卡片式展示
- * 优化设计: 卡片网格布局、精美图标、减少空白
- */
 export default function Materials() {
   const navigate = useNavigate()
   const [materials, setMaterials] = useState<Material[]>([])
   const [loading, setLoading] = useState(false)
-  const [searchText, setSearchText] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null)
   const [applyModalVisible, setApplyModalVisible] = useState(false)
-  const [applyingMaterial, setApplyingMaterial] = useState<Material | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [form] = Form.useForm()
+  
+  const [formData, setFormData] = useState({
+    quantity: 1,
+    department: '',
+    applicantName: '',
+    employeeId: '',
+    purpose: ''
+  })
 
   useEffect(() => {
     fetchMaterials()
   }, [])
 
-  /**
-   * 获取物资列表
-   */
   async function fetchMaterials() {
     setLoading(true)
     try {
@@ -47,10 +39,9 @@ export default function Materials() {
         .from('materials')
         .select('*')
         .eq('status', 'active')
-        .order('created_at', { ascending: false })
+        .order('name', { ascending: true })
 
       if (error) throw error
-
       setMaterials(data || [])
     } catch (error) {
       console.error('获取物资列表失败:', error)
@@ -60,42 +51,20 @@ export default function Materials() {
     }
   }
 
-  /**
-   * 筛选物资
-   */
-  const filteredMaterials = materials.filter(item =>
-    item.name.toLowerCase().includes(searchText.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchText.toLowerCase()) ||
-    (item.specification && item.specification.toLowerCase().includes(searchText.toLowerCase()))
-  )
-
-  /**
-   * 获取库存状态
-   */
-  const getStockStatus = (stock: number, safeStock: number) => {
-    if (stock <= 0) return { color: '#dc2626', text: '缺货' }
-    if (stock < safeStock) return { color: '#f59e0b', text: '库存不足' }
-    return { color: '#10b981', text: '库存充足' }
-  }
-
-  /**
-   * 处理申领
-   */
   const handleApply = (material: Material) => {
-    if (material.stock <= 0) {
-      message.error('该物资暂缺货,无法申领')
-      return
-    }
-    setApplyingMaterial(material)
-    form.setFieldsValue({ quantity: 1 })
+    setSelectedMaterial(material)
+    setFormData({
+      quantity: 1,
+      department: '',
+      applicantName: '',
+      employeeId: '',
+      purpose: ''
+    })
     setApplyModalVisible(true)
   }
 
-  /**
-   * 提交申领申请
-   */
-  const handleSubmitApplication = async (values: any) => {
-    if (!applyingMaterial) return
+  const handleSubmit = async () => {
+    if (!selectedMaterial) return
     
     setSubmitting(true)
     try {
@@ -105,416 +74,329 @@ export default function Materials() {
         return
       }
 
-      // 检查申领数量是否超过库存
-      if (values.quantity > applyingMaterial.stock) {
-        message.error(`申领数量不能超过当前库存 (${applyingMaterial.stock})`)
-        return
-      }
-
-      console.log('提交申领数据:', {
-        material_id: applyingMaterial.id,
-        quantity: values.quantity,
-        purpose: values.purpose || '',
-        status: 'pending',
-        created_by: user.id,
-        department: values.department,
-        employee_id: values.employee_id,
-        applicant_name: values.applicant_name,
-        requisition_type: 'daily_request'
-      })
-
-      // 创建申领记录
-      const { error, data } = await supabase
+      const { error } = await supabase
         .from('requisitions')
         .insert({
-          material_id: applyingMaterial.id,
-          quantity: values.quantity,
-          purpose: values.purpose || '',
-          status: 'pending',
-          user_id: user.id,  // 修复：user_id 而不是 created_by
-          department: values.department,
-          employee_id: values.employee_id,
-          applicant_name: values.applicant_name,
-          requisition_type: 'daily_request'
+          user_id: user.id,
+          material_id: selectedMaterial.id,
+          requisition_type: 'daily_request',
+          request_quantity: formData.quantity,
+          purpose: formData.purpose,
+          department: formData.department,
+          employee_id: formData.employeeId,
+          applicant_name: formData.applicantName,
+          status: 'pending'
         })
 
-      if (error) {
-        console.error('数据库插入错误:', error)
-        throw error
-      }
+      if (error) throw error
 
-      console.log('申领成功，返回数据:', data)
       message.success('申领申请已提交，等待审批')
       setApplyModalVisible(false)
-      form.resetFields()
-      setApplyingMaterial(null)
-      
-      // 跳转到申请记录页面
-      navigate('/my-requisitions')
-    } catch (error: any) {
-      console.error('提交申领失败:', error)
-      console.error('错误详情:', error.message, error.details, error.hint)
-      message.error(`提交申领失败: ${error.message || '请重试'}`)
+    } catch (error) {
+      console.error('提交申请失败:', error)
+      message.error('提交申请失败')
     } finally {
       setSubmitting(false)
     }
   }
 
-  /**
-   * 物资卡片组件
-   */
-  const MaterialCard = ({ material }: { material: Material }) => {
-    const stockStatus = getStockStatus(material.stock, material.safe_stock)
-    const isOutOfStock = material.stock <= 0
+  const filteredMaterials = materials.filter(material => {
+    if (!searchQuery) return true
+    return material.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           material.category.toLowerCase().includes(searchQuery.toLowerCase())
+  })
 
-    return (
-      <Card
-        hoverable
-        style={{
-          borderRadius: 12,
-          overflow: 'hidden',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-          transition: 'all 0.3s ease',
-          height: '100%',
-        }}
-        bodyStyle={{
-          padding: 20,
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-        }}
-      >
-        {/* 卡片头部 - 图标和分类 */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{
-            width: 48,
-            height: 48,
-            background: 'linear-gradient(135deg, #667eea, #764ba2)',
-            borderRadius: 10,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginRight: 12,
-          }}>
-            <InboxOutlined style={{ fontSize: 24, color: 'white' }} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <Tag color="blue" style={{ fontSize: 12, marginBottom: 4 }}>
-              <TagsOutlined style={{ marginRight: 4 }} />
-              {material.category}
-            </Tag>
-            <div style={{ fontSize: 10, color: '#6b7280' }}>
-              {material.location || '暂无位置信息'}
+  const isLowStock = (material: Material) => material.stock < material.safe_stock
+  const canApply = selectedMaterial && formData.quantity > 0 && formData.department && 
+                   formData.applicantName && formData.employeeId && formData.purpose
+
+  return (
+    <div className="p-8 space-y-8 bg-gray-50 min-h-screen">
+      {/* Hero Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-8 text-white">
+        <div className="relative z-10 flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20 shadow-lg">
+                <ShoppingBag className="w-6 h-6" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight">日常领用</h1>
+                <p className="text-white/70 text-sm mt-0.5">选择您需要的物资进行申领，快速完成审批流程</p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* 物资名称 */}
-        <Title level={4} style={{ margin: '8px 0', fontSize: 18, color: '#1f2937' }}>
-          {material.name}
-        </Title>
+        {/* Stats row */}
+        <div className="relative z-10 grid grid-cols-3 gap-4 mt-6">
+          <div className="flex items-center gap-3.5 px-5 py-4 rounded-xl bg-white/10 border border-white/15 text-white">
+            <div className="w-10 h-10 rounded-lg bg-white/60 flex items-center justify-center shadow-sm">
+              <Package className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold leading-none">{materials.length}</p>
+              <p className="text-xs mt-1 opacity-70 font-medium">可选物品</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3.5 px-5 py-4 rounded-xl bg-white/10 border border-white/15 text-white">
+            <div className="w-10 h-10 rounded-lg bg-white/60 flex items-center justify-center shadow-sm">
+              <Package className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold leading-none">
+                {materials.reduce((sum, m) => sum + m.stock, 0)}
+              </p>
+              <p className="text-xs mt-1 opacity-70 font-medium">总库存量</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3.5 px-5 py-4 rounded-xl bg-white/10 border border-white/15 text-white">
+            <div className="w-10 h-10 rounded-lg bg-white/60 flex items-center justify-center shadow-sm">
+              <Package className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold leading-none">
+                {materials.filter(m => m.stock <= m.safe_stock).length}
+              </p>
+              <p className="text-xs mt-1 opacity-70 font-medium">低库存预警</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        {/* 规格型号 */}
-        <Text style={{ fontSize: 14, color: '#6b7280', marginBottom: 12 }}>
-          {material.specification || '无规格'} {material.model ? `| ${material.model}` : ''}
-        </Text>
-
-        {/* 库存信息 */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <Text style={{ fontSize: 14, color: '#6b7280' }}>当前库存</Text>
-            <Badge
-              count={material.stock}
-              style={{
-                backgroundColor: stockStatus.color,
-                fontSize: 14,
-                fontWeight: 600,
-                minWidth: 32,
-                height: 22,
-                lineHeight: '22px',
-                borderRadius: 11,
-              }}
+      {/* Search */}
+      <Card className="p-5 border-gray-200 bg-white shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <Input
+              type="text"
+              placeholder="搜索物资名称、分类或规格..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-11 border-gray-300 rounded-xl focus:border-indigo-500"
             />
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, color: '#9ca3af' }}>安全库存: {material.safe_stock}</Text>
-            <Text style={{ fontSize: 12, color: stockStatus.color, fontWeight: 500 }}>
-              {stockStatus.text}
-            </Text>
-          </div>
         </div>
-
-        {/* 单位 */}
-        <div style={{ marginBottom: 16 }}>
-          <Tag style={{ fontSize: 12 }}>单位: {material.unit}</Tag>
-        </div>
-
-        {/* 申领按钮 */}
-        <Button
-          type="primary"
-          block
-          size="large"
-          icon={<ShoppingCartOutlined />}
-          onClick={() => handleApply(material)}
-          disabled={isOutOfStock}
-          style={{
-            height: 44,
-            borderRadius: 8,
-            fontSize: 15,
-            fontWeight: 500,
-            background: isOutOfStock ? '#d1d5db' : 'linear-gradient(135deg, #667eea, #764ba2)',
-            border: 'none',
-          }}
-        >
-          {isOutOfStock ? '暂缺货' : '立即申领'}
-        </Button>
       </Card>
-    )
-  }
 
-  return (
-    <div style={{ padding: '24px 32px' }}>
-      {/* 申领弹窗 */}
+      {/* Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        {filteredMaterials.map((material) => (
+          <Card key={material.id} className="group flex flex-col overflow-hidden border-gray-200 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+            {/* Image area */}
+            <div className="relative w-full h-40 bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/40 flex items-center justify-center overflow-hidden">
+              <div className="relative z-10 w-16 h-16 rounded-2xl bg-white/90 shadow-lg border border-indigo-100/60 flex items-center justify-center">
+                <Package className="w-8 h-8 text-indigo-400/70" />
+              </div>
+
+              {/* Status badge */}
+              <div className="absolute top-3 right-3 z-20">
+                <Badge className={`text-[10px] font-bold border backdrop-blur-md shadow-sm ${
+                  isLowStock(material) 
+                    ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' 
+                    : 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    isLowStock(material) ? 'bg-amber-500' : 'bg-emerald-500'
+                  } mr-1 animate-pulse`} />
+                  {isLowStock(material) ? '低库存' : '库存充足'}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex flex-col flex-1 p-5">
+              <div className="mb-3">
+                <h3 className="font-bold text-gray-900 text-[15px] leading-tight truncate group-hover:text-indigo-600 transition-colors">
+                  {material.name}
+                </h3>
+                <p className="text-xs text-gray-500 mt-1 truncate">{material.specification || material.model || '标准规格'}</p>
+              </div>
+
+              <div className="text-xs bg-gradient-to-r from-gray-50 to-gray-100 p-3.5 rounded-xl border border-gray-200 space-y-2 mb-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 flex items-center gap-1.5">
+                    <Package className="w-3 h-3" />
+                    {material.category || '未分类'}
+                  </span>
+                  <span className="text-gray-900 font-bold">
+                    库存 <span className="text-indigo-600">{material.stock}</span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex-1" />
+
+              <Button
+                onClick={() => handleApply(material)}
+                disabled={material.stock === 0}
+                className={`w-full h-11 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 ${
+                  material.stock === 0 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:shadow-lg hover:shadow-indigo-500/25'
+                }`}
+              >
+                {material.stock === 0 ? '暂不可领' : (
+                  <>
+                    立即申请
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Apply Modal */}
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ShoppingCartOutlined style={{ color: '#667eea' }} />
-            <Title level={5} style={{ margin: 0 }}>物资申领</Title>
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500/15 to-purple-500/15 flex items-center justify-center border border-indigo-500/20">
+              <ShoppingBag className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">申请领用</h3>
+              <p className="text-xs text-gray-500 mt-0.5">{selectedMaterial?.name}</p>
+            </div>
           </div>
         }
         open={applyModalVisible}
-        onCancel={() => {
-          setApplyModalVisible(false)
-          form.resetFields()
-          setApplyingMaterial(null)
-        }}
+        onCancel={() => setApplyModalVisible(false)}
         footer={null}
         width={600}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmitApplication}
-          style={{ marginTop: 16 }}
-        >
-          {/* 物资信息展示 - 带图片 */}
-          {applyingMaterial && (
-            <Card size="small" style={{ marginBottom: 24, background: '#f9fafb' }}>
-              <div style={{ display: 'flex', gap: 16 }}>
-                {applyingMaterial.image_url ? (
-                  <img 
-                    src={applyingMaterial.image_url} 
-                    alt={applyingMaterial.name}
-                    style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8 }}
-                  />
-                ) : (
-                  <div style={{
-                    width: 80,
-                    height: 80,
-                    background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                    borderRadius: 8,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    <InboxOutlined style={{ fontSize: 32, color: 'white' }} />
-                  </div>
-                )}
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{applyingMaterial.name}</div>
-                  <div style={{ fontSize: 14, color: '#6b7280', marginBottom: 4 }}>
-                    分类: {applyingMaterial.category}
-                  </div>
-                  <div style={{ fontSize: 14, color: '#6b7280' }}>
-                    当前库存: <Text strong style={{ color: '#1890ff' }}>{applyingMaterial.stock}</Text> {applyingMaterial.unit}
-                  </div>
-                </div>
-              </div>
-            </Card>
-          )}
-
-          <Form.Item
-            label="物资名称"
-          >
-            <Input value={applyingMaterial?.name} disabled style={{ fontWeight: 500, background: '#f5f5f5' }} />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="quantity"
-                label="申领数量"
-                rules={[
-                  { required: true, message: '请输入申领数量' },
-                  { type: 'number', min: 1, message: '申领数量至少为1' },
-                  { type: 'number', max: applyingMaterial?.stock || 0, message: '不能超过当前库存' }
-                ]}
-              >
-                <InputNumber
-                  min={1}
-                  max={applyingMaterial?.stock || 1}
-                  style={{ width: '100%' }}
-                  placeholder="请输入申领数量"
-                  addonAfter={applyingMaterial?.unit}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="department"
-                label="所属部门"
-                rules={[{ required: true, message: '请选择部门' }]}
-              >
-                <Select placeholder="请选择部门" size="large">
-                  {DEPARTMENTS.map(dept => (
-                    <Option key={dept.value} value={dept.value}>
-                      <span style={{ marginRight: 8 }}>{dept.icon}</span>
-                      {dept.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="employee_id"
-                label="工号"
-                rules={[{ required: true, message: '请输入工号' }]}
-              >
-                <Input placeholder="请输入工号" size="large" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="applicant_name"
-                label="申请人姓名"
-                rules={[{ required: true, message: '请输入姓名' }]}
-              >
-                <Input placeholder="请输入姓名" size="large" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            name="purpose"
-            label="申领用途"
-            rules={[{ required: true, message: '请填写申领用途' }]}
-          >
-            <Input.TextArea
-              rows={3}
-              placeholder="请详细说明申领用途..."
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="notes"
-            label="备注（可选）"
-          >
-            <Input.TextArea
-              rows={2}
-              placeholder="如有特殊要求，请在此说明..."
-            />
-          </Form.Item>
-
-          <Divider />
-
-          <Form.Item style={{ marginBottom: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-              <Button
-                onClick={() => {
-                  setApplyModalVisible(false)
-                  form.resetFields()
-                  setApplyingMaterial(null)
-                }}
-                size="large"
-              >
-                取消
-              </Button>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={submitting}
-                size="large"
-                style={{
-                  background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                  border: 'none',
-                  minWidth: 120,
-                }}
-              >
-                提交申请
-              </Button>
+        <div className="px-6 pb-6 space-y-5">
+          {/* Item info */}
+          <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 rounded-xl border border-indigo-100/60">
+            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+              <Package className="w-7 h-7 text-indigo-500/60" />
             </div>
-          </Form.Item>
-        </Form>
-      </Modal>
-      {/* 页面头部 */}
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <p className="font-bold text-gray-900">{selectedMaterial?.name}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {selectedMaterial?.specification || selectedMaterial?.model || '标准规格'} · 
+                库存 {selectedMaterial?.stock} {selectedMaterial?.unit || '个'}
+              </p>
+            </div>
+          </div>
+
+          {/* Form fields */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-indigo-500/60" />
+                姓名 *
+              </label>
+              <Input
+                value={formData.applicantName}
+                onChange={(e) => setFormData({...formData, applicantName: e.target.value})}
+                placeholder="请输入姓名"
+                className="h-11"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-1.5">
+                <Hash className="w-3.5 h-3.5 text-indigo-500/60" />
+                工号 *
+              </label>
+              <Input
+                value={formData.employeeId}
+                onChange={(e) => setFormData({...formData, employeeId: e.target.value})}
+                placeholder="请输入工号"
+                className="h-11"
+              />
+            </div>
+          </div>
+
           <div>
-            <Title level={2} style={{ fontSize: 28, marginBottom: 8, color: '#1f2937' }}>
-              <InboxOutlined style={{ marginRight: 12, color: '#667eea' }} />
-              日常领用
-            </Title>
-            <Text style={{ fontSize: 16, color: '#6b7280' }}>
-              选择您需要的物资，提交领用申请
-            </Text>
+            <label className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-indigo-500/60" />
+              所属部门 *
+            </label>
+            <select
+              value={formData.department}
+              onChange={(e) => setFormData({...formData, department: e.target.value})}
+              className="w-full h-11 rounded-xl border border-gray-300 bg-white px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 cursor-pointer"
+            >
+              <option value="">请选择部门</option>
+              {DEPARTMENTS.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-1.5">
+              <Package className="w-3.5 h-3.5 text-indigo-500/60" />
+              申领数量
+            </label>
+            <div className="flex items-center gap-3">
+              <Button 
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setFormData({...formData, quantity: Math.max(1, formData.quantity - 1)})}
+              >
+                <Minus className="w-4 h-4" />
+              </Button>
+              <Input
+                type="number"
+                min={1}
+                max={selectedMaterial?.stock || 1}
+                value={formData.quantity}
+                onChange={(e) => setFormData({...formData, quantity: Math.max(1, parseInt(e.target.value) || 1)})}
+                className="h-11 text-center w-20 font-bold"
+              />
+              <Button 
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setFormData({...formData, quantity: Math.min(selectedMaterial?.stock || 1, formData.quantity + 1)})}
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+              <span className="text-sm text-gray-500 font-medium">
+                {selectedMaterial?.unit || '个'}
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-indigo-500/60" />
+              用途说明 *
+            </label>
+            <textarea
+              value={formData.purpose}
+              onChange={(e) => setFormData({...formData, purpose: e.target.value})}
+              placeholder="请简要描述领用用途..."
+              rows={3}
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 resize-none"
+            />
           </div>
         </div>
-      </div>
 
-      {/* 搜索栏 */}
-      <Card style={{ borderRadius: 12, marginBottom: 24, boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)' }}>
-        <Input
-          placeholder="搜索物资名称、分类或规格..."
-          prefix={<SearchOutlined style={{ color: '#9ca3af' }} />}
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          style={{ height: 48, fontSize: 15, border: 'none' }}
-          allowClear
-        />
-      </Card>
-
-      {/* 统计信息 */}
-      <div style={{ marginBottom: 24 }}>
-        <Text style={{ fontSize: 14, color: '#6b7280' }}>
-          共找到 <Text strong style={{ color: '#667eea' }}>{filteredMaterials.length}</Text> 种物资
-        </Text>
-      </div>
-
-      {/* 物资卡片网格 */}
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <div style={{ fontSize: 16, color: '#6b7280' }}>加载中...</div>
+        {/* Footer */}
+        <div className="flex gap-3 p-6 border-t border-gray-200 bg-gray-50">
+          <Button 
+            variant="outline" 
+            className="flex-1 h-11 rounded-xl"
+            onClick={() => setApplyModalVisible(false)}
+          >
+            取消
+          </Button>
+          <Button 
+            className="flex-1 h-11 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white"
+            onClick={handleSubmit}
+            disabled={!canApply || submitting}
+            loading={submitting}
+          >
+            提交申请
+          </Button>
         </div>
-      ) : filteredMaterials.length === 0 ? (
-        <Empty
-          description={
-            <div>
-              <Text style={{ fontSize: 16, color: '#6b7280' }}>
-                暂无物资数据
-              </Text>
-              <div style={{ marginTop: 8 }}>
-                <Text style={{ fontSize: 14, color: '#9ca3af' }}>
-                  {searchText ? '没有找到匹配的物资' : '请联系管理员添加物资'}
-                </Text>
-              </div>
-            </div>
-          }
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          style={{ padding: '60px 0' }}
-        />
-      ) : (
-        <Row gutter={[24, 24]}>
-          {filteredMaterials.map(material => (
-            <Col key={material.id} xs={24} sm={12} md={8} lg={6} xl={6}>
-              <MaterialCard material={material} />
-            </Col>
-          ))}
-        </Row>
-      )}
+      </Modal>
     </div>
   )
 }

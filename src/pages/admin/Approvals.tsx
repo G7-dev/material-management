@@ -1,120 +1,113 @@
-import { useEffect, useState } from 'react'
-import { Card, Table, Button, Modal, Form, Input, Space, message, Tabs, Tag, Descriptions, Badge, Divider, Typography, Row, Col, Statistic } from 'antd'
-import { CheckOutlined, CloseOutlined, EyeOutlined, CalendarOutlined, UserOutlined, NumberOutlined, ShopOutlined, FileTextOutlined, AlertOutlined, ClockCircleOutlined } from '@ant-design/icons'
-import { supabase } from '../../lib/supabase'
-import type { Requisition, RequisitionType, RequisitionStatus } from '../../lib/supabase'
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  CheckSquare, Search, AlertCircle, Clock, FileText, Package, X, CheckCircle2, XCircle,
+  User, Building2, Hash, Calendar, FileCheck, AlertTriangle
+} from 'lucide-react';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Badge } from '../../components/ui/Badge';
+import { supabase } from '../../lib/supabase';
+import type { Requisition } from '../../lib/supabase';
+import { message, Modal, Tabs } from 'antd';
 
-const { Title, Text } = Typography
+const { TabPane } = Tabs;
 
-/**
- * 审批管理页面 - 重新设计
- */
 export default function Approvals() {
-  const [form] = Form.useForm()
-  const [activeTab, setActiveTab] = useState('pending')
-
-  const [requisitions, setRequisitions] = useState<Requisition[]>([])
-  const [loading, setLoading] = useState(false)
-  const [approveModalVisible, setApproveModalVisible] = useState(false)
-  const [currentRequisition, setCurrentRequisition] = useState<Requisition | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [selectedResult, setSelectedResult] = useState<'approved' | 'rejected' | null>(null)
+  const [activeTab, setActiveTab] = useState('pending');
+  const [requisitions, setRequisitions] = useState<Requisition[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [approveModalVisible, setApproveModalVisible] = useState(false);
+  const [currentRequisition, setCurrentRequisition] = useState<Requisition | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [selectedResult, setSelectedResult] = useState<'approved' | 'rejected' | null>(null);
+  const [opinion, setOpinion] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchRequisitions()
-  }, [activeTab])
+    fetchRequisitions();
+  }, [activeTab]);
 
-  /**
-   * 获取申领列表 - 包含完整的关联数据
-   */
   async function fetchRequisitions() {
-    setLoading(true)
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('requisitions')
         .select('*, profiles:user_id(full_name, email), materials:material_id(name, category, specification, model, unit)')
         .eq('status', activeTab)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false });
 
-      if (error) throw error
-
-      setRequisitions(data || [])
+      if (error) throw error;
+      setRequisitions(data || []);
     } catch (error) {
-      console.error('获取申领列表失败:', error)
-      message.error('获取申领列表失败')
+      console.error('获取申领列表失败:', error);
+      message.error('获取申领列表失败');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
-  /**
-   * 打开审批模态框
-   */
   const openApproveModal = (requisition: Requisition) => {
-    setCurrentRequisition(requisition)
-    setSelectedResult(null)
-    form.resetFields()
-    setApproveModalVisible(true)
-  }
+    setCurrentRequisition(requisition);
+    setSelectedResult(null);
+    setOpinion('');
+    setApproveModalVisible(true);
+  };
 
-  /**
-   * 处理审批
-   */
-  async function handleApproval(values: { opinion: string }) {
+  const handleApproval = async () => {
     if (!currentRequisition || !selectedResult) {
-      message.error('请选择审批结果')
-      return
+      message.error('请选择审批结果');
+      return;
     }
 
-    setSubmitting(true)
+    if (!opinion.trim()) {
+      message.error('请输入审批意见');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        message.error('请先登录')
-        return
+        message.error('请先登录');
+        return;
       }
 
-      // 1. 创建审批记录
       const { error: approvalError } = await supabase
         .from('approvals')
         .insert({
           requisition_id: currentRequisition.id,
           approver_id: user.id,
           result: selectedResult,
-          opinion: values.opinion
-        })
+          opinion: opinion.trim()
+        });
 
-      if (approvalError) throw approvalError
+      if (approvalError) throw approvalError;
 
-      // 2. 更新申领状态
       const { error: updateError } = await supabase
         .from('requisitions')
-        .update({
-          status: selectedResult === 'approved' ? 'approved' : 'rejected'
-        })
-        .eq('id', currentRequisition.id)
+        .update({ status: selectedResult })
+        .eq('id', currentRequisition.id);
 
-      if (updateError) throw updateError
+      if (updateError) throw updateError;
 
-      // 3. 如果是日常申领且通过,扣减库存并记录流水
       if (currentRequisition.requisition_type === 'daily_request' && selectedResult === 'approved') {
         const { data: material } = await supabase
           .from('materials')
           .select('stock')
           .eq('id', currentRequisition.material_id)
-          .single()
+          .single();
 
         if (material && currentRequisition.request_quantity) {
-          const stockBefore = material.stock
-          const stockAfter = stockBefore - currentRequisition.request_quantity
+          const stockBefore = material.stock;
+          const stockAfter = stockBefore - currentRequisition.request_quantity;
 
-          // 更新库存
           await supabase
             .from('materials')
             .update({ stock: stockAfter })
-            .eq('id', currentRequisition.material_id)
+            .eq('id', currentRequisition.material_id);
 
-          // 记录库存流水
           await supabase
             .from('inventory_logs')
             .insert({
@@ -125,504 +118,365 @@ export default function Approvals() {
               stock_after: stockAfter,
               reference_id: currentRequisition.id,
               created_by: user.id
-            })
+            });
 
-          // 更新申领状态为已完成
           await supabase
             .from('requisitions')
             .update({ status: 'completed' })
-            .eq('id', currentRequisition.id)
+            .eq('id', currentRequisition.id);
         }
       }
 
-      message.success(`审批${selectedResult === 'approved' ? '通过' : '驳回'}成功`)
-      setApproveModalVisible(false)
-      form.resetFields()
-      setSelectedResult(null)
-      fetchRequisitions()
+      message.success(`审批${selectedResult === 'approved' ? '通过' : '驳回'}成功`);
+      setApproveModalVisible(false);
+      setSelectedResult(null);
+      setOpinion('');
+      fetchRequisitions();
     } catch (error) {
-      console.error('审批失败:', error)
-      message.error('审批失败,请重试')
+      console.error('审批失败:', error);
+      message.error('审批失败,请重试');
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
-  /**
-   * 获取类型标签
-   */
-  const getTypeTag = (type: RequisitionType) => {
-    if (type === 'daily_request') {
-      return <Tag color="blue" style={{ fontWeight: 500 }}>日常领用</Tag>
-    }
-    return (
-      <Tag color="orange" style={{ fontWeight: 600 }}>
-        <AlertOutlined style={{ marginRight: 4 }} />
-        物品申购
-      </Tag>
-    )
-  }
-
-  /**
-   * 获取状态标签
-   */
-  const getStatusTag = (status: RequisitionStatus) => {
-    const statusMap = {
-      pending: { color: 'warning', text: '待审批' },
-      approved: { color: 'success', text: '已通过' },
-      rejected: { color: 'error', text: '已驳回' },
-      completed: { color: 'default', text: '已完成' },
-      cancelled: { color: 'default', text: '已取消' }
-    }
-    const config = statusMap[status] || { color: 'default', text: '未知' }
-    return <Tag color={config.color}>{config.text}</Tag>
-  }
-
-  /**
-   * 格式化物资信息
-   */
   const formatMaterialInfo = (record: Requisition) => {
     if (record.requisition_type === 'daily_request') {
-      return record.materials?.name || `物资ID: ${record.material_id}`
+      return record.materials?.name || `物资ID: ${record.material_id}`;
     }
-    return record.purchase_name || '申购物品'
-  }
+    return record.purchase_name || '申购物品';
+  };
 
-  /**
-   * 格式化数量
-   */
   const formatQuantity = (record: Requisition) => {
     if (record.requisition_type === 'daily_request') {
-      const qty = record.quantity || record.request_quantity || 0
-      const unit = record.materials?.unit || '个'
-      return `${qty} ${unit}`
+      const qty = record.quantity || record.request_quantity || 0;
+      const unit = record.materials?.unit || '个';
+      return `${qty} ${unit}`;
     }
-    return `${record.purchase_quantity || 0} ${record.purchase_unit || '个'}`
-  }
+    return `${record.purchase_quantity || 0} ${record.purchase_unit || '个'}`;
+  };
 
-  /**
-   * 表格列定义
-   */
-  const columns = [
-    {
-      title: '序号',
-      key: 'index',
-      width: 60,
-      align: 'center' as const,
-      render: (_: any, __: Requisition, index: number) => (
-        <Text strong style={{ color: '#1890ff' }}>{index + 1}</Text>
-      ),
-    },
-    {
-      title: '申请人',
-      key: 'applicant',
-      width: 120,
-      render: (_: any, record: Requisition) => (
-        <Space direction="vertical" size={0}>
-          <Text strong>{record.profiles?.full_name || '-'}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.department || '未分配'}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      title: '工号',
-      key: 'employee_id',
-      width: 100,
-      render: (_: any, record: Requisition) => (
-        <Text code>{record.employee_id || '-'}</Text>
-      ),
-    },
-    {
-      title: '物品名称',
-      key: 'material_name',
-      width: 150,
-      render: (_: any, record: Requisition) => (
-        <Text style={{ fontWeight: 500 }}>{formatMaterialInfo(record)}</Text>
-      ),
-    },
-    {
-      title: '数量',
-      key: 'quantity',
-      width: 80,
-      align: 'center' as const,
-      render: (_: any, record: Requisition) => (
-        <Badge 
-          count={formatQuantity(record)} 
-          style={{ backgroundColor: record.requisition_type === 'daily_request' ? '#52c41a' : '#faad14' }}
-        />
-      ),
-    },
-    {
-      title: '申请类型',
-      key: 'type',
-      width: 110,
-      render: (_: any, record: Requisition) => getTypeTag(record.requisition_type),
-    },
-    {
-      title: '申请日期',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      width: 140,
-      align: 'center' as const,
-      render: (date: string) => (
-        <Space direction="vertical" size={0}>
-          <Text>{date ? new Date(date).toLocaleDateString('zh-CN') : '-'}</Text>
-          {date && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {new Date(date).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: '状态',
-      key: 'status',
-      width: 90,
-      fixed: 'right' as const,
-      render: (_: any, record: Requisition) => getStatusTag(record.status),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 100,
-      fixed: 'right' as const,
-      render: (_: any, record: Requisition) => (
-        activeTab === 'pending' ? (
-          <Space>
-            <Button
-              type="primary"
-              size="small"
-              icon={<CheckOutlined />}
-              onClick={() => openApproveModal(record)}
-            >
-              审批
-            </Button>
-          </Space>
-        ) : (
-          <Button
-            type="text"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => openApproveModal(record)}
-          >
-            查看
-          </Button>
-        )
-      ),
-    },
-  ]
+  const getStatusBadge = (status: string) => {
+    const statusMap = {
+      pending: { text: '待审批', cls: 'bg-amber-500/10 text-amber-700 border-amber-500/20' },
+      approved: { text: '已通过', cls: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20' },
+      rejected: { text: '已驳回', cls: 'bg-red-500/10 text-red-600 border-red-500/20' },
+      completed: { text: '已完成', cls: 'bg-gray-500/10 text-gray-600 border-gray-500/20' }
+    };
+    const config = statusMap[status as keyof typeof statusMap] || { text: '未知', cls: 'bg-gray-500/10 text-gray-600 border-gray-500/20' };
+    return <Badge className={`${config.cls} border`}>{config.text}</Badge>;
+  };
+
+  const getTypeBadge = (type: string) => {
+    return type === 'daily_request' ? (
+      <Badge className="bg-indigo-500/10 text-indigo-600 border-indigo-500/20">日常领用</Badge>
+    ) : (
+      <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">物品申购</Badge>
+    );
+  };
+
+  const pendingCount = requisitions.filter(r => r.status === 'pending').length;
+  const todayCount = requisitions.filter(r => 
+    new Date(r.created_at).toDateString() === new Date().toDateString()
+  ).length;
+  const purchaseCount = requisitions.filter(r => r.requisition_type === 'purchase_request').length;
+  const totalCount = requisitions.length;
 
   return (
-    <div style={{ padding: '24px 32px', background: '#f5f7fa', minHeight: '100%' }}>
-      {/* 页面标题 */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ marginBottom: 8 }}>
-          审批管理
-        </Title>
-        <Text type="secondary">
-          处理物资申领和申购申请，确保物资合理分配
-        </Text>
+    <div className="p-8 space-y-8 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-semibold text-gray-900 tracking-tight">审批管理</h1>
+        <p className="text-gray-500 mt-1">处理物资申领和申购申请，确保物资合理分配</p>
       </div>
 
-      {/* 统计卡片 */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
-          <Card bodyStyle={{ padding: '16px' }}>
-            <Statistic
-              title="待审批"
-              value={requisitions.filter(r => r.status === 'pending').length}
-              prefix={<ClockCircleOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: '#faad14', fontSize: 20 }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card bodyStyle={{ padding: '16px' }}>
-            <Statistic
-              title="今日申请"
-              value={requisitions.filter(r => 
-                new Date(r.created_at).toDateString() === new Date().toDateString()
-              ).length}
-              prefix={<CalendarOutlined style={{ color: '#1890ff' }} />}
-              valueStyle={{ color: '#1890ff', fontSize: 20 }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card bodyStyle={{ padding: '16px' }}>
-            <Statistic
-              title="申购申请"
-              value={requisitions.filter(r => r.requisition_type === 'purchase_request').length}
-              prefix={<AlertOutlined style={{ color: '#fa8c16' }} />}
-              valueStyle={{ color: '#fa8c16', fontSize: 20 }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card bodyStyle={{ padding: '16px' }}>
-            <Statistic
-              title="总申请数"
-              value={requisitions.length}
-              prefix={<FileTextOutlined style={{ color: '#722ed1' }} />}
-              valueStyle={{ color: '#722ed1', fontSize: 20 }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="p-6 border-gray-200 bg-white">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-amber-500/5 p-3 rounded-xl">
+              <Clock className="w-5 h-5 text-amber-600" />
+            </div>
+            <AlertCircle className="w-5 h-5 text-amber-500" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 mb-1">待审批</p>
+            <h3 className="text-3xl font-bold text-gray-900">{pendingCount}</h3>
+          </div>
+        </Card>
+        <Card className="p-6 border-gray-200 bg-white">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-indigo-500/5 p-3 rounded-xl">
+              <Calendar className="w-5 h-5 text-indigo-500" />
+            </div>
+            <TrendingUp className="w-5 h-5 text-indigo-500" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 mb-1">今日申请</p>
+            <h3 className="text-3xl font-bold text-gray-900">{todayCount}</h3>
+          </div>
+        </Card>
+        <Card className="p-6 border-gray-200 bg-white">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-amber-500/5 p-3 rounded-xl">
+              <FileCheck className="w-5 h-5 text-amber-600" />
+            </div>
+            <AlertTriangle className="w-5 h-5 text-amber-500" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 mb-1">申购申请</p>
+            <h3 className="text-3xl font-bold text-gray-900">{purchaseCount}</h3>
+          </div>
+        </Card>
+        <Card className="p-6 border-gray-200 bg-white">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-purple-500/5 p-3 rounded-xl">
+              <FileText className="w-5 h-5 text-purple-600" />
+            </div>
+            <TrendingUp className="w-5 h-5 text-purple-500" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 mb-1">总申请数</p>
+            <h3 className="text-3xl font-bold text-gray-900">{totalCount}</h3>
+          </div>
+        </Card>
+      </div>
 
-      {/* 标签页 */}
-      <Card>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={[
-            {
-              key: 'pending',
-              label: (
-                <Space>
-                  待审批
-                  <Badge count={requisitions.filter(r => r.status === 'pending').length} size="small" />
-                </Space>
-              ),
-            },
-            {
-              key: 'approved',
-              label: '已通过',
-            },
-            {
-              key: 'rejected',
-              label: '已驳回',
-            },
-            {
-              key: 'completed',
-              label: '已完成',
-            },
-          ]}
-        />
+      {/* Tabs */}
+      <Card className="border-gray-200 bg-white">
+        <Tabs activeKey={activeTab} onChange={setActiveTab} className="px-4 pt-4">
+          <TabPane tab={`待审批 (${pendingCount})`} key="pending" />
+          <TabPane tab="已通过" key="approved" />
+          <TabPane tab="已驳回" key="rejected" />
+          <TabPane tab="已完成" key="completed" />
+        </Tabs>
 
-        <Table
-          columns={columns}
-          dataSource={requisitions}
-          rowKey="id"
-          loading={loading}
-          pagination={{ 
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-          }}
-          scroll={{ x: 1200 }}
-        />
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">申请人</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">工号</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">物品名称</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">数量</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">申请类型</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">申请日期</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {requisitions.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-16 text-center">
+                    <div className="flex flex-col items-center">
+                      <Package className="w-10 h-10 text-gray-300 mb-3" />
+                      <p className="text-gray-500 text-sm">暂无申请记录</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                requisitions.map((record) => (
+                  <tr key={record.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center mr-3">
+                          <User className="w-4 h-4 text-indigo-600" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{record.profiles?.full_name || '-'}</div>
+                          <div className="text-xs text-gray-500">{record.department || '未分配'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {record.employee_id || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {formatMaterialInfo(record)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge className="bg-indigo-500/10 text-indigo-600 border-indigo-500/20">
+                        {formatQuantity(record)}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getTypeBadge(record.requisition_type)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {record.created_at ? new Date(record.created_at).toLocaleDateString('zh-CN') : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusBadge(record.status)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {activeTab === 'pending' && (
+                        <Button
+                          size="sm"
+                          className="bg-indigo-500 hover:bg-indigo-600 text-white"
+                          onClick={() => openApproveModal(record)}
+                        >
+                          <CheckSquare className="w-4 h-4 mr-1" />
+                          审批
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
-      {/* 审批模态框 - 重新设计 */}
+      {/* Approval Modal */}
       <Modal
         title={
-          <div style={{ 
-            background: selectedResult === 'rejected' ? 
-              'linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%)' : 
-              'linear-gradient(135deg, #1890ff 0%, #722ed1 100%)',
-            color: 'white',
-            padding: '16px 24px',
-            margin: '-24px -24px 24px -24px',
-            borderRadius: '8px 8px 0 0'
-          }}>
-            <Title level={4} style={{ margin: 0, color: 'white' }}>
-              {selectedResult === 'rejected' ? '驳回申请' : '审批申请'}
-            </Title>
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500/15 to-purple-500/15 flex items-center justify-center border border-indigo-500/20">
+              <CheckSquare className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">审批申请</h3>
+              <p className="text-xs text-gray-500 mt-0.5">{currentRequisition?.profiles?.full_name || '申请人'}</p>
+            </div>
           </div>
         }
         open={approveModalVisible}
         onCancel={() => {
-          setApproveModalVisible(false)
-          setSelectedResult(null)
-          form.resetFields()
+          setApproveModalVisible(false);
+          setSelectedResult(null);
+          setOpinion('');
         }}
         footer={null}
         width={800}
-        styles={{
-          body: { padding: '24px', background: '#fafafa' }
-        }}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleApproval}
-        >
-          {/* 申请信息卡片 */}
-          <Card 
-            title={
-              <Space>
-                <FileTextOutlined style={{ color: '#1890ff' }} />
-                <Text strong>申请信息</Text>
-              </Space>
-            }
-            style={{ marginBottom: 24, borderRadius: 8 }}
-            bodyStyle={{ padding: '20px' }}
-          >
-            <Descriptions column={2} size="middle">
-              <Descriptions.Item label={<Space><UserOutlined />申请人</Space>}>
-                <Text strong>{currentRequisition?.profiles?.full_name || '-'}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label={<Space><NumberOutlined />工号</Space>}>
-                <Text code>{currentRequisition?.employee_id || '-'}</Text>
-              </Descriptions.Item>
-      <Descriptions.Item label={<Space><ShopOutlined />部门</Space>}>
-        <Text>{currentRequisition?.department || '未分配'}</Text>
-      </Descriptions.Item>
-              <Descriptions.Item label={<Space><CalendarOutlined />申请日期</Space>}>
-                <Text>
-                  {currentRequisition?.created_at ? new Date(currentRequisition.created_at).toLocaleDateString('zh-CN') : '-'}
-                </Text>
-              </Descriptions.Item>
-              <Descriptions.Item label={<Space><AlertOutlined />申请类型</Space>} span={2}>
-                {currentRequisition && getTypeTag(currentRequisition.requisition_type)}
-              </Descriptions.Item>
-            </Descriptions>
-
-            <Divider style={{ margin: '16px 0' }} />
-
-            <Descriptions column={2} size="middle">
-              <Descriptions.Item label="物品名称" span={2}>
-                <Text style={{ fontSize: 16, fontWeight: 500 }}>
-                  {currentRequisition && formatMaterialInfo(currentRequisition)}
-                </Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="数量">
-                <Badge 
-                  count={currentRequisition ? formatQuantity(currentRequisition) : 0} 
-                  style={{ backgroundColor: '#1890ff', fontSize: 14 }}
-                />
-              </Descriptions.Item>
+        <div className="px-6 pb-6 space-y-5">
+          {/* Application Info */}
+          <Card className="p-4 border-gray-200">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-indigo-500" />
+                <div>
+                  <div className="text-xs text-gray-500">申请人</div>
+                  <div className="font-medium text-gray-900">{currentRequisition?.profiles?.full_name || '-'}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Hash className="w-4 h-4 text-indigo-500" />
+                <div>
+                  <div className="text-xs text-gray-500">工号</div>
+                  <div className="font-medium text-gray-900">{currentRequisition?.employee_id || '-'}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-indigo-500" />
+                <div>
+                  <div className="text-xs text-gray-500">部门</div>
+                  <div className="font-medium text-gray-900">{currentRequisition?.department || '未分配'}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-indigo-500" />
+                <div>
+                  <div className="text-xs text-gray-500">申请日期</div>
+                  <div className="font-medium text-gray-900">
+                    {currentRequisition?.created_at ? new Date(currentRequisition.created_at).toLocaleDateString('zh-CN') : '-'}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-200">
               {currentRequisition?.requisition_type === 'purchase_request' && (
-                <Descriptions.Item label="期望到货日期">
-                  <Tag color="orange">
-                    {currentRequisition?.estimated_delivery_date 
-                      ? new Date(currentRequisition.estimated_delivery_date).toLocaleDateString('zh-CN')
-                      : '未指定'}
-                  </Tag>
-                </Descriptions.Item>
+                <div className="mb-3">
+                  <div className="text-xs text-gray-500 mb-1">申购理由</div>
+                  <div className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                    {currentRequisition.purchase_reason || '-'}
+                  </div>
+                </div>
               )}
-              {currentRequisition?.requisition_type === 'purchase_request' && (
-                <Descriptions.Item label="规格型号" span={2}>
-                  <Text>
-                    {currentRequisition.purchase_specification || '-'}
-                    {currentRequisition.purchase_model ? ` (${currentRequisition.purchase_model})` : ''}
-                  </Text>
-                </Descriptions.Item>
-              )}
-              {currentRequisition?.requisition_type === 'purchase_request' && (
-                <Descriptions.Item label="申购理由" span={2}>
-                  <Text type="secondary" style={{ background: '#f0f2f5', padding: '8px 12px', borderRadius: 6, display: 'block' }}>
-                    {currentRequisition.purchase_reason || '未填写'}
-                  </Text>
-                </Descriptions.Item>
-              )}
-              <Descriptions.Item label="申请用途" span={2}>
-                <Text style={{ background: '#e6f7ff', padding: '12px', borderRadius: 6, display: 'block' }}>
+              <div>
+                <div className="text-xs text-gray-500 mb-1">用途说明</div>
+                <div className="text-sm text-gray-700 bg-blue-50 p-3 rounded">
                   {currentRequisition?.purpose || '未填写'}
-                </Text>
-              </Descriptions.Item>
-            </Descriptions>
+                </div>
+              </div>
+            </div>
           </Card>
 
-          {/* 审批结果选择 */}
-          <Card 
-            title={
-              <Space>
-                <CheckOutlined style={{ color: '#52c41a' }} />
-                <Text strong>审批结果</Text>
-              </Space>
-            }
-            style={{ marginBottom: 24, borderRadius: 8 }}
-            bodyStyle={{ padding: '20px' }}
-          >
-            <Row gutter={16}>
-              <Col span={12}>
-                <div
-                  onClick={() => setSelectedResult('approved')}
-                  style={{
-                    border: selectedResult === 'approved' ? '2px solid #52c41a' : '1px solid #d9d9d9',
-                    borderRadius: 8,
-                    padding: '16px',
-                    cursor: 'pointer',
-                    background: selectedResult === 'approved' ? '#f6ffed' : 'white',
-                    transition: 'all 0.3s',
-                  }}
-                >
-                  <Space direction="vertical" align="center" style={{ width: '100%' }}>
-                    <CheckOutlined style={{ fontSize: 32, color: '#52c41a' }} />
-                    <Text strong style={{ fontSize: 16 }}>审批通过</Text>
-                    <Text type="secondary" style={{ fontSize: 12 }}>同意该申请</Text>
-                  </Space>
+          {/* Approval Result Selection */}
+          <Card className="p-4 border-gray-200">
+            <h4 className="font-semibold text-gray-900 mb-3">审批结果</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => setSelectedResult('approved')}
+                className={`p-4 rounded-xl border-2 transition-all ${
+                  selectedResult === 'approved'
+                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20'
+                    : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30'
+                }`}
+              >
+                <div className="flex flex-col items-center">
+                  <CheckCircle2 className={`w-8 h-8 ${selectedResult === 'approved' ? 'text-indigo-600' : 'text-gray-400'} mb-2`} />
+                  <div className="font-semibold text-gray-900">审批通过</div>
+                  <div className="text-xs text-gray-500 mt-1">同意该申请</div>
                 </div>
-              </Col>
-              <Col span={12}>
-                <div
-                  onClick={() => setSelectedResult('rejected')}
-                  style={{
-                    border: selectedResult === 'rejected' ? '2px solid #ff4d4f' : '1px solid #d9d9d9',
-                    borderRadius: 8,
-                    padding: '16px',
-                    cursor: 'pointer',
-                    background: selectedResult === 'rejected' ? '#fff2e8' : 'white',
-                    transition: 'all 0.3s',
-                  }}
-                >
-                  <Space direction="vertical" align="center" style={{ width: '100%' }}>
-                    <CloseOutlined style={{ fontSize: 32, color: '#ff4d4f' }} />
-                    <Text strong style={{ fontSize: 16 }}>审批驳回</Text>
-                    <Text type="secondary" style={{ fontSize: 12 }}>拒绝该申请</Text>
-                  </Space>
+              </button>
+              <button
+                onClick={() => setSelectedResult('rejected')}
+                className={`p-4 rounded-xl border-2 transition-all ${
+                  selectedResult === 'rejected'
+                    ? 'border-red-500 bg-red-50 ring-2 ring-red-500/20'
+                    : 'border-gray-200 hover:border-red-300 hover:bg-red-50/30'
+                }`}
+              >
+                <div className="flex flex-col items-center">
+                  <XCircle className={`w-8 h-8 ${selectedResult === 'rejected' ? 'text-red-600' : 'text-gray-400'} mb-2`} />
+                  <div className="font-semibold text-gray-900">审批驳回</div>
+                  <div className="text-xs text-gray-500 mt-1">拒绝该申请</div>
                 </div>
-              </Col>
-            </Row>
+              </button>
+            </div>
           </Card>
 
-          {/* 审批意见 */}
-          <Form.Item
-            name="opinion"
-            label={<Text strong>审批意见</Text>}
-            rules={[{ required: true, message: '请输入审批意见' }]}
-          >
-            <Input.TextArea
+          {/* Approval Opinion */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
+              审批意见 <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={opinion}
+              onChange={(e) => setOpinion(e.target.value)}
+              placeholder={selectedResult === 'rejected' ? '请输入驳回理由（必填）' : '请输入审批意见（建议填写）'}
               rows={4}
-              placeholder={selectedResult === 'rejected' 
-                ? '请输入驳回理由（必填）'
-                : '请输入审批意见（建议填写，便于申请人了解审批情况）'}
-              style={{ borderRadius: 6, fontSize: 14 }}
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 resize-none"
             />
-          </Form.Item>
+          </div>
 
-          {/* 操作按钮 */}
-          <Form.Item style={{ marginBottom: 0 }}>
-            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <Button 
-                size="large"
-                onClick={() => {
-                  setApproveModalVisible(false)
-                  setSelectedResult(null)
-                  form.resetFields()
-                }}
-              >
-                取消
-              </Button>
-              <Button 
-                type="primary" 
-                size="large" 
-                htmlType="submit" 
-                loading={submitting}
-                disabled={!selectedResult}
-                style={{ minWidth: 120 }}
-              >
-                确认{selectedResult === 'approved' ? '通过' : selectedResult === 'rejected' ? '驳回' : ''}
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
+          {/* Footer */}
+          <div className="flex gap-3 p-6 border-t border-gray-200 bg-gray-50 -mx-6 -mb-6 rounded-b-xl">
+            <Button 
+              variant="outline" 
+              className="flex-1 h-11 rounded-xl"
+              onClick={() => {
+                setApproveModalVisible(false);
+                setSelectedResult(null);
+                setOpinion('');
+              }}
+            >
+              取消
+            </Button>
+            <Button 
+              className="flex-1 h-11 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white"
+              onClick={handleApproval}
+              disabled={!selectedResult || !opinion.trim() || submitting}
+              loading={submitting}
+            >
+              确认{selectedResult === 'approved' ? '通过' : selectedResult === 'rejected' ? '驳回' : ''}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
-  )
+  );
 }

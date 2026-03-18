@@ -1,55 +1,59 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Card, Form, Input, InputNumber, Button, message, Typography, Row, Col, DatePicker, Select, Divider, Badge, Tag, Space } from 'antd'
-import { PlusOutlined, ShoppingOutlined, InboxOutlined, TagsOutlined, TeamOutlined, HistoryOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ShoppingCart, Sparkles, AlertCircle, Plus, Calendar, Building2, User, Hash, FileText } from 'lucide-react';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { message, DatePicker, Select, Row, Col } from 'antd';
 import { supabase } from '../lib/supabase'
 import type { Material } from '../lib/supabase'
 import dayjs from 'dayjs'
 
-const { Title, Text } = Typography
-const { TextArea } = Input
 const { Option } = Select
 
-// 部门选项
 const DEPARTMENTS = [
-  { label: '设备部', value: '设备部', icon: '🏭' },
-  { label: '技术部', value: '技术部', icon: '💻' },
-  { label: '能源部', value: '能源部', icon: '⚡' },
-  { label: '生产一部', value: '生产一部', icon: '🏭' },
-  { label: '生产二部', value: '生产二部', icon: '🏭' },
-  { label: '供应部', value: '供应部', icon: '📦' },
-  { label: '储运部', value: '储运部', icon: '🚛' },
+  { label: '设备部', value: '设备部' },
+  { label: '技术部', value: '技术部' },
+  { label: '能源部', value: '能源部' },
+  { label: '生产一部', value: '生产一部' },
+  { label: '生产二部', value: '生产二部' },
+  { label: '供应部', value: '供应部' },
+  { label: '储运部', value: '储运部' },
 ]
 
-/**
- * 物品申购页面
- * 员工可以申请系统中不存在的新物品
- */
 export default function PurchaseRequest() {
   const navigate = useNavigate()
-  const [form] = Form.useForm()
   const [submitting, setSubmitting] = useState(false)
   const [lowStockMaterials, setLowStockMaterials] = useState<Material[]>([])
   const [allMaterials, setAllMaterials] = useState<Material[]>([])
+  
+  const [formData, setFormData] = useState({
+    purchase_name: '',
+    purchase_specification: '',
+    purchase_model: '',
+    purchase_unit: '',
+    quantity: 1,
+    estimated_delivery_date: null as any,
+    department: '',
+    employee_id: '',
+    applicant_name: '',
+    purchase_reason: '',
+    purpose: ''
+  })
 
   useEffect(() => {
     fetchMaterials()
   }, [])
 
-  /**
-   * 获取物资列表（包括缺货物品）
-   */
   async function fetchMaterials() {
     try {
-      // 获取缺货物品（优先显示）
       const { data: lowStockData } = await supabase
         .from('materials')
         .select('*')
         .eq('status', 'active')
-        .lt('stock', 10)  // 库存少于10的视为缺货
+        .lt('stock', 10)
         .order('stock', { ascending: true })
 
-      // 获取所有物品
       const { data: allData } = await supabase
         .from('materials')
         .select('*')
@@ -63,43 +67,44 @@ export default function PurchaseRequest() {
     }
   }
 
-  /**
-   * 提交申购申请
-   */
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async () => {
+    if (!formData.purchase_name || !formData.purchase_unit || !formData.quantity || 
+        !formData.department || !formData.employee_id || !formData.applicant_name ||
+        !formData.purchase_reason || !formData.purpose || !formData.estimated_delivery_date) {
+      message.error('请填写所有必填项')
+      return
+    }
+
     setSubmitting(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-
       if (!user) {
         message.error('请先登录')
         return
       }
 
-      // 创建申购申请
       const { error } = await supabase
         .from('requisitions')
         .insert({
           user_id: user.id,
           requisition_type: 'purchase_request',
-          purchase_name: values.purchase_name,
-          purchase_specification: values.purchase_specification,
-          purchase_model: values.purchase_model,
-          purchase_unit: values.purchase_unit,
-          purchase_quantity: values.quantity,
-          purchase_reason: values.purchase_reason,
-          purpose: values.purpose,
-          estimated_delivery_date: values.estimated_delivery_date?.format('YYYY-MM-DD'),
-          department: values.department,
-          employee_id: values.employee_id,
-          applicant_name: values.applicant_name,
+          purchase_name: formData.purchase_name,
+          purchase_specification: formData.purchase_specification,
+          purchase_model: formData.purchase_model,
+          purchase_unit: formData.purchase_unit,
+          purchase_quantity: formData.quantity,
+          purchase_reason: formData.purchase_reason,
+          purpose: formData.purpose,
+          estimated_delivery_date: formData.estimated_delivery_date.format('YYYY-MM-DD'),
+          department: formData.department,
+          employee_id: formData.employee_id,
+          applicant_name: formData.applicant_name,
           status: 'pending'
         })
 
       if (error) throw error
 
       message.success('申购提交成功,等待审批')
-      form.resetFields()
       navigate('/my-requisitions')
     } catch (error) {
       console.error('提交失败:', error)
@@ -110,283 +115,268 @@ export default function PurchaseRequest() {
   }
 
   return (
-    <div style={{ 
-      padding: '24px',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'flex-start',
-      minHeight: 'calc(100vh - 64px)',
-      background: '#f5f7fa'
-    }}>
-      <div style={{ width: '100%', maxWidth: 900 }}>
-        {/* 页面头部 - 更丰富的信息 */}
-        <Card style={{ marginBottom: 24, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <Title level={2} style={{ fontSize: 28, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-                <ShoppingOutlined style={{ color: '#667eea' }} />
-                物品申购
-                <Badge count={lowStockMaterials.length} overflowCount={99} style={{ backgroundColor: '#faad14' }} />
-              </Title>
-              <Text style={{ fontSize: 16, color: '#6b7280' }}>
-                申请新物品或补充库存不足物品
-              </Text>
+    <div className="p-8 space-y-6 max-w-4xl mx-auto">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-semibold text-gray-900 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center">
+            <ShoppingCart className="w-5 h-5 text-white" />
+          </div>
+          物品申购
+          <Sparkles className="w-6 h-6 text-amber-500" />
+        </h1>
+        <p className="text-gray-500 mt-1">申请添加新物品至库存，提交后将直接推送至系统管理员处理</p>
+      </div>
+
+      {/* Alert */}
+      {lowStockMaterials.length > 0 && (
+        <Card className="p-4 border-0 bg-gradient-to-br from-amber-50 to-orange-50 shadow-md">
+          <div className="flex gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-white" />
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <Tag color="orange" style={{ marginBottom: 4 }}>缺货物品: {lowStockMaterials.length} 种</Tag>
-              <div style={{ fontSize: 12, color: '#9ca3af' }}>建议优先申购缺货物品</div>
+            <div>
+              <h3 className="font-semibold text-amber-900 mb-1">库存不足物品提醒</h3>
+              <p className="text-sm text-amber-700">发现 {lowStockMaterials.length} 种物品库存不足，建议优先申购</p>
             </div>
           </div>
         </Card>
+      )}
 
-        {/* 缺货提示 - 如果有缺货物品 */}
-        {lowStockMaterials.length > 0 && (
-          <Card style={{ marginBottom: 24, borderRadius: 12, border: '1px solid #faad20' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <InfoCircleOutlined style={{ color: '#faad14' }} />
-              <Text strong style={{ color: '#faad14' }}>库存不足物品推荐</Text>
+      {/* Form */}
+      <Card className="p-8 border-0 bg-white shadow-xl">
+        <div className="space-y-8">
+          {/* Section: Product Info */}
+          <div>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
+                <ShoppingCart className="w-4 h-4 text-white" />
+              </div>
+              <h3 className="font-semibold text-gray-900 text-lg">物品信息</h3>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {lowStockMaterials.slice(0, 6).map(material => (
-                <Tag key={material.id} color="orange" style={{ margin: 0 }}>
-                  <InboxOutlined style={{ marginRight: 4 }} />
-                  {material.name} ({material.stock}/{material.safe_stock})
-                </Tag>
-              ))}
-              {lowStockMaterials.length > 6 && (
-                <Tag style={{ margin: 0 }}>还有 {lowStockMaterials.length - 6} 种...</Tag>
-              )}
-            </div>
-          </Card>
-        )}
 
-        {/* 申购表单 */}
-        <Card 
-          title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <PlusOutlined style={{ color: '#667eea' }} />
-              <Title level={4} style={{ margin: 0 }}>申购申请单</Title>
-              <Text type="secondary" style={{ marginLeft: 'auto', fontSize: 12 }}>
-                带 <span style={{ color: 'red' }}>*</span> 为必填项
-              </Text>
-            </div>
-          }
-          style={{ borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-        >
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-            size="large"
-            style={{ padding: '20px 0' }}
-          >
-            {/* 物品基本信息 - 带图标 */}
-            <Divider orientation="left"><TagsOutlined /> 物品基本信息</Divider>
-            
-            <Row gutter={24}>
-              <Col span={24}>
-                <Form.Item
-                  name="purchase_name"
-                  label="物品名称"
-                  rules={[{ required: true, message: '请选择或输入物品名称' }]}
-                >
-                  <Select 
-                    placeholder="请选择或搜索物品名称"
-                    showSearch
-                    allowClear
-                    dropdownRender={menu => (
-                      <div>
-                        {menu}
-                        <Divider style={{ margin: '8px 0' }} />
-                        <div style={{ padding: '8px', fontSize: 12, color: '#999' }}>
-                          <Text type="secondary">未找到？直接输入新物品名称</Text>
-                        </div>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  物品名称<span className="text-rose-500 ml-1">*</span>
+                </label>
+                <Select
+                  style={{ width: '100%' }}
+                  placeholder="请选择或输入物品名称"
+                  showSearch
+                  allowClear
+                  value={formData.purchase_name || undefined}
+                  onChange={(value) => setFormData({...formData, purchase_name: value})}
+                  dropdownRender={menu => (
+                    <div>
+                      {menu}
+                      {lowStockMaterials.length > 0 && (
+                        <>
+                          <div className="px-3 py-2 text-xs text-amber-600 bg-amber-50 border-t border-amber-200">
+                            库存不足物品（建议优先申购）
+                          </div>
+                          {lowStockMaterials.map(material => (
+                            <div
+                              key={material.id}
+                              className="px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
+                              onClick={() => setFormData({...formData, purchase_name: material.name})}
+                            >
+                              {material.name} 
+                              <span className="text-gray-500 ml-2">
+                                (库存: {material.stock} {material.unit})
+                              </span>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                      <div className="px-3 py-2 text-xs text-gray-500 border-t border-gray-200">
+                        所有物品
                       </div>
-                    )}
-                  >
-                    {/* 缺货物品分组 */}
-                    {lowStockMaterials.length > 0 && (
-                      <Select.OptGroup label={
-                        <span style={{ color: '#faad14' }}>
-                          <InfoCircleOutlined style={{ marginRight: 8 }} />
-                          库存不足物品（建议优先申购）
-                        </span>
-                      }>
-                        {lowStockMaterials.map(material => (
-                          <Option key={`low-${material.id}`} value={material.name}>
-                            <Badge status="warning" style={{ marginRight: 8 }} />
-                            {material.name} 
-                            <Text type="secondary" style={{ marginLeft: 8 }}>
-                              (库存: {material.stock} {material.unit})
-                            </Text>
-                          </Option>
-                        ))}
-                      </Select.OptGroup>
-                    )}
-                    
-                    {/* 所有物品分组 */}
-                    <Select.OptGroup label={<span><InboxOutlined style={{ marginRight: 8 }} />所有物品</span>}>
-                      {allMaterials.map(material => (
-                        <Option key={material.id} value={material.name}>
-                          {material.name}
-                          <Text type="secondary" style={{ marginLeft: 8 }}>
-                            ({material.category})
-                          </Text>
-                        </Option>
-                      ))}
-                    </Select.OptGroup>
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={24}>
-              <Col span={12}>
-                <Form.Item
-                  name="purchase_specification"
-                  label="规格"
+                    </div>
+                  )}
                 >
-                  <Input placeholder="如: A4, 100ml, 大号" />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="purchase_unit"
-                  label="单位"
-                  rules={[{ required: true, message: '请输入单位' }]}
+                  {allMaterials.map(material => (
+                    <Option key={material.id} value={material.name}>
+                      {material.name}
+                      <span className="text-gray-500 ml-2">
+                        ({material.category})
+                      </span>
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  物品分类<span className="text-rose-500 ml-1">*</span>
+                </label>
+                <Select
+                  style={{ width: '100%' }}
+                  placeholder="请选择物品分类"
+                  value={formData.purchase_specification || undefined}
+                  onChange={(value) => setFormData({...formData, purchase_specification: value})}
                 >
-                  <Input placeholder="如: 个、箱、包、件" addonAfter="单位" />
-                </Form.Item>
-              </Col>
-            </Row>
+                  <Option value="办公耗材">办公耗材</Option>
+                  <Option value="清洁工具">清洁工具</Option>
+                  <Option value="电子设备">电子设备</Option>
+                  <Option value="办公用品">办公用品</Option>
+                </Select>
+              </div>
+            </div>
 
-            <Row gutter={24}>
-              <Col span={12}>
-                <Form.Item
-                  name="purchase_model"
-                  label="型号"
-                >
-                  <Input placeholder="如: HP-1020, 得力-001 (可选)" />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="quantity"
-                  label="申购数量"
-                  rules={[{ required: true, message: '请输入申购数量' }]}
-                >
-                  <InputNumber min={1} style={{ width: '100%' }} placeholder="请输入申购数量" />
-                </Form.Item>
-              </Col>
-            </Row>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  规格型号
+                </label>
+                <Input
+                  value={formData.purchase_model}
+                  onChange={(e) => setFormData({...formData, purchase_model: e.target.value})}
+                  placeholder="如: USB 3.0, A4, 标准型"
+                  className="h-12"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  单位<span className="text-rose-500 ml-1">*</span>
+                </label>
+                <Input
+                  value={formData.purchase_unit}
+                  onChange={(e) => setFormData({...formData, purchase_unit: e.target.value})}
+                  placeholder="如: 个、箱、包、件"
+                  className="h-12"
+                />
+              </div>
+            </div>
+          </div>
 
-            <Row gutter={24}>
-              <Col span={12}>
-                <Form.Item
-                  name="estimated_delivery_date"
-                  label="预计到货日期"
-                  rules={[{ required: true, message: '请选择预计到货日期' }]}
-                >
-                  <DatePicker 
-                    style={{ width: '100%' }} 
-                    placeholder="请选择预计到货日期"
-                    disabledDate={(current) => current && current < dayjs().startOf('day')}
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
+          {/* Section: Application Details */}
+          <div>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                <FileText className="w-4 h-4 text-white" />
+              </div>
+              <h3 className="font-semibold text-gray-900 text-lg">申购详情</h3>
+            </div>
 
-            <Divider orientation="left"><TeamOutlined /> 申请人信息</Divider>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  申购数量<span className="text-rose-500 ml-1">*</span>
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value) || 1})}
+                  placeholder="请输入申购数量"
+                  className="h-12"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  预计到货日期<span className="text-rose-500 ml-1">*</span>
+                </label>
+                <DatePicker 
+                  style={{ width: '100%', height: 48 }}
+                  placeholder="请选择预计到货日期"
+                  value={formData.estimated_delivery_date}
+                  onChange={(date) => setFormData({...formData, estimated_delivery_date: date})}
+                  disabledDate={(current) => current && current < dayjs().startOf('day')}
+                />
+              </div>
+            </div>
 
-            <Row gutter={24}>
-              <Col span={12}>
-                <Form.Item
-                  name="department"
-                  label="部门"
-                  rules={[{ required: true, message: '请选择部门' }]}
-                >
-                  <Select placeholder="请选择部门">
-                    {DEPARTMENTS.map(dept => (
-                      <Option key={dept.value} value={dept.value}>
-                        <span style={{ marginRight: 8 }}>{dept.icon}</span>
-                        {dept.label}
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="employee_id"
-                  label="工号"
-                  rules={[{ required: true, message: '请输入工号' }]}
-                >
-                  <Input placeholder="请输入工号" />
-                </Form.Item>
-              </Col>
-            </Row>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                申购理由<span className="text-rose-500 ml-1">*</span>
+              </label>
+              <Input
+                value={formData.purchase_reason}
+                onChange={(e) => setFormData({...formData, purchase_reason: e.target.value})}
+                placeholder="如: 库存不足、新项目需求、设备更新等"
+                className="h-12"
+              />
+            </div>
 
-            <Row gutter={24}>
-              <Col span={12}>
-                <Form.Item
-                  name="applicant_name"
-                  label="申请人姓名"
-                  rules={[{ required: true, message: '请输入姓名' }]}
-                >
-                  <Input placeholder="请输入姓名" />
-                </Form.Item>
-              </Col>
-            </Row>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                用途说明<span className="text-rose-500 ml-1">*</span>
+              </label>
+              <textarea
+                value={formData.purpose}
+                onChange={(e) => setFormData({...formData, purpose: e.target.value})}
+                placeholder="请详细说明物资的具体用途、使用场景、预期效果等..."
+                rows={4}
+                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 resize-none"
+              />
+            </div>
+          </div>
 
-            <Divider orientation="left"><HistoryOutlined /> 申购说明</Divider>
+          {/* Section: Applicant Info */}
+          <div>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+                <User className="w-4 h-4 text-white" />
+              </div>
+              <h3 className="font-semibold text-gray-900 text-lg">申请人信息</h3>
+            </div>
 
-            <Form.Item
-              name="purchase_reason"
-              label="申购理由"
-              rules={[{ required: true, message: '请输入申购理由' }]}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  姓名<span className="text-rose-500 ml-1">*</span>
+                </label>
+                <Input
+                  value={formData.applicant_name}
+                  onChange={(e) => setFormData({...formData, applicant_name: e.target.value})}
+                  placeholder="请输入姓名"
+                  className="h-12"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  工号<span className="text-rose-500 ml-1">*</span>
+                </label>
+                <Input
+                  value={formData.employee_id}
+                  onChange={(e) => setFormData({...formData, employee_id: e.target.value})}
+                  placeholder="请输入工号"
+                  className="h-12"
+                />
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                所属部门<span className="text-rose-500 ml-1">*</span>
+              </label>
+              <select
+                value={formData.department}
+                onChange={(e) => setFormData({...formData, department: e.target.value})}
+                className="w-full h-12 rounded-xl border border-gray-300 bg-white px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 cursor-pointer"
+              >
+                <option value="">请选择部门</option>
+                {DEPARTMENTS.map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <div className="flex justify-center pt-6">
+            <Button 
+              className="h-12 px-8 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold hover:shadow-lg hover:shadow-indigo-500/30 transition-all"
+              onClick={handleSubmit}
+              loading={submitting}
+              disabled={submitting}
             >
-              <TextArea rows={3} placeholder="请说明申购理由，如库存不足、新项目需求等" />
-            </Form.Item>
-
-            <Form.Item
-              name="purpose"
-              label="用途说明"
-              rules={[{ required: true, message: '请输入用途说明' }]}
-            >
-              <TextArea rows={4} placeholder="请详细说明物资的具体用途、使用场景等" />
-            </Form.Item>
-
-            <Divider />
-
-            <Form.Item style={{ marginBottom: 0 }}>
-              <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                <Button
-                  size="large"
-                  onClick={() => {
-                    form.resetFields()
-                  }}
-                >
-                  重置
-                </Button>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={submitting}
-                  icon={<PlusOutlined />}
-                  size="large"
-                  style={{
-                    minWidth: 180,
-                    background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                    border: 'none',
-                  }}
-                >
-                  提交申购申请
-                </Button>
-              </Space>
-            </Form.Item>
-          </Form>
-        </Card>
-      </div>
+              <Send className="w-4 h-4 mr-2" />
+              提交申购申请
+            </Button>
+          </div>
+        </div>
+      </Card>
     </div>
   )
 }

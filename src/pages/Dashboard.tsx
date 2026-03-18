@@ -1,343 +1,297 @@
-import { Row, Col, Card, Typography, Badge, Progress, Tag, Button, message } from 'antd'
-import {
-  ShoppingOutlined,
-  FileTextOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  RiseOutlined,
-  AlertOutlined,
-  BarChartOutlined,
-  TeamOutlined,
-  PlusOutlined,
-  FileSearchOutlined,
-  HistoryOutlined,
-  AppstoreOutlined,
-} from '@ant-design/icons'
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ShoppingBag, FileCheck, CheckCircle, Clock, TrendingUp, Package, Calendar, ArrowRight, BarChart2 } from 'lucide-react';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { supabase } from '../lib/supabase';
+import { isAdmin } from '../lib/auth';
 
-const { Title, Text } = Typography
+const stats = [
+  { label: '当前领用', value: '1', icon: ShoppingBag, color: 'text-indigo-500', bgColor: 'bg-indigo-500/5', change: '+12%' },
+  { label: '等待申购', value: '0', icon: FileCheck, color: 'text-emerald-600', bgColor: 'bg-emerald-500/5', change: '+0%' },
+  { label: '已通过', value: '0', icon: CheckCircle, color: 'text-purple-600', bgColor: 'bg-purple-500/5', change: '+0%' },
+  { label: '待签收', value: '0', icon: Clock, color: 'text-amber-600', bgColor: 'bg-amber-500/5', change: '+0%' },
+];
 
-/**
- * 管理员 Dashboard - 丰富的数据展示
- * 特点: 多图表、色彩丰富、信息密度高
- */
+const quickActions = [
+  { label: '快捷领用', subLabel: '查看库存', icon: Package, color: 'text-indigo-500', bgColor: 'bg-indigo-500/5', path: '/materials' },
+  { label: '提交申请', subLabel: '新建申请单', icon: FileCheck, color: 'text-gray-700', bgColor: 'bg-gray-200/50', path: '/purchase-request' },
+  { label: '查看记录', subLabel: '历史记录', icon: Calendar, color: 'text-cyan-600', bgColor: 'bg-cyan-500/5', path: '/my-requisitions' },
+];
+
+const recentApplications = [
+  { id: 1, item: '订书机', quantity: 1, status: 'pending', date: '2026/3/17', type: '日常领用' },
+  { id: 2, item: '生成申购单', quantity: 1, status: 'waiting', date: '2026/3/18', type: '物品申购' },
+];
+
+const collectionRanking = [
+  { name: 'A4打印纸', count: 87, category: '办公用品' },
+  { name: '中性笔',   count: 74, category: '办公用品' },
+  { name: 'U盘',      count: 52, category: '电子设备' },
+  { name: '订书机',   count: 41, category: '办公用品' },
+  { name: '文件夹',   count: 38, category: '办公用品' },
+  { name: '剪刀',     count: 29, category: '办公用品' },
+  { name: '固体胶',   count: 24, category: '办公用品' },
+  { name: '计算器',   count: 18, category: '电子设备' },
+];
+
+const BAR_COLORS = [
+  '#6366f1', '#7c3aed', '#8b5cf6', '#a78bfa',
+  '#818cf8', '#93c5fd', '#60a5fa', '#38bdf8',
+];
+
+const CATEGORY_COLOR: Record<string, string> = {
+  '办公用品': 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+  '电子设备': 'bg-purple-500/10 text-purple-600 border-purple-500/20',
+};
+
 export default function Dashboard() {
-  const navigate = useNavigate()
-  const [stats, setStats] = useState({
-    totalMaterials: 0,
-    totalRequisitions: 0,
-    approvedRequisitions: 0,
-    pendingRequisitions: 0,
-  })
-  const [lowStockMaterials, setLowStockMaterials] = useState<Array<{ name: string; stock: number }>>([])
-  const [userRole, setUserRole] = useState<string>('')
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const navigate = useNavigate();
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  
+  const totalCount = collectionRanking.reduce((s, i) => s + i.count, 0);
+  const topItem = collectionRanking[0];
 
-  // 从Supabase加载统计数据
   useEffect(() => {
-    loadDashboardData()
-  }, [])
+    checkAdmin();
+  }, []);
 
-  /**
-   * 加载仪表板数据
-   */
-  async function loadDashboardData() {
-    try {
-      // 获取物资总数
-      const { count: materialCount } = await supabase
-        .from('materials')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active')
-
-      // 获取当前用户ID
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      // 获取用户角色
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-      setUserRole(profileData?.role || 'employee')
-
-      // 获取用户的申领记录
-      const { count: requisitionCount } = await supabase
-        .from('requisitions')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-
-      // 获取已通过和待审批的申领数
-      const { count: approvedCount } = await supabase
-        .from('requisitions')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('status', 'approved')
-
-      const { count: pendingCount } = await supabase
-        .from('requisitions')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('status', 'pending')
-
-      // 获取库存预警信息
-      const { data: lowStockData } = await supabase
-        .from('materials')
-        .select('name, stock')
-        .lt('stock', 10)
-        .eq('status', 'active')
-        .order('stock', { ascending: true })
-        .limit(3)
-
-      setStats({
-        totalMaterials: materialCount || 0,
-        totalRequisitions: requisitionCount || 0,
-        approvedRequisitions: approvedCount || 0,
-        pendingRequisitions: pendingCount || 0,
-      })
-
-      setLowStockMaterials(lowStockData || [])
-    } catch (error) {
-      console.error('加载仪表板数据失败:', error)
-      message.error('加载数据失败')
-    }
+  async function checkAdmin() {
+    const admin = await isAdmin();
+    setIsAdminUser(admin);
   }
 
   return (
-    <div style={{ padding: '32px', background: 'linear-gradient(135deg, #f5f7fa 0%, #e4e7f1 100%)', minHeight: 'calc(100vh - 64px)' }}>
-      {/* 顶部统计卡片 - 优化后的统一风格 */}
-      <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
-        <Col xs={24} sm={12} md={6}>
-          <Card style={{ 
-            borderRadius: 12, 
-            boxShadow: '0 6px 20px rgba(24, 144, 255, 0.15)',
-            height: '100%',
-            border: '1px solid rgba(24, 144, 255, 0.1)',
-            overflow: 'hidden'
-          }}>
-            <div style={{ padding: '24px 20px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div>
-                  <div style={{ fontSize: 13, color: '#8c8c8c', marginBottom: 4 }}>可用物资</div>
-                  <div style={{ fontSize: 26, color: '#1890ff', fontWeight: 700 }}>{stats.totalMaterials}</div>
-                </div>
-                <ShoppingOutlined style={{ color: '#1890ff', fontSize: 32, opacity: 0.85 }} />
-              </div>
-              <div style={{ paddingTop: 12, borderTop: '1px solid #f0f0f0', display: 'flex', alignItems: 'center' }}>
-                <Badge status="success" />
-                <Text style={{ fontSize: 12, marginLeft: 8 }}>正常运行</Text>
-                <RiseOutlined style={{ color: '#52c41a', marginLeft: 'auto', fontSize: 14 }} />
-              </div>
-            </div>
-          </Card>
-        </Col>
+    <div className="p-8 space-y-8 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold text-gray-900 tracking-tight">
+            {isAdminUser ? '管理控制台' : '我的工作台'}
+          </h1>
+          <p className="text-gray-500 mt-1">
+            {isAdminUser ? '监控系统运行状态，管理物资和审批' : '快速申领物资，查看申请状态'}
+          </p>
+        </div>
+        <div className="text-right px-5 py-3 rounded-xl bg-gray-100 border border-gray-200">
+          <p className="text-xs text-gray-500">今天是</p>
+          <p className="text-sm font-semibold text-gray-900">
+            {new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+        </div>
+      </div>
 
-        <Col xs={24} sm={12} md={6}>
-          <Card style={{ 
-            borderRadius: 12, 
-            boxShadow: '0 6px 20px rgba(82, 196, 26, 0.15)',
-            height: '100%',
-            border: '1px solid rgba(82, 196, 26, 0.1)',
-            overflow: 'hidden'
-          }}>
-            <div style={{ padding: '24px 20px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div>
-                  <div style={{ fontSize: 13, color: '#8c8c8c', marginBottom: 4 }}>我的申领</div>
-                  <div style={{ fontSize: 26, color: '#52c41a', fontWeight: 700 }}>{stats.totalRequisitions}</div>
-                </div>
-                <FileTextOutlined style={{ color: '#52c41a', fontSize: 32, opacity: 0.85 }} />
-              </div>
-              <div style={{ paddingTop: 12, borderTop: '1px solid #f0f0f0', display: 'flex', alignItems: 'center' }}>
-                <Badge status="processing" />
-                <Text style={{ fontSize: 12, marginLeft: 8 }}>本月申请</Text>
-                <Text style={{ fontSize: 12, color: '#8c8c8c', marginLeft: 'auto' }}>件</Text>
-              </div>
+      {/* ── 近一个月领用排行 ── */}
+      <Card className="p-6 border border-gray-200 bg-white">
+        {/* Card Header */}
+        <div className="flex items-start justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+              <BarChart2 className="w-4.5 h-4.5 text-indigo-500" />
             </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} md={6}>
-          <Card style={{ 
-            borderRadius: 12, 
-            boxShadow: '0 6px 20px rgba(16, 185, 129, 0.15)',
-            height: '100%',
-            border: '1px solid rgba(16, 185, 129, 0.1)',
-            overflow: 'hidden'
-          }}>
-            <div style={{ padding: '24px 20px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div>
-                  <div style={{ fontSize: 13, color: '#8c8c8c', marginBottom: 4 }}>已通过</div>
-                  <div style={{ fontSize: 26, color: '#10b981', fontWeight: 700 }}>{stats.approvedRequisitions}</div>
-                </div>
-                <CheckCircleOutlined style={{ color: '#10b981', fontSize: 32, opacity: 0.85 }} />
-              </div>
-              <div style={{ paddingTop: 12, borderTop: '1px solid #f0f0f0', display: 'flex', alignItems: 'center' }}>
-                <Badge status="success" />
-                <Text style={{ fontSize: 12, marginLeft: 8 }}>审批完成</Text>
-                <CheckCircleOutlined style={{ color: '#10b981', marginLeft: 'auto', fontSize: 14 }} />
-              </div>
+            <div>
+              <h2 className="font-semibold text-gray-900">近一个月领用排行</h2>
+              <p className="text-xs text-gray-500 mt-0.5">2026年2月18日 — 2026年3月18日</p>
             </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} md={6}>
-          <Card style={{ 
-            borderRadius: 12, 
-            boxShadow: '0 6px 20px rgba(250, 173, 20, 0.15)',
-            height: '100%',
-            border: '1px solid rgba(250, 173, 20, 0.1)',
-            overflow: 'hidden'
-          }}>
-            <div style={{ padding: '24px 20px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div>
-                  <div style={{ fontSize: 13, color: '#8c8c8c', marginBottom: 4 }}>待审批</div>
-                  <div style={{ fontSize: 26, color: '#faad14', fontWeight: 700 }}>{stats.pendingRequisitions}</div>
-                </div>
-                <ClockCircleOutlined style={{ color: '#faad14', fontSize: 32, opacity: 0.85 }} />
-              </div>
-              <div style={{ paddingTop: 12, borderTop: '1px solid #f0f0f0', display: 'flex', alignItems: 'center' }}>
-                <Badge status="warning" />
-                <Text style={{ fontSize: 12, marginLeft: 8 }}>需要处理</Text>
-                <AlertOutlined style={{ color: '#faad14', marginLeft: 'auto', fontSize: 14 }} />
-              </div>
+          </div>
+          {/* Summary Pills */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 border border-gray-200 text-sm">
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="text-gray-500">总领用</span>
+              <span className="font-semibold text-gray-900">{totalCount} 件</span>
             </div>
-          </Card>
-        </Col>
-      </Row>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-500/5 border border-indigo-500/15 text-sm">
+              <span className="text-gray-500">Top 1</span>
+              <span className="font-semibold text-indigo-500">{topItem.name}</span>
+              <span className="text-gray-500">{topItem.count} 件</span>
+            </div>
+          </div>
+        </div>
 
-      {/* 第二行: 数据概览和操作快捷入口 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        {/* 左侧: 快捷操作 */}
-        <Col xs={24} md={12} lg={8}>
-          <Card 
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <BarChartOutlined style={{ color: '#1890ff' }} />
-                <Title level={5} style={{ margin: 0 }}>快捷操作</Title>
-              </div>
-            }
-            style={{ borderRadius: 8 }}
-          >
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-              {userRole !== 'admin' ? (
-                <>
-                  <Button 
-                    type="primary" 
-                    icon={<ShoppingOutlined />}
-                    style={{ height: 48, fontSize: 14 }}
-                    onClick={() => navigate('/materials')}
-                  >
-                    物资申领
-                  </Button>
-                  <Button 
-                    icon={<PlusOutlined />}
-                    style={{ height: 48, fontSize: 14 }}
-                    onClick={() => navigate('/purchase-request')}
-                  >
-                    提交申购
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button 
-                    type="primary" 
-                    icon={<HistoryOutlined />}
-                    style={{ height: 48, fontSize: 14 }}
-                    onClick={() => navigate('/admin/approvals')}
-                  >
-                    审批管理
-                  </Button>
-                  <Button 
-                    icon={<AppstoreOutlined />}
-                    style={{ height: 48, fontSize: 14 }}
-                    onClick={() => navigate('/admin/materials')}
-                  >
-                    物资管理
-                  </Button>
-                </>
-              )}
-              <Button 
-                icon={<FileSearchOutlined />}
-                style={{ height: 48, fontSize: 14 }}
-                onClick={() => navigate('/my-requisitions')}
-              >
-                查看记录
-              </Button>
-              {userRole === 'admin' && (
-                <Button 
-                  icon={<TeamOutlined />}
-                  style={{ height: 48, fontSize: 14 }}
-                  onClick={() => navigate('/admin/users')}
+        <div className="flex gap-8">
+          {/* Bar Chart — pure CSS */}
+          <div className="flex-1 flex flex-col gap-1.5 justify-center">
+            {collectionRanking.map((item, i) => {
+              const pct = Math.round((item.count / topItem.count) * 100);
+              const isActive = hoveredIndex === null || hoveredIndex === i;
+              return (
+                <div
+                  key={item.name}
+                  className="flex items-center gap-3 cursor-default"
+                  onMouseEnter={() => setHoveredIndex(i)}
+                  onMouseLeave={() => setHoveredIndex(null)}
                 >
-                  用户管理
-                </Button>
-              )}
-            </div>
-          </Card>
-        </Col>
-
-        {/* 中间: 申请状态分布 */}
-        <Col xs={24} md={12} lg={8}>
-          <Card 
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <FileTextOutlined style={{ color: '#722ed1' }} />
-                <Title level={5} style={{ margin: 0 }}>申请状态</Title>
-              </div>
-            }
-            style={{ borderRadius: 8 }}
-          >
-            <div style={{ padding: '8px 0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <Text>待审批</Text>
-                <Tag color="warning">{stats.pendingRequisitions}</Tag>
-              </div>
-              <Progress 
-                percent={stats.totalRequisitions > 0 ? Math.round((stats.approvedRequisitions / stats.totalRequisitions) * 100) : 0} 
-                status="active" 
-                size="small" 
-                strokeColor="#faad14" 
-              />
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                完成率: {stats.totalRequisitions > 0 ? Math.round((stats.approvedRequisitions / stats.totalRequisitions) * 100) : 0}%
-              </Text>
-            </div>
-          </Card>
-        </Col>
-
-        {/* 右侧: 库存预警 */}
-        <Col xs={24} md={24} lg={8}>
-          <Card 
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <AlertOutlined style={{ color: '#fa8c16' }} />
-                <Title level={5} style={{ margin: 0 }}>库存预警</Title>
-              </div>
-            }
-            style={{ borderRadius: 8 }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {lowStockMaterials.length > 0 ? (
-                lowStockMaterials.map((material, index) => (
-                  <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 14 }}>{material.name}</Text>
-                    <Badge count={material.stock} style={{ backgroundColor: '#faad14' }} />
+                  <span className="w-16 text-xs font-medium text-gray-900 text-right truncate">{item.name}</span>
+                  <div className="flex-1 h-5 bg-gray-100 rounded-md overflow-hidden">
+                    <div
+                      className="h-full rounded-md transition-all duration-300"
+                      style={{
+                        width: `${pct}%`,
+                        background: BAR_COLORS[i % BAR_COLORS.length],
+                        opacity: isActive ? 1 : 0.35,
+                      }}
+                    />
                   </div>
-                ))
-              ) : (
-                <Text type="secondary" style={{ textAlign: 'center', padding: 16 }}>
-                  暂无库存预警
-                </Text>
-              )}
-            </div>
-          </Card>
-        </Col>
-      </Row>
+                  <span
+                    className="text-[11px] font-semibold text-gray-500 w-12 transition-opacity duration-200"
+                    style={{ opacity: isActive ? 1 : 0.35 }}
+                  >
+                    {item.count} 件
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Rank List */}
+          <div className="w-52 flex flex-col gap-2">
+            {collectionRanking.slice(0, 6).map((item, i) => {
+              const pct = Math.round((item.count / topItem.count) * 100);
+              const isTop3 = i < 3;
+              return (
+                <div
+                  key={item.name}
+                  className="flex items-center gap-2.5 group cursor-default"
+                  onMouseEnter={() => setHoveredIndex(i)}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                >
+                  {/* Rank badge */}
+                  <span className={`w-5 h-5 rounded-md flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${
+                    i === 0 ? 'bg-amber-400/20 text-amber-600' :
+                    i === 1 ? 'bg-slate-300/40 text-slate-600' :
+                    i === 2 ? 'bg-orange-400/20 text-orange-600' :
+                    'bg-gray-100 text-gray-500'
+                  }`}>
+                    {i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-gray-900 truncate">{item.name}</span>
+                      <span className="text-xs text-gray-500 ml-1">{item.count}</span>
+                    </div>
+                    <div className="h-1 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${pct}%`,
+                          background: BAR_COLORS[i % BAR_COLORS.length],
+                          opacity: hoveredIndex === null || hoveredIndex === i ? 1 : 0.4
+                        }}
+                      />
+                    </div>
+                  </div>
+                  {isTop3 && (
+                    <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded border font-medium ${CATEGORY_COLOR[item.category]}`}>
+                      {item.category}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={index} className="p-6 border border-gray-200 bg-white hover:shadow-lg transition-all duration-300">
+              <div className="flex items-start justify-between mb-4">
+                <div className={`${stat.bgColor} p-3 rounded-xl`}>
+                  <Icon className={`w-5 h-5 ${stat.color}`} />
+                </div>
+                <div className="flex items-center gap-1 text-emerald-600 text-xs font-medium">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>{stat.change}</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-1">{stat.label}</p>
+                <h3 className="text-3xl font-bold text-gray-900">{stat.value}</h3>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Quick Actions */}
+        <Card className="p-6 border border-gray-200 bg-white lg:col-span-1">
+          <h2 className="font-semibold text-gray-900 mb-5">快捷操作</h2>
+          <div className="space-y-3">
+            {quickActions.map((action, index) => {
+              const Icon = action.icon;
+              return (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="w-full justify-start h-auto py-4 hover:shadow-md transition-all duration-200 group border-gray-300"
+                  onClick={() => navigate(action.path)}
+                >
+                  <div className="flex items-center gap-3 w-full">
+                    <div className={`${action.bgColor} p-2.5 rounded-lg`}>
+                      <Icon className={`w-5 h-5 ${action.color}`} />
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className="font-medium text-gray-900">{action.label}</p>
+                      <p className="text-xs text-gray-500">{action.subLabel}</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-gray-500 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </Button>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Recent Applications */}
+        <Card className="p-6 border border-gray-200 bg-white lg:col-span-2">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-semibold text-gray-900">申请列表</h2>
+            <Button variant="ghost" className="text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 -mr-2" onClick={() => navigate('/my-requisitions')}>
+              查看全部 →
+            </Button>
+          </div>
+          <div className="space-y-3">
+            {recentApplications.map((app) => (
+              <div
+                key={app.id}
+                className="flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200 group"
+              >
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="w-11 h-11 rounded-xl bg-indigo-500/5 flex items-center justify-center border border-indigo-500/10">
+                    <Package className="w-5 h-5 text-indigo-500" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{app.item}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-gray-500">数量: {app.quantity}</span>
+                      <span className="text-xs text-gray-500">•</span>
+                      <span className="text-xs text-gray-500">{app.date}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                    app.status === 'pending'
+                      ? 'bg-indigo-500/5 text-indigo-500 border-indigo-500/10'
+                      : 'bg-amber-500/5 text-amber-600 border-amber-500/10'
+                  }`}>
+                    {app.status === 'pending' ? '日常领用' : '等待中'}
+                  </span>
+                  <Button size="sm" className="bg-indigo-500 hover:bg-indigo-600" onClick={() => navigate('/my-requisitions')}>
+                    查看
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
     </div>
-  )
+  );
 }
