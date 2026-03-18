@@ -227,6 +227,7 @@ export function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="请输入密码"
                   className="pl-10 pr-10 h-11 bg-muted/50 border-border focus:border-primary"
+                  autoComplete="current-password"
                   required
                 />
                 <button

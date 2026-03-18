@@ -19,6 +19,7 @@ import {
   type ApplicationRecord,
 } from '../utils/applicationStore';
 import { getAllInventoryItems, updateItemStock } from '../data/unifiedInventoryData';
+import { supabase } from '../../lib/supabase';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ApprovalStatus = 'pending' | 'approved' | 'rejected';
@@ -270,7 +271,7 @@ export function ApprovalManagement() {
         const { data, error } = await supabase
           .from('requisitions')
           .select('*')
-          .eq('status', 'archived')
+          .filter('status', 'eq', 'archived')
           .order('created_at', { ascending: false });
 
         if (error) throw error;

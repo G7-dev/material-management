@@ -239,6 +239,14 @@ function getStaticSizeOverrides(): Record<string, number> {
   }
 }
 
+// Set size threshold override
+function setStaticSizeThreshold(itemId: number, sizeId: string, threshold: number): void {
+  const overrides = getStaticSizeOverrides();
+  const key = `${itemId}_${sizeId}`;
+  overrides[key] = threshold;
+  localStorage.setItem(STATIC_SIZE_KEY, JSON.stringify(overrides));
+}
+
 // Update item stock (both stored and static items)
 export function updateItemStock(itemId: number, newStock: number): void {
   const target = getAllInventoryItems().find(i => i.id === itemId);
@@ -250,6 +258,16 @@ export function updateItemStock(itemId: number, newStock: number): void {
   }
   
   // 触发库存更新事件，通知所有页面刷新数据
+  window.dispatchEvent(new CustomEvent('inventoryUpdated'));
+}
+
+// Update size thresholds for static items
+export function updateSizeThresholds(itemId: number, thresholds: Record<string, number>): void {
+  Object.entries(thresholds).forEach(([sizeId, threshold]) => {
+    setStaticSizeThreshold(itemId, sizeId, threshold);
+  });
+  
+  // 触发库存更新事件
   window.dispatchEvent(new CustomEvent('inventoryUpdated'));
 }
 
