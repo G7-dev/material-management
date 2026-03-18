@@ -11,6 +11,7 @@ import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { AppSelect } from '../components/ui/app-select';
 import { getStoredItems, updateStoredItemStock, deleteStoredItem, type StoredItem } from '../utils/itemStore';
+import { getAllInventoryItems, updateItemStock, deleteInventoryItem, type UnifiedInventoryItem } from '../data/unifiedInventoryData';
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -400,7 +401,7 @@ export function ItemPermission() {
 
   // Re-read localStorage when the component mounts or the window regains focus
   const refresh = useCallback(() => {
-    const fresh = buildAllItems();
+    const fresh = getAllInventoryItems();
     setAllItems(fresh);
     setSizeStockData(prev => {
       const next = { ...prev };
@@ -425,12 +426,9 @@ export function ItemPermission() {
       const itemSizes = { ...(prev[itemId] ?? {}) };
       itemSizes[sizeId] = (itemSizes[sizeId] ?? 0) + quantity;
 
-      // Persist updated stock for custom (uploaded) items
-      const target = allItems.find(i => i.id === itemId);
-      if (target?._storedId) {
-        const newTotal = Object.values(itemSizes).reduce((a, b) => a + b, 0);
-        updateStoredItemStock(target._storedId, newTotal);
-      }
+      // Persist updated stock using unified data source
+      const newTotal = Object.values(itemSizes).reduce((a, b) => a + b, 0);
+      updateItemStock(itemId, newTotal);
 
       return { ...prev, [itemId]: itemSizes };
     });
@@ -441,10 +439,9 @@ export function ItemPermission() {
   };
 
   const handleDelete = (itemId: number) => {
-    const target = allItems.find(i => i.id === itemId);
-    if (target?._storedId) {
-      deleteStoredItem(target._storedId);
-    }
+    // Delete using unified data source
+    deleteInventoryItem(itemId);
+    
     setDeletedIds(prev => [...prev, itemId]);
     setTimeout(() => {
       setDeletedIds(prev => prev.filter(id => id !== itemId));

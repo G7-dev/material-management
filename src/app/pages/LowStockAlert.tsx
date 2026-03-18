@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   AlertTriangle, Package, RefreshCw, Search,
-  Settings2, PackagePlus, ChevronDown, X, TrendingDown,
+  Settings2, PackagePlus, X, TrendingDown,
   CheckCircle2, Bell, Filter, ArrowUpRight, Clock, ShieldAlert,
   Pencil, Save, RotateCcw, Info, MapPin, Tag, FileText,
   Hash, Layers
@@ -10,12 +10,14 @@ import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import {
-  inventoryItems,
+  getAllInventoryItems,
+  updateItemStock,
+  deleteInventoryItem,
+  type UnifiedInventoryItem,
   getSeverity,
   SEVERITY_CONFIG,
   type Severity,
-  type InventoryItem,
-} from '../data/inventoryData';
+} from '../data/unifiedInventoryData';
 import { AppSelect } from '../components/ui/app-select';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -29,7 +31,7 @@ interface ItemOverride {
 
 // ── Restock Modal ─────────────────────────────────────────────────────────────
 interface RestockModalProps {
-  item: InventoryItem & { currentStock: number; currentThreshold: number };
+  item: UnifiedInventoryItem & { currentStock: number; currentThreshold: number };
   onClose: () => void;
   onConfirm: (itemId: number, qty: number) => void;
 }
@@ -148,7 +150,7 @@ function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
 
 // ── Edit Item Modal ────────────────────────────────────────────────────────────
 interface EditModalProps {
-  item: InventoryItem & { currentStock: number; currentThreshold: number };
+  item: UnifiedInventoryItem & { currentStock: number; currentThreshold: number };
   onClose: () => void;
   onSave: (
     itemId: number,
@@ -421,10 +423,11 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
 interface ThresholdPanelProps {
   thresholds: Record<number, number>;
   itemOverrides: Record<number, ItemOverride>;
+  allItems: UnifiedInventoryItem[];
   onChange: (id: number, val: number) => void;
   onClose: () => void;
 }
-function ThresholdPanel({ thresholds, itemOverrides, onChange, onClose }: ThresholdPanelProps) {
+function ThresholdPanel({ thresholds, itemOverrides, allItems, onChange, onClose }: ThresholdPanelProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-end">
       <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose} />
@@ -442,7 +445,7 @@ function ThresholdPanel({ thresholds, itemOverrides, onChange, onClose }: Thresh
           当物品库存低于设定阈值时触发预警提示
         </p>
         <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
-          {inventoryItems.map((item) => {
+          {allItems.map((item) => {
             const displayName = itemOverrides[item.id]?.name ?? item.name;
             const displayCat  = itemOverrides[item.id]?.category ?? item.category;
             return (
@@ -501,22 +504,35 @@ export function LowStockAlert() {
   const [itemOverrides, setItemOverrides] = useState<Record<number, ItemOverride>>({});
   const [restockedIds, setRestockedIds] = useState<number[]>([]);
   const [selectedItem, setSelectedItem] =
-    useState<(InventoryItem & { currentStock: number; currentThreshold: number }) | null>(null);
+    useState<(UnifiedInventoryItem & { currentStock: number; currentThreshold: number }) | null>(null);
   const [editingItem, setEditingItem]   =
-    useState<(InventoryItem & { currentStock: number; currentThreshold: number }) | null>(null);
+    useState<(UnifiedInventoryItem & { currentStock: number; currentThreshold: number }) | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [dismissedBanner, setDismissedBanner] = useState(false);
+  const [allItems, setAllItems] = useState<UnifiedInventoryItem[]>([]);
 
-  const getThreshold = (item: InventoryItem) => thresholds[item.id]  ?? item.threshold;
-  const getStock     = (item: InventoryItem) => stockData[item.id]   ?? item.stock;
-  const getName      = (item: InventoryItem) => itemOverrides[item.id]?.name     ?? item.name;
-  const getCategory  = (item: InventoryItem) => itemOverrides[item.id]?.category ?? item.category;
-  const getSpec      = (item: InventoryItem) => itemOverrides[item.id]?.spec     ?? item.spec;
-  const getLocation  = (item: InventoryItem) => itemOverrides[item.id]?.location ?? item.location;
-  const getUnit      = (item: InventoryItem) => itemOverrides[item.id]?.unit     ?? item.unit;
+  // Load data from unified source
+  const loadData = useCallback(() => {
+    setAllItems(getAllInventoryItems());
+  }, []);
+
+  useEffect(() => {
+    loadData();
+    // Refresh when window regains focus
+    window.addEventListener('focus', loadData);
+    return () => window.removeEventListener('focus', loadData);
+  }, [loadData]);
+
+  const getThreshold = (item: UnifiedInventoryItem) => thresholds[item.id]  ?? item.threshold;
+  const getStock     = (item: UnifiedInventoryItem) => stockData[item.id]   ?? item.stock;
+  const getName      = (item: UnifiedInventoryItem) => itemOverrides[item.id]?.name     ?? item.name;
+  const getCategory  = (item: UnifiedInventoryItem) => itemOverrides[item.id]?.category ?? item.category;
+  const getSpec      = (item: UnifiedInventoryItem) => itemOverrides[item.id]?.spec     ?? item.spec;
+  const getLocation  = (item: UnifiedInventoryItem) => itemOverrides[item.id]?.location ?? item.location;
+  const getUnit      = (item: UnifiedInventoryItem) => itemOverrides[item.id]?.unit     ?? item.unit;
 
   const enriched = useMemo(() =>
-    inventoryItems.map(item => {
+    allItems.map(item => {
       const currentStock     = getStock(item);
       const currentThreshold = getThreshold(item);
       return {
@@ -531,8 +547,7 @@ export function LowStockAlert() {
         severity: getSeverity(currentStock, currentThreshold),
       };
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [thresholds, stockData, itemOverrides]
+    [allItems, thresholds, stockData, itemOverrides]
   );
 
   const counts = useMemo(() => ({
@@ -555,8 +570,15 @@ export function LowStockAlert() {
   );
 
   const handleRestock = (itemId: number, qty: number) => {
-    const base = inventoryItems.find(i => i.id === itemId)!.stock;
-    setStockData(prev => ({ ...prev, [itemId]: (prev[itemId] ?? base) + qty }));
+    const current = getStock(allItems.find(i => i.id === itemId)!);
+    const newStock = current + qty;
+    
+    // Update in state
+    setStockData(prev => ({ ...prev, [itemId]: newStock }));
+    
+    // Persist to storage
+    updateItemStock(itemId, newStock);
+    
     setRestockedIds(prev => [...prev, itemId]);
     setTimeout(() => setRestockedIds(prev => prev.filter(id => id !== itemId)), 3000);
   };
@@ -570,6 +592,9 @@ export function LowStockAlert() {
     setItemOverrides(prev => ({ ...prev, [itemId]: override }));
     setStockData(prev => ({ ...prev, [itemId]: newStock }));
     setThresholds(prev => ({ ...prev, [itemId]: newThreshold }));
+    
+    // Persist stock change
+    updateItemStock(itemId, newStock);
   };
 
   const statCards: Array<{ key: Severity; label: string; val: number; color: string; bg: string; border: string }> = [
@@ -614,7 +639,10 @@ export function LowStockAlert() {
             <Settings2 className="w-4 h-4" />
             阈值设置
           </Button>
-          <Button className="gap-2 h-10 bg-gradient-to-r from-primary to-secondary hover:shadow-lg hover:shadow-primary/20">
+          <Button 
+            className="gap-2 h-10 bg-gradient-to-r from-primary to-secondary hover:shadow-lg hover:shadow-primary/20"
+            onClick={loadData}
+          >
             <RefreshCw className="w-4 h-4" />
             刷新数据
           </Button>
@@ -893,6 +921,7 @@ export function LowStockAlert() {
         <ThresholdPanel
           thresholds={thresholds}
           itemOverrides={itemOverrides}
+          allItems={allItems}
           onChange={(id, val) => setThresholds(prev => ({ ...prev, [id]: val }))}
           onClose={() => setShowSettings(false)}
         />
