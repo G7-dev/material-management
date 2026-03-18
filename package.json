@@ -2,11 +2,32 @@
   "name": "material-management-system",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.2.6",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^7.3.5",
+    "@mui/material": "^7.3.5",
+    "@radix-ui/react-slot": "^1.1.2",
+    "@supabase/supabase-js": "^2.39.0",
+    "antd": "^5.12.0",
+    "axios": "^1.6.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "dayjs": "^1.11.10",
+    "lucide-react": "^0.487.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "tailwind-merge": "^3.2.0",
+    "tailwindcss": "^4.1.12"
   },
   "dependencies": {
     "react": "^18.2.0",
