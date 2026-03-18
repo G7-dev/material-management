@@ -1,19 +1,110 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Package, Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Package, Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('1255233298@qq.com');
-  const [password, setPassword] = useState('******');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    navigate('/');
+    setLoading(true);
+
+    try {
+      // 检查输入是用户名还是邮箱
+      const isEmail = email.includes('@');
+      let loginEmail = email;
+
+      // 如果是用户名，从数据库查找对应的邮箱
+      if (!isEmail) {
+        const { data: emailData, error } = await supabase
+          .rpc('get_email_by_username', { username_input: email });
+        
+        if (error || !emailData) {
+          toast.error('用户名不存在');
+          setLoading(false);
+          return;
+        }
+        
+        loginEmail = emailData;
+      }
+
+      // 使用邮箱登录
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: password,
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('登录成功！');
+        navigate('/');
+      }
+    } catch (error) {
+      toast.error('登录失败，请重试');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      // 检查用户名是否已存在
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username)
+        .single();
+
+      if (existingUser) {
+        toast.error('用户名已存在');
+        setLoading(false);
+        return;
+      }
+
+      // 注册新用户
+      const { error } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: {
+            username: username,
+            full_name: fullName,
+            role: 'employee'
+          }
+        }
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('注册成功！请登录');
+        setActiveTab('login');
+        // 清空表单
+        setEmail('');
+        setPassword('');
+        setUsername('');
+        setFullName('');
+      }
+    } catch (error) {
+      toast.error('注册失败，请重试');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -67,11 +158,48 @@ export function LoginPage() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleLogin} className="space-y-4">
-            {/* Email/Username Field */}
+          <form onSubmit={activeTab === 'login' ? handleLogin : handleRegister} className="space-y-4">
+            {activeTab === 'register' && (
+              <>
+                {/* Username Field for Register */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    用户名
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="请输入用户名"
+                      className="pl-10 h-11 bg-muted/50 border-border focus:border-primary"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Full Name Field for Register */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    姓名
+                  </label>
+                  <Input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="请输入姓名"
+                    className="h-11 bg-muted/50 border-border focus:border-primary"
+                    required
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Email Field */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                邮箱/用户名
+                {activeTab === 'login' ? '邮箱/用户名' : '邮箱'}
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -79,8 +207,9 @@ export function LoginPage() {
                   type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="请输入邮箱或用户名"
+                  placeholder={activeTab === 'login' ? '请输入邮箱或用户名' : '请输入邮箱'}
                   className="pl-10 h-11 bg-muted/50 border-border focus:border-primary"
+                  required
                 />
               </div>
             </div>
@@ -98,6 +227,7 @@ export function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="请输入密码"
                   className="pl-10 pr-10 h-11 bg-muted/50 border-border focus:border-primary"
+                  required
                 />
                 <button
                   type="button"
@@ -112,9 +242,17 @@ export function LoginPage() {
             {/* Submit Button */}
             <Button
               type="submit"
-              className="w-full h-11 bg-gradient-to-r from-primary to-secondary hover:shadow-lg hover:shadow-primary/30 transition-all duration-200"
+              disabled={loading}
+              className="w-full h-11 bg-gradient-to-r from-primary to-secondary hover:shadow-lg hover:shadow-primary/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              登录
+              {loading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {activeTab === 'login' ? '登录中...' : '注册中...'}
+                </div>
+              ) : (
+                activeTab === 'login' ? '登录' : '注册'
+              )}
             </Button>
           </form>
 
