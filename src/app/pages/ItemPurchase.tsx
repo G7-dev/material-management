@@ -126,22 +126,30 @@ export function ItemPurchase() {
     
     try {
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user?.id) {
+        console.error('Auth error:', authError);
         toast.error('请先登录');
+        setLoading(false);
         navigate('/login');
-        return;
+        return; // Stop execution
       }
       
-      // Get user profile
-      const { data: profile } = await supabase
+      // Verify user exists in profiles table
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('full_name, department')
         .eq('id', user.id)
         .single();
       
+      if (profileError || !profile) {
+        console.error('Profile error:', profileError);
+        throw new Error('用户资料不存在，请联系管理员');
+      }
+      
       // Save department to user profile if not exists
-      if (department && (!profile?.department || profile.department !== department)) {
+      if (department && (!profile.department || profile.department !== department)) {
         await supabase
           .from('profiles')
           .update({ department })
@@ -149,7 +157,7 @@ export function ItemPurchase() {
       }
       
       // Submit to requisitions table
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('requisitions')
         .insert({
           user_id: user.id,
@@ -163,7 +171,7 @@ export function ItemPurchase() {
           purchase_reason: purchaseReason,
           purpose: itemCategory, // 将分类也存入用途
           estimated_delivery_date: expectedDate,
-          applicant_name: profile?.full_name || '未知用户',
+          applicant_name: profile.full_name || '未知用户',
           department: department,
           created_at: new Date().toISOString(),
         });
