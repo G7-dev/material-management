@@ -465,13 +465,13 @@ export function ItemPermission() {
       selectedTab === 'all' ||
       (selectedTab === 'office'       && item.category === '办公用品') ||
       (selectedTab === 'electronics'  && item.category === '电子设备') ||
-      (selectedTab === 'custom'       && item.tags.includes('新上架'));
+      (selectedTab === 'custom'       && item.tags && item.tags.includes('新上架'));
     return matchSearch && matchTab;
   });
 
   const officeCount      = allItems.filter(i => i.category === '办公用品').length;
   const electronicsCount = allItems.filter(i => i.category === '电子设备').length;
-  const customCount      = allItems.filter(i => i.tags.includes('新上架')).length;
+  const customCount      = allItems.filter(i => i.tags && i.tags.includes('新上架')).length;
   const lowStockCount    = allItems.filter(i => isAnyLow(i)).length;
 
   return (
@@ -572,7 +572,7 @@ export function ItemPermission() {
           const totalStock  = getTotalStock(item);
           const hasLow      = isAnyLow(item);
           const isRestocked = restockedIds.includes(item.id);
-          const isCustom    = item.tags.includes('新上架');
+          const isCustom    = item.tags && item.tags.includes('新上架');
           const emptySizes  = item.sizes.filter(s => (sizeStockData[item.id]?.[s.id] ?? s.stock) === 0);
           const lowSizes    = item.sizes.filter(s => {
             const q = sizeStockData[item.id]?.[s.id] ?? s.stock;

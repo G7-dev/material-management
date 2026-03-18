@@ -19,15 +19,16 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   badge?: number;
 }
-import { inventoryItems, getSeverity } from '../data/inventoryData';
 import { useState, useEffect } from 'react';
 import { getApplicationRecords } from '../utils/applicationStore';
 import { supabase } from '../../lib/supabase';
+import { getAllInventoryItems, getSeverity } from '../data/unifiedInventoryData';
 
-// Compute live low-stock count from shared data
-const lowStockCount = inventoryItems.filter(
-  item => getSeverity(item.stock, item.threshold) !== 'normal'
-).length;
+// Compute live low-stock count from unified data
+const getLowStockCount = () => {
+  const items = getAllInventoryItems();
+  return items.filter(item => getSeverity(item.stock, item.threshold) !== 'normal').length;
+};
 
 const userNavItems: NavItem[] = [
   { name: '工作台', path: '/', icon: LayoutDashboard },
@@ -36,11 +37,11 @@ const userNavItems: NavItem[] = [
   { name: '申请记录', path: '/application-records', icon: FileText },
 ];
 
-const adminNavItems: NavItem[] = [
+const adminNavItemsBase: NavItem[] = [
   { name: '管理平台', path: '/management', icon: Settings },
   { name: '物品上架', path: '/item-upload', icon: PackagePlus },
   { name: '物品补货', path: '/item-permission', icon: PackageCheck },
-  { name: '低库存预警', path: '/low-stock-alert', icon: Bell, badge: lowStockCount },
+  { name: '低库存预警', path: '/low-stock-alert', icon: Bell },
   { name: '审批管理', path: '/approval-management', icon: CheckSquare },
 ];
 
@@ -91,7 +92,7 @@ export function Sidebar() {
     { name: '管理平台', path: '/management', icon: Settings },
     { name: '物品上架', path: '/item-upload', icon: PackagePlus },
     { name: '物品补货', path: '/item-permission', icon: PackageCheck },
-    { name: '低库存预警', path: '/low-stock-alert', icon: Bell, badge: lowStockCount },
+    { name: '低库存预警', path: '/low-stock-alert', icon: Bell, badge: getLowStockCount() },
     { name: '审批管理', path: '/approval-management', icon: CheckSquare, badge: pendingCount },
   ];
 

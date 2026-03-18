@@ -8,7 +8,7 @@ import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
-import { getStoredItems, type StoredItem } from '../utils/itemStore';
+import { getStoredItems, updateStoredItemStock, deleteStoredItem, type StoredItem } from '../utils/itemStore';
 import { saveApplicationRecord } from '../utils/applicationStore';
 
 // ── Size / Spec variant ───────────────────────────────────────────────────────
@@ -119,6 +119,8 @@ function ApplyModal({
   const handleSubmit = () => {
     if (!canSubmit) return;
     setSubmitting(true);
+    
+    // Save application record
     saveApplicationRecord({
       itemId: item.id,
       itemName: item.name + (selectedSize ? ` (${selectedSize.label})` : ''),
@@ -129,6 +131,22 @@ function ApplyModal({
       applicant: name.trim(),
       department,
     });
+    
+    // Update inventory stock
+    if (item.id.startsWith('stored_')) {
+      // For stored items, update the stock
+      const currentStock = item.quantity;
+      const newStock = Math.max(0, currentStock - quantity);
+      
+      if (newStock === 0) {
+        // Delete item if stock reaches 0
+        deleteStoredItem(item.id);
+      } else {
+        // Update stock
+        updateStoredItemStock(item.id, newStock);
+      }
+    }
+    
     setTimeout(() => {
       setSubmitting(false);
       onSuccess();

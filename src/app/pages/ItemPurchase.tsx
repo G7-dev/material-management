@@ -24,6 +24,7 @@ export function ItemPurchase() {
   const [quantity, setQuantity] = useState(1);
   const [expectedDate, setExpectedDate] = useState('');
   const [purchaseReason, setPurchaseReason] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   
   // Form validation
   const validateForm = () => {
@@ -48,6 +49,35 @@ export function ItemPurchase() {
       return false;
     }
     return true;
+  };
+  
+  // Handle image upload
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('请选择图片文件');
+      return;
+    }
+    
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('图片大小不能超过5MB');
+      return;
+    }
+    
+    // Read file as data URL
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) {
+        setSelectedImage(result);
+        toast.success('图片上传成功');
+      }
+    };
+    reader.readAsDataURL(file);
   };
   
   // Submit purchase request
@@ -186,15 +216,33 @@ export function ItemPurchase() {
               <label className="block text-sm font-semibold text-foreground mb-3">
                 点击添加上传物品图片
               </label>
-              <div className="border-2 border-dashed border-indigo-200 rounded-2xl p-10 hover:border-indigo-400 transition-all cursor-pointer bg-gradient-to-br from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 group">
-                <div className="flex flex-col items-center justify-center text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
-                    <Upload className="w-8 h-8 text-white" />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+                id="image-upload"
+              />
+              <label 
+                htmlFor="image-upload"
+                className="border-2 border-dashed border-indigo-200 rounded-2xl p-10 hover:border-indigo-400 transition-all cursor-pointer bg-gradient-to-br from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 group block"
+              >
+                {selectedImage ? (
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <img src={selectedImage} alt="预览" className="w-24 h-24 rounded-xl object-cover mb-3 border border-indigo-100" />
+                    <p className="text-sm font-medium text-foreground">图片已选择</p>
+                    <p className="text-xs text-muted-foreground">点击重新选择</p>
                   </div>
-                  <p className="text-sm font-medium text-foreground mb-1">点击选择上传物品图片</p>
-                  <p className="text-xs text-muted-foreground">支持 JPG, PNG 格式，单张 5MB</p>
-                </div>
-              </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
+                      <Upload className="w-8 h-8 text-white" />
+                    </div>
+                    <p className="text-sm font-medium text-foreground mb-1">点击选择上传物品图片</p>
+                    <p className="text-xs text-muted-foreground">支持 JPG, PNG 格式，单张 5MB</p>
+                  </div>
+                )}
+              </label>
             </div>
 
             {/* Product Name and Category */}
