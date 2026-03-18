@@ -517,9 +517,13 @@ export function LowStockAlert() {
 
   useEffect(() => {
     loadData();
-    // Refresh when window regains focus
+    // Refresh when window regains focus or inventory updated
     window.addEventListener('focus', loadData);
-    return () => window.removeEventListener('focus', loadData);
+    window.addEventListener('inventoryUpdated', loadData);
+    return () => {
+      window.removeEventListener('focus', loadData);
+      window.removeEventListener('inventoryUpdated', loadData);
+    };
   }, [loadData]);
 
   const getThreshold = (item: UnifiedInventoryItem) => thresholds[item.id]  ?? item.threshold;

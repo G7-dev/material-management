@@ -18,7 +18,7 @@ import {
   updateApplicationStatus,
   type ApplicationRecord,
 } from '../utils/applicationStore';
-import { updateStoredItemStock, getStoredItems } from '../utils/itemStore';
+import { getAllInventoryItems, updateItemStock } from '../data/unifiedInventoryData';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ApprovalStatus = 'pending' | 'approved' | 'rejected';
@@ -278,25 +278,23 @@ export function ApprovalManagement() {
       const baseItemName = approval.itemName.split(' (')[0];
       
       // 查找对应的库存物品
-      const storedItems = getStoredItems();
-      const targetItem = storedItems.find(item => 
+      const inventoryItems = getAllInventoryItems();
+      const targetItem = inventoryItems.find(item => 
         item.name === baseItemName
       );
       
       if (targetItem) {
         // 减少库存数量
-        const currentQuantity = targetItem.quantity;
+        const currentStock = targetItem.stock;
         const requestQuantity = parseInt(approval.quantity) || 0;
-        const newQuantity = Math.max(0, currentQuantity - requestQuantity);
+        const newStock = Math.max(0, currentStock - requestQuantity);
         
-        if (newQuantity === 0) {
-          // 如果库存为0，删除物品
-          // 这里简化处理，实际应该调用 deleteStoredItem
+        if (newStock === 0) {
           console.log(`物品 ${targetItem.name} 库存已耗尽`);
         }
         
         // 更新库存
-        updateStoredItemStock(targetItem.id, newQuantity);
+        updateItemStock(targetItem.id, newStock);
       }
     }
     

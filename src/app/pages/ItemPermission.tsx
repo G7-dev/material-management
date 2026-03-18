@@ -418,7 +418,11 @@ export function ItemPermission() {
     
     loadItems();
     window.addEventListener('focus', loadItems);
-    return () => window.removeEventListener('focus', loadItems);
+    window.addEventListener('inventoryUpdated', loadItems);
+    return () => {
+      window.removeEventListener('focus', loadItems);
+      window.removeEventListener('inventoryUpdated', loadItems);
+    };
   }, []);
 
   // Per-item per-size stock map

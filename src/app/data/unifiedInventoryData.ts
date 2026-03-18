@@ -237,6 +237,9 @@ export function updateItemStock(itemId: number, newStock: number): void {
     // Static item - update override
     setStaticStockOverride(itemId, newStock);
   }
+  
+  // 触发库存更新事件，通知所有页面刷新数据
+  window.dispatchEvent(new CustomEvent('inventoryUpdated'));
 }
 
 // Get all inventory items (static + uploaded, excluding deleted) with stock overrides applied

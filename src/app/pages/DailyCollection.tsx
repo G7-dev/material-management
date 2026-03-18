@@ -8,9 +8,8 @@ import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
-import { getStoredItems, updateStoredItemStock, deleteStoredItem, type StoredItem } from '../utils/itemStore';
 import { saveApplicationRecord } from '../utils/applicationStore';
-import { getAllInventoryItems, updateItemStock } from '../data/unifiedInventoryData';
+import { getAllInventoryItems, updateItemStock, type UnifiedInventoryItem } from '../data/unifiedInventoryData';
 
 // ── Size / Spec variant ───────────────────────────────────────────────────────
 interface SizeVariant {
@@ -20,60 +19,19 @@ interface SizeVariant {
   stock: number;
 }
 
-interface DisplayItem extends StoredItem {
+interface DisplayItem {
+  id: number;
+  name: string;
+  category: string;
+  specModel: string;
+  unit: string;
+  quantity: number;
+  lowStockThreshold: number;
+  stockPlatform: string;
+  expiry: string;
+  notes: string;
   sizes?: SizeVariant[];
 }
-
-// ── Static seed items ─────────────────────────────────────────────────────────
-const SEED_ITEMS: DisplayItem[] = [
-  {
-    id: 'seed_1', name: '订书机', category: '办公用品', specModel: '标准型', unit: '个',
-    quantity: 9, lowStockThreshold: 3, stockPlatform: '', expiry: '', notes: '', uploadedAt: '',
-    sizes: [
-      { id: 'mini', label: '迷你型', spec: '针10mm', stock: 3 },
-      { id: 'standard', label: '标准型', spec: '针12mm', stock: 4 },
-      { id: 'heavy', label: '重型', spec: '针23mm', stock: 2 },
-    ],
-  },
-  {
-    id: 'seed_2', name: 'U盘', category: '电子设备', specModel: 'USB 3.0', unit: '个',
-    quantity: 22, lowStockThreshold: 5, stockPlatform: '', expiry: '', notes: '', uploadedAt: '',
-    sizes: [
-      { id: '32gb', label: '32GB', spec: 'USB 3.0', stock: 8 },
-      { id: '64gb', label: '64GB', spec: 'USB 3.0', stock: 10 },
-      { id: '128gb', label: '128GB', spec: 'USB 3.0', stock: 4 },
-      { id: '256gb', label: '256GB', spec: 'USB 3.0', stock: 0 },
-    ],
-  },
-  {
-    id: 'seed_3', name: '文件夹', category: '办公用品', specModel: '塑料 档案夹', unit: '本',
-    quantity: 30, lowStockThreshold: 5, stockPlatform: '', expiry: '', notes: '', uploadedAt: '',
-    sizes: [
-      { id: 'a4_thin', label: 'A4 薄', spec: '2cm背宽', stock: 13 },
-      { id: 'a4_thick', label: 'A4 厚', spec: '4cm背宽', stock: 9 },
-      { id: 'a3', label: 'A3', spec: '2cm背宽', stock: 8 },
-    ],
-  },
-  {
-    id: 'seed_4', name: 'A4打印纸', category: '办公用品', specModel: '复印纸', unit: '包',
-    quantity: 110, lowStockThreshold: 20, stockPlatform: '', expiry: '', notes: '', uploadedAt: '',
-    sizes: [
-      { id: '70g', label: '70g', spec: '500张/包', stock: 40 },
-      { id: '80g', label: '80g', spec: '500张/包', stock: 45 },
-      { id: '90g', label: '90g', spec: '500张/包', stock: 25 },
-    ],
-  },
-  {
-    id: 'seed_5', name: '中性笔', category: '办公用品', specModel: '0.5mm 蓝/黑/红', unit: '支',
-    quantity: 90, lowStockThreshold: 10, stockPlatform: '', expiry: '', notes: '', uploadedAt: '',
-    sizes: [
-      { id: '0.5mm_blue', label: '0.5mm 蓝', spec: '墨蓝色', stock: 30 },
-      { id: '0.5mm_black', label: '0.5mm 黑', spec: '黑色', stock: 35 },
-      { id: '0.5mm_red', label: '0.5mm 红', spec: '红色', stock: 25 },
-      { id: '0.7mm_black', label: '0.7mm 黑', spec: '黑色', stock: 0 },
-    ],
-  },
-];
 
 // ── Departments ───────────────────────────────────────────────────────────────
 const DEPARTMENTS = ['设备部', '技术部', '生产一部', '生产二部', '供应部', '储运部', '能源部', 'TPM'];
@@ -518,11 +476,29 @@ export function DailyCollection() {
   const [toast, setToast] = useState('');
 
   const loadItems = () => {
-    const uploaded = getStoredItems() as DisplayItem[];
-    setItems([...SEED_ITEMS, ...uploaded]);
+    const inventoryItems = getAllInventoryItems();
+    const displayItems: DisplayItem[] = inventoryItems.map(item => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      specModel: item.spec,
+      unit: item.unit,
+      quantity: item.stock,
+      lowStockThreshold: item.threshold,
+      stockPlatform: item.location,
+      expiry: item.lastRestock,
+      notes: '',
+      sizes: item.sizes
+    }));
+    setItems(displayItems);
   };
 
-  useEffect(() => { loadItems(); }, []);
+  useEffect(() => {
+    loadItems();
+    // 添加事件监听器，当库存更新时自动刷新
+    window.addEventListener('inventoryUpdated', loadItems);
+    return () => window.removeEventListener('inventoryUpdated', loadItems);
+  }, []);
 
   const handleSuccess = () => {
     setApplyItem(null);
