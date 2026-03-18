@@ -377,12 +377,13 @@ ORDER BY (m.safe_stock - m.stock) DESC;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, full_name, role)
+  INSERT INTO public.profiles (id, email, full_name, role, username)
   VALUES (
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
-    COALESCE((NEW.raw_user_meta_data->>'role')::text, 'employee')
+    COALESCE((NEW.raw_user_meta_data->>'role')::text, 'employee'),
+    COALESCE(NEW.raw_user_meta_data->>'username', NULL)
   );
   RETURN NEW;
 END;
