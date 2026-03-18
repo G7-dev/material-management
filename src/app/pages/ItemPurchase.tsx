@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  ShoppingCart, Sparkles, Upload, Send, ShieldCheck, X,
+  ShoppingCart, Sparkles, Upload, Send, ShieldCheck, X, User,
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -24,7 +24,37 @@ export function ItemPurchase() {
   const [quantity, setQuantity] = useState(1);
   const [expectedDate, setExpectedDate] = useState('');
   const [purchaseReason, setPurchaseReason] = useState('');
+  const [department, setDepartment] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  
+  const DEPARTMENTS = ['设备部', '技术部', '生产一部', '生产二部', '供应部', '储运部', '能源部', 'TPM'];
+  
+  // Auto-fill department based on user info
+  useEffect(() => {
+    const loadUserDept = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Get user profile to check if department is stored
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('department')
+            .eq('id', user.id)
+            .single();
+          
+          if (profile?.department) {
+            setDepartment(profile.department);
+          }
+          setCurrentUser(user);
+        }
+      } catch (error) {
+        console.error('Failed to load user department:', error);
+      }
+    };
+    
+    loadUserDept();
+  }, []);
   
   // Form validation
   const validateForm = () => {
@@ -46,6 +76,10 @@ export function ItemPurchase() {
     }
     if (!expectedDate) {
       toast.error('请选择预计到货日期');
+      return false;
+    }
+    if (!department) {
+      toast.error('请选择所属部门');
       return false;
     }
     return true;
@@ -102,9 +136,17 @@ export function ItemPurchase() {
       // Get user profile
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, department')
         .eq('id', user.id)
         .single();
+      
+      // Save department to user profile if not exists
+      if (department && (!profile?.department || profile.department !== department)) {
+        await supabase
+          .from('profiles')
+          .update({ department })
+          .eq('id', user.id);
+      }
       
       // Submit to requisitions table
       const { data, error } = await supabase
@@ -122,6 +164,7 @@ export function ItemPurchase() {
           purpose: itemCategory, // 将分类也存入用途
           estimated_delivery_date: expectedDate,
           applicant_name: profile?.full_name || '未知用户',
+          department: department,
           created_at: new Date().toISOString(),
         });
       
@@ -141,7 +184,7 @@ export function ItemPurchase() {
           usage: purchaseReason || itemCategory,
           applicationType: '物品申购',
           applicant: profile?.full_name || '未知用户',
-          department: itemCategory,
+          department: department,
         });
       } catch (syncError) {
         console.warn('Failed to sync with localStorage:', syncError);
@@ -338,6 +381,23 @@ export function ItemPurchase() {
                 <Send className="w-4 h-4 text-white" />
               </div>
               <h3 className="font-semibold text-foreground text-lg">提交信息</h3>
+            </div>
+
+            {/* Department Selection */}
+            <div className="mb-5">
+              <label className="block text-sm font-semibold text-foreground mb-2">
+                所属部门<span className="text-rose-500 ml-1">*</span>
+              </label>
+              <select
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                className="w-full h-12 rounded-lg border border-border bg-gradient-to-br from-slate-50 to-slate-100/50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/60"
+              >
+                <option value="">请选择部门</option>
+                {DEPARTMENTS.map(dept => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
             </div>
 
             {/* Admin push notice */}

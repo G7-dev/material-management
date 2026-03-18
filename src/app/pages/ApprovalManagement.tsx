@@ -3,7 +3,7 @@ import {
   CheckSquare, Search, Filter, AlertCircle, Clock,
   FileText, Package, X, CheckCircle2, XCircle,
   User, Briefcase, Hash, ShoppingBag, MessageSquare,
-  CalendarDays, AlertTriangle
+  CalendarDays, AlertTriangle, Eye
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -241,8 +241,15 @@ export function ApprovalManagement() {
   const [approvals, setApprovals]         = useState<Approval[]>(loadApprovals);
   const [approvingItem, setApprovingItem] = useState<Approval | null>(null);
   const [rejectingItem, setRejectingItem] = useState<Approval | null>(null);
+  const [viewingItem, setViewingItem]     = useState<Approval | null>(null);
   const [activeTab, setActiveTab]         = useState<ApprovalStatus | 'all'>('pending');
   const [search, setSearch]               = useState('');
+  const [filters, setFilters]             = useState({
+    applicant: '',
+    itemName: '',
+    applicationType: '',
+    status: ''
+  });
 
   // 每次 approvals 变化时同步写入 localStorage
   useEffect(() => {
@@ -277,16 +284,22 @@ export function ApprovalManagement() {
   };
 
   const filtered = approvals.filter(a => {
-    const matchTab =
-      activeTab === 'all' ||
-      a.status === activeTab;
+    const matchTab = activeTab === 'all' || a.status === activeTab;
+    
+    // Enhanced search
     const q = search.toLowerCase();
-    const matchSearch =
-      !q ||
-      a.applicant.toLowerCase().includes(q) ||
-      a.itemName.toLowerCase().includes(q) ||
+    const matchSearch = !q || 
+      a.applicant.toLowerCase().includes(q) || 
+      a.itemName.toLowerCase().includes(q) || 
       a.department.toLowerCase().includes(q);
-    return matchTab && matchSearch;
+    
+    // Advanced filters
+    const matchApplicant = !filters.applicant || a.applicant === filters.applicant;
+    const matchItemName = !filters.itemName || a.itemName.toLowerCase().includes(filters.itemName.toLowerCase());
+    const matchAppType = !filters.applicationType || a.applicationType === filters.applicationType;
+    const matchStatus = !filters.status || a.status === filters.status;
+    
+    return matchTab && matchSearch && matchApplicant && matchItemName && matchAppType && matchStatus;
   });
 
   const tabs: { key: ApprovalStatus | 'all'; label: string; count: number }[] = [
@@ -346,9 +359,88 @@ export function ApprovalManagement() {
               className="pl-10 h-10 bg-muted/50 border-border"
             />
           </div>
-          <Button variant="outline" className="gap-2 border-border">
-            <Filter className="w-4 h-4" />筛选
+          <Button 
+            variant="outline" 
+            className="gap-2 border-border"
+            onClick={() => {
+              // Toggle advanced filters visibility
+              const panel = document.getElementById('advanced-filters');
+              if (panel) {
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+              }
+            }}
+          >
+            <Filter className="w-4 h-4" />高级筛选
           </Button>
+        </div>
+
+        {/* Advanced Filters Panel */}
+        <div id="advanced-filters" className="hidden">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            {/* Applicant Filter */}
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">申请人</label>
+              <Input
+                type="text"
+                value={filters.applicant}
+                onChange={(e) => setFilters(prev => ({ ...prev, applicant: e.target.value }))}
+                placeholder="输入姓名"
+                className="h-9 bg-muted/30 border-border text-sm"
+              />
+            </div>
+            
+            {/* Item Name Filter */}
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">物品名称</label>
+              <Input
+                type="text"
+                value={filters.itemName}
+                onChange={(e) => setFilters(prev => ({ ...prev, itemName: e.target.value }))}
+                placeholder="输入物品名"
+                className="h-9 bg-muted/30 border-border text-sm"
+              />
+            </div>
+            
+            {/* Application Type Filter */}
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">申请类型</label>
+              <select
+                value={filters.applicationType}
+                onChange={(e) => setFilters(prev => ({ ...prev, applicationType: e.target.value }))}
+                className="w-full h-9 rounded-lg border border-border bg-muted/30 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
+              >
+                <option value="">全部类型</option>
+                <option value="日常领用">日常领用</option>
+                <option value="物品申购">物品申购</option>
+              </select>
+            </div>
+            
+            {/* Status Filter */}
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">审批状态</label>
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                className="w-full h-9 rounded-lg border border-border bg-muted/30 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
+              >
+                <option value="">全部状态</option>
+                <option value="pending">待审核</option>
+                <option value="approved">已批准</option>
+                <option value="rejected">已驳回</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 pb-3">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => setFilters({ applicant: '', itemName: '', applicationType: '', status: '' })}
+              className="h-8 text-xs"
+            >
+              重置筛选
+            </Button>
+          </div>
         </div>
 
         {/* Status Tabs */}
@@ -391,6 +483,7 @@ export function ApprovalManagement() {
                 <TableHead className="font-semibold text-foreground text-center">用途</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">申请类型</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">申请日期</TableHead>
+                <TableHead className="font-semibold text-foreground text-center">查看</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">状态</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">操作</TableHead>
               </TableRow>
@@ -438,6 +531,17 @@ export function ApprovalManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-center">{approval.applicationDate}</TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs border-border hover:bg-primary/10 hover:text-primary hover:border-primary/30 flex items-center gap-1"
+                        onClick={() => setViewingItem(approval)}
+                      >
+                        <Eye className="w-3 h-3" />
+                        查看
+                      </Button>
+                    </TableCell>
                     <TableCell className="text-center">
                       <div className="flex flex-col items-center gap-1">
                         <Badge variant="secondary" className={statusStyle[approval.status]}>
@@ -511,6 +615,155 @@ export function ApprovalManagement() {
           onConfirm={(reason) => handleReject(rejectingItem.id, reason)}
         />
       )}
+      {viewingItem && (
+        <ViewModal
+          approval={viewingItem}
+          onClose={() => setViewingItem(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── View Modal ────────────────────────────────────────────────────────────────
+interface ViewModalProps {
+  approval: Approval;
+  onClose: () => void;
+}
+function ViewModal({ approval, onClose }: ViewModalProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-2xl mx-4">
+        <Card className="border-border shadow-2xl shadow-primary/10 overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-indigo-400 via-purple-500 to-pink-500" />
+          
+          <div className="p-6">
+            {/* Header */}
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center border border-indigo-500/20">
+                  <FileText className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-foreground text-lg">申请详情</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {approval.applicationType} · {approval.applicationDate}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content Grid */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              {/* Applicant Info */}
+              <div className="col-span-2 p-4 rounded-xl bg-muted/30 border border-border">
+                <h3 className="font-semibold text-foreground text-sm mb-3 flex items-center gap-2">
+                  <User className="w-4 h-4 text-primary" />
+                  申请人信息
+                </h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">姓名：</span>
+                    <span className="font-medium text-foreground">{approval.applicant}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">工号：</span>
+                    <span className="font-medium text-foreground">{approval.workId}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">部门：</span>
+                    <span className="font-medium text-foreground">{approval.department}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">角色：</span>
+                    <span className="font-medium text-foreground">{approval.role}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Item Info */}
+              <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                <h3 className="font-semibold text-foreground text-sm mb-3 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-primary" />
+                  物品信息
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">名称：</span>
+                    <span className="font-medium text-foreground">{approval.itemName}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">数量：</span>
+                    <span className="font-medium text-foreground">{approval.quantity}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">类型：</span>
+                    <span className="font-medium text-foreground">{approval.applicationType}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Purpose */}
+              <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                <h3 className="font-semibold text-foreground text-sm mb-3 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  用途说明
+                </h3>
+                <p className="text-sm text-foreground">{approval.purpose || '未填写'}</p>
+              </div>
+
+              {/* Status */}
+              <div className="col-span-2 p-4 rounded-xl bg-primary/5 border border-primary/15">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <CheckSquare className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">审批状态</p>
+                    <Badge variant="secondary" className={statusStyle[approval.status]}>
+                      {approval.statusLabel}
+                    </Badge>
+                  </div>
+                </div>
+                {approval.status === 'rejected' && approval.rejectReason && (
+                  <div className="mt-3 p-3 rounded-lg bg-red-500/5 border border-red-500/15">
+                    <p className="text-xs text-muted-foreground mb-1">驳回理由：</p>
+                    <p className="text-sm text-red-600">{approval.rejectReason}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Image placeholder */}
+            <div className="p-4 rounded-xl bg-muted/30 border border-border border-dashed">
+              <div className="flex items-center justify-center h-32 text-muted-foreground">
+                <div className="text-center">
+                  <Package className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-xs">物品图片预览区域</p>
+                  <p className="text-xs">（功能开发中）</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex gap-3 p-6 pt-4 border-t border-border">
+            <Button 
+              className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500 hover:shadow-lg hover:shadow-indigo-500/25"
+              onClick={onClose}
+            >
+              关闭
+            </Button>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

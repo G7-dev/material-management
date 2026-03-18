@@ -75,7 +75,7 @@ const SEED_ITEMS: DisplayItem[] = [
 ];
 
 // ── Departments ───────────────────────────────────────────────────────────────
-const DEPARTMENTS = ['行政部', '技术部', '市场部', '财务部', '人事部', '运营部', '产品部', '设计部'];
+const DEPARTMENTS = ['设备部', '技术部', '生产一部', '生产二部', '供应部', '储运部', '能源部', 'TPM'];
 
 // ── Status helper ─────────────────────────────────────────────────────────────
 function getStatusInfo(item: DisplayItem) {
