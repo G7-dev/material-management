@@ -1,15 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ShoppingBag, FileCheck, CheckCircle, Clock, TrendingUp, Package, Calendar, ArrowRight, BarChart2 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-
-const stats = [
-  { label: '当前领用', value: '1', icon: ShoppingBag, color: 'text-primary', bgColor: 'bg-primary/5', change: '+12%' },
-  { label: '等待申购', value: '0', icon: FileCheck, color: 'text-emerald-600', bgColor: 'bg-emerald-500/5', change: '+0%' },
-  { label: '已通过', value: '0', icon: CheckCircle, color: 'text-purple-600', bgColor: 'bg-purple-500/5', change: '+0%' },
-  { label: '待签收', value: '0', icon: Clock, color: 'text-amber-600', bgColor: 'bg-amber-500/5', change: '+0%' },
-];
+import { getApplicationRecords } from '../utils/applicationStore';
+import { getAllInventoryItems } from '../data/unifiedInventoryData';
+import type { ApplicationRecord } from '../utils/applicationStore';
 
 const quickActions = [
   { label: '快捷领用', subLabel: '查看库存', icon: Package, color: 'text-primary', bgColor: 'bg-primary/5', path: '/daily-collection' },

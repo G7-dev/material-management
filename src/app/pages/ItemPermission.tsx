@@ -392,12 +392,37 @@ export function ItemPermission() {
   const [deletedIds, setDeletedIds]     = useState<number[]>([]);
 
   // Dynamic item list (static seed + localStorage uploads)
-  const [allItems, setAllItems] = useState<Item[]>(buildAllItems);
+  const [allItems, setAllItems] = useState<Item[]>([]);
+  
+  useEffect(() => {
+    const loadItems = () => {
+      try {
+        const items = getAllInventoryItems();
+        setAllItems(items || []);
+        
+        // Initialize size stock data
+        const stockMap: SizeStockMap = {};
+        items.forEach(item => {
+          stockMap[item.id] = {};
+          item.sizes.forEach(s => {
+            stockMap[item.id][s.id] = s.stock;
+          });
+        });
+        setSizeStockData(stockMap);
+      } catch (error) {
+        console.error('Failed to load inventory items:', error);
+        setAllItems([]);
+        setSizeStockData({});
+      }
+    };
+    
+    loadItems();
+    window.addEventListener('focus', loadItems);
+    return () => window.removeEventListener('focus', loadItems);
+  }, []);
 
   // Per-item per-size stock map
-  const [sizeStockData, setSizeStockData] = useState<SizeStockMap>(() =>
-    initStockData(buildAllItems())
-  );
+  const [sizeStockData, setSizeStockData] = useState<SizeStockMap>({});
 
   // Re-read localStorage when the component mounts or the window regains focus
   const refresh = useCallback(() => {
@@ -414,12 +439,6 @@ export function ItemPermission() {
       return next;
     });
   }, []);
-
-  useEffect(() => {
-    refresh();
-    window.addEventListener('focus', refresh);
-    return () => window.removeEventListener('focus', refresh);
-  }, [refresh]);
 
   const handleRestock = (itemId: number, sizeId: string, quantity: number) => {
     setSizeStockData(prev => {

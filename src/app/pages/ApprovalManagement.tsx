@@ -18,6 +18,7 @@ import {
   updateApplicationStatus,
   type ApplicationRecord,
 } from '../utils/applicationStore';
+import { updateStoredItemStock, getStoredItems } from '../utils/itemStore';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ApprovalStatus = 'pending' | 'approved' | 'rejected';
@@ -268,6 +269,37 @@ export function ApprovalManagement() {
   ];
 
   const handleApprove = (id: string) => {
+    // 找到对应的申请记录
+    const approval = approvals.find(a => a.id === id);
+    
+    // 如果是日常领用，更新库存
+    if (approval && approval.applicationType === '日常领用') {
+      // 解析物品名称（可能包含规格信息）
+      const baseItemName = approval.itemName.split(' (')[0];
+      
+      // 查找对应的库存物品
+      const storedItems = getStoredItems();
+      const targetItem = storedItems.find(item => 
+        item.name === baseItemName
+      );
+      
+      if (targetItem) {
+        // 减少库存数量
+        const currentQuantity = targetItem.quantity;
+        const requestQuantity = parseInt(approval.quantity) || 0;
+        const newQuantity = Math.max(0, currentQuantity - requestQuantity);
+        
+        if (newQuantity === 0) {
+          // 如果库存为0，删除物品
+          // 这里简化处理，实际应该调用 deleteStoredItem
+          console.log(`物品 ${targetItem.name} 库存已耗尽`);
+        }
+        
+        // 更新库存
+        updateStoredItemStock(targetItem.id, newQuantity);
+      }
+    }
+    
     setApprovals(prev => prev.map(a =>
       a.id === id ? { ...a, status: 'approved', statusLabel: '已批准' } : a
     ));
