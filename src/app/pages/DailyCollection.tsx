@@ -374,6 +374,7 @@ function ItemCard({ item, onApply }: { item: DisplayItem; onApply: () => void })
   const [showSizes, setShowSizes] = useState(false);
   const status = getStatusInfo(item);
   const hasSizes = item.sizes && item.sizes.length > 0;
+  const totalStock = calculateTotalStock(item);
 
   return (
     <Card className={`group flex flex-col overflow-hidden border-border/60 transition-all duration-300 ${
