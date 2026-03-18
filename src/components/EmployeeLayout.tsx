@@ -7,7 +7,6 @@ import {
   PlusOutlined,
   FileTextOutlined,
   LogoutOutlined,
-  UserOutlined,
   BellOutlined
 } from '@ant-design/icons';
 import { supabase } from '../lib/supabase';
