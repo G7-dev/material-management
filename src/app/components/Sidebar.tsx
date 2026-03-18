@@ -41,16 +41,14 @@ const userNavItems: NavItem[] = [
 
 export function Sidebar() {
   const location = useLocation();
-  const isAdmin = location.pathname.startsWith('/management') || 
-                  location.pathname.includes('upload') || 
-                  location.pathname.includes('permission') ||
-                  location.pathname.includes('low-stock') ||
-                  location.pathname.includes('approval');
-
+  
   // Dynamic pending approval count
   const [pendingCount, setPendingCount] = useState(0);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>('当前用户');
+  
+  // Determine if current user is admin based on role
+  const isAdmin = userRole === 'admin';
 
   useEffect(() => {
     const update = () => {
