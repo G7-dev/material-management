@@ -15,6 +15,7 @@ import { cn } from './ui/utils';
 import { inventoryItems, getSeverity } from '../data/inventoryData';
 import { useState, useEffect } from 'react';
 import { getApplicationRecords } from '../utils/applicationStore';
+import { supabase } from '../../lib/supabase';
 
 // Compute live low-stock count from shared data
 const lowStockCount = inventoryItems.filter(
@@ -46,6 +47,8 @@ export function Sidebar() {
 
   // Dynamic pending approval count
   const [pendingCount, setPendingCount] = useState(0);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
   useEffect(() => {
     const update = () => {
       const records = getApplicationRecords();
@@ -54,6 +57,27 @@ export function Sidebar() {
     update();
     const interval = setInterval(update, 2000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Get user role
+  useEffect(() => {
+    const getUserRole = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+          setUserRole(profile?.role || null);
+        }
+      } catch (error) {
+        console.error('Failed to get user role:', error);
+      }
+    };
+
+    getUserRole();
   }, []);
 
   const adminNavItemsDynamic = [
@@ -146,7 +170,7 @@ export function Sidebar() {
         </ul>
 
         {/* Switch view */}
-        {!isAdmin && (
+        {!isAdmin && userRole === 'admin' && (
           <div className="mt-6 pt-4 border-t border-border">
             <Link
               to="/management"
