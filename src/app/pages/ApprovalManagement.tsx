@@ -36,6 +36,7 @@ interface Approval {
   purpose: string;
   applicationType: string;
   applicationDate: string;
+  expectedDate?: string;
   status: ApprovalStatus;
   statusLabel: string;
   rejectReason?: string;
@@ -50,13 +51,14 @@ function loadApprovals(): Approval[] {
     id: r.id,
     applicant: r.applicant || '用户',
     role: '员工',
-    workId: '-',
+    workId: r.employeeId || '-',
     department: r.department || '默认部门',
     itemName: r.itemName,
     quantity: `${r.quantity} ${r.unit}`,
     purpose: r.usage,
     applicationType: r.applicationType,
     applicationDate: r.applicationDate,
+    expectedDate: r.expectedDate || '-',
     status: r.status,
     statusLabel: r.statusLabel,
     rejectReason: r.rejectReason,
@@ -111,6 +113,7 @@ function ApproveModal({ approval, onClose, onConfirm }: ApproveModalProps) {
                 { icon: ShoppingBag, label: '数量',    value: approval.quantity },
                 { icon: MessageSquare, label: '用途',  value: approval.purpose },
                 { icon: CalendarDays, label: '申请日', value: approval.applicationDate },
+                { icon: CalendarDays, label: '预计使用', value: approval.expectedDate || '-' },
               ].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="flex items-center gap-3 px-4 py-2.5">
                   <Icon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
@@ -282,13 +285,14 @@ export function ApprovalManagement() {
           id: item.id,
           applicant: item.applicant_name || '未知用户',
           role: '员工',
-          workId: '-',
+          workId: item.employee_id || '-',
           department: item.department || '未指定',
           itemName: item.purchase_name,
           quantity: `${item.purchase_quantity || 0} ${item.purchase_unit || '个'}`,
           purpose: item.purchase_reason || '申购',
           applicationType: '物品申购',
           applicationDate: new Date(item.created_at).toLocaleDateString('zh-CN'),
+          expectedDate: item.expected_date ? new Date(item.expected_date).toLocaleDateString('zh-CN') : '-',
           status: 'approved',
           statusLabel: '已归档',
           rejectReason: undefined,
@@ -574,6 +578,7 @@ export function ApprovalManagement() {
                 <TableHead className="font-semibold text-foreground text-center">用途</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">申请类型</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">申请日期</TableHead>
+                <TableHead className="font-semibold text-foreground text-center">预计使用日期</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">查看</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">状态</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">操作</TableHead>
@@ -582,7 +587,7 @@ export function ApprovalManagement() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-16 text-muted-foreground">
+                  <TableCell colSpan={12} className="text-center py-16 text-muted-foreground">
                     <Package className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     暂无匹配记录
                   </TableCell>
@@ -622,6 +627,7 @@ export function ApprovalManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-center">{approval.applicationDate}</TableCell>
+                    <TableCell className="text-muted-foreground text-center">{approval.expectedDate || '-'}</TableCell>
                     <TableCell className="text-center">
                       <div className="flex justify-center">
                         <Button
@@ -670,7 +676,7 @@ export function ApprovalManagement() {
                         <span className={`text-xs font-medium ${
                           approval.status === 'approved' ? 'text-emerald-600' : 'text-red-500'
                         }`}>
-                          {approval.status === 'approved' ? '已处理' : '已驳回'}
+                          {approval.status === 'approved' ? '已批准' : '已驳回'}
                         </span>
                       )}
                     </TableCell>

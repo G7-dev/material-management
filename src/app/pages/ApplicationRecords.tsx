@@ -341,6 +341,7 @@ export function ApplicationRecords() {
                 <TableHead className="font-semibold text-foreground">数量</TableHead>
                 <TableHead className="font-semibold text-foreground">用途</TableHead>
                 <TableHead className="font-semibold text-foreground">申请日期</TableHead>
+                <TableHead className="font-semibold text-foreground">预计使用日期</TableHead>
                 <TableHead className="font-semibold text-foreground">申请类型</TableHead>
                 <TableHead className="font-semibold text-foreground">状态</TableHead>
                 <TableHead className="font-semibold text-foreground">操作</TableHead>
@@ -371,6 +372,7 @@ export function ApplicationRecords() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{req.purchase_specification || '-'}</TableCell>
                     <TableCell className="text-muted-foreground">{new Date(req.created_at).toLocaleDateString('zh-CN')}</TableCell>
+                    <TableCell className="text-muted-foreground">{req.expected_date ? new Date(req.expected_date).toLocaleDateString('zh-CN') : '-'}</TableCell>
                     <TableCell>
                       <Badge className="bg-primary/10 text-primary border border-primary/20">
                         物品申购
@@ -440,6 +442,7 @@ export function ApplicationRecords() {
                   </TableCell>
                   <TableCell className="text-muted-foreground max-w-[200px] truncate">{record.usage}</TableCell>
                   <TableCell className="text-muted-foreground">{record.applicationDate}</TableCell>
+                  <TableCell className="text-muted-foreground">{record.expectedDate || '-'}</TableCell>
                   <TableCell>
                     <Badge className="bg-primary/10 text-primary border border-primary/20 hover:bg-primary/10">
                       {record.applicationType}

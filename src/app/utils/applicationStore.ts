@@ -17,6 +17,8 @@ export interface ApplicationRecord {
   applicant?: string;
   department?: string;
   employeeId?: string;
+  expectedDate?: string;
+  notes?: string;
 }
 
 const STORAGE_KEY = 'wms_application_records_v1';
@@ -34,10 +36,18 @@ export function saveApplicationRecord(
   payload: Omit<ApplicationRecord, 'id' | 'applicationDate' | 'status' | 'statusLabel'>
 ): ApplicationRecord {
   const existing = getApplicationRecords();
+  const now = new Date();
   const record: ApplicationRecord = {
     ...payload,
     id: `app_${Date.now()}`,
-    applicationDate: new Date().toLocaleString('zh-CN'),
+    applicationDate: now.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).replace(/\//g, '-'),
     status: 'pending',
     statusLabel: '待审核',
   };
@@ -55,8 +65,8 @@ export function updateApplicationStatus(
   if (idx !== -1) {
     const labelMap: Record<ApplicationStatus, string> = {
       pending: '待审核',
-      approved: '审批通过',
-      rejected: '已拒绝',
+      approved: '已批准',
+      rejected: '已驳回',
     };
     records[idx] = {
       ...records[idx],

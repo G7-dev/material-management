@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Package, Search, ArrowRight, X, ShoppingBag, CheckCircle2,
   ChevronDown, ChevronUp, User, Building2, Hash, FileText,
-  Sparkles, Box, Minus, Plus, Layers,
+  Sparkles, Box, Minus, Plus, Layers, Calendar,
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -70,6 +70,8 @@ function ApplyModal({
   const [name, setName] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [usage, setUsage] = useState('');
+  const [expectedDate, setExpectedDate] = useState('');
+  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const hasSizes = item.sizes && item.sizes.length > 0;
@@ -81,6 +83,7 @@ function ApplyModal({
     employeeId.trim() &&
     department &&
     usage.trim() &&
+    expectedDate &&
     quantity > 0 &&
     maxStock > 0 &&
     (!hasSizes || selectedSize);
@@ -88,6 +91,17 @@ function ApplyModal({
   const handleSubmit = () => {
     if (!canSubmit) return;
     setSubmitting(true);
+    
+    // Format expectedDate to include time
+    const expectedDateObj = expectedDate ? new Date(expectedDate) : new Date();
+    const formattedExpectedDate = expectedDateObj.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).replace(/\//g, '-');
     
     // Save application record (do NOT deduct stock here - wait for approval)
     saveApplicationRecord({
@@ -100,6 +114,8 @@ function ApplyModal({
       applicant: name.trim(),
       department,
       employeeId: employeeId.trim(),
+      expectedDate: formattedExpectedDate,
+      notes: notes.trim(),
     });
     
     setTimeout(() => {
@@ -279,6 +295,37 @@ function ApplyModal({
               value={usage}
               onChange={(e) => setUsage(e.target.value)}
               placeholder="请简要描述领用用途..."
+              rows={3}
+              className="w-full rounded-xl border border-border/80 bg-muted/30 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 transition-all resize-none"
+            />
+          </div>
+
+          {/* Expected Date */}
+          <div>
+            <label className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-indigo-500/60" />
+              预计领用日期 <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="date"
+              value={expectedDate}
+              onChange={(e) => setExpectedDate(e.target.value)}
+              className="h-11 bg-muted/50 border-border"
+              min={new Date().toISOString().split('T')[0]}
+            />
+            <p className="text-xs text-muted-foreground mt-1.5">请选择预计使用物品的日期</p>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-indigo-500/60" />
+              备注（预计什么时候使用）
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="请详细描述预计使用时间、用途或其他备注信息..."
               rows={3}
               className="w-full rounded-xl border border-border/80 bg-muted/30 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 transition-all resize-none"
             />
