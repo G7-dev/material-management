@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { 
   LayoutDashboard, 
   Package, 
@@ -13,6 +13,11 @@ import {
   Users,
 } from 'lucide-react';
 import { cn } from './ui/utils';
+import { useState, useEffect } from 'react';
+import { getApplicationRecords } from '../utils/applicationStore';
+import { supabase } from '../../lib/supabase';
+import { getAllInventoryItems, getSeverity } from '../data/unifiedInventoryData';
+import { toast } from 'sonner';
 
 interface NavItem {
   name: string;
@@ -21,10 +26,6 @@ interface NavItem {
   badge?: number;
   badgeColor?: string;
 }
-import { useState, useEffect } from 'react';
-import { getApplicationRecords } from '../utils/applicationStore';
-import { supabase } from '../../lib/supabase';
-import { getAllInventoryItems, getSeverity } from '../data/unifiedInventoryData';
 
 // Compute live low-stock count from unified data
 const getLowStockCount = () => {
@@ -53,6 +54,7 @@ const getPendingConfirmCount = async () => {
 
 export function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   
   // Dynamic pending approval count
   const [pendingCount, setPendingCount] = useState(0);
@@ -247,13 +249,21 @@ export function Sidebar() {
 
       {/* Logout */}
       <div className="p-4 border-t border-border">
-        <Link
-          to="/login"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all duration-200 group"
+        <button
+          onClick={async () => {
+            try {
+              await supabase.auth.signOut();
+              navigate('/login', { replace: true });
+            } catch (error) {
+              console.error('Logout error:', error);
+              toast.error('退出登录失败');
+            }
+          }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all duration-200 group"
         >
           <LogOut className="w-4 h-4" />
           <span className="text-sm font-medium">退出登录</span>
-        </Link>
+        </button>
       </div>
     </aside>
   );

@@ -300,20 +300,20 @@ function ApplyModal({
             />
           </div>
 
-          {/* Expected Date */}
+          {/* Expected DateTime */}
           <div>
             <label className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-indigo-500/60" />
-              预计领用日期 <span className="text-red-500">*</span>
+              预计领用时间 <span className="text-red-500">*</span>
             </label>
             <Input
-              type="date"
+              type="datetime-local"
               value={expectedDate}
               onChange={(e) => setExpectedDate(e.target.value)}
               className="h-11 bg-muted/50 border-border"
-              min={new Date().toISOString().split('T')[0]}
+              min={new Date().toISOString().slice(0, 16)}
             />
-            <p className="text-xs text-muted-foreground mt-1.5">请选择预计使用物品的日期</p>
+            <p className="text-xs text-muted-foreground mt-1.5">请选择预计使用物品的日期和时间（精确到分钟）</p>
           </div>
 
           {/* Notes */}
