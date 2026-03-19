@@ -13,6 +13,8 @@ import { ItemPermission } from "./pages/ItemPermission";
 import { ApprovalManagement } from "./pages/ApprovalManagement";
 import { LowStockAlert } from "./pages/LowStockAlert";
 import { PurchaseManagement } from "./pages/PurchaseManagement";
+import { AdminBatchRegister } from "./pages/AdminBatchRegister";
+import { ForgotPassword } from "./pages/ForgotPassword";
 import { Package } from "lucide-react";
 
 // Auth wrapper component
@@ -71,6 +73,10 @@ export const router = createBrowserRouter([
     Component: LoginPage,
   },
   {
+    path: "/forgot-password",
+    Component: ForgotPassword,
+  },
+  {
     path: "/",
     element: <AuthWrapper />,
     children: [
@@ -87,6 +93,7 @@ export const router = createBrowserRouter([
           { path: "low-stock-alert", Component: LowStockAlert },
           { path: "purchase-management", Component: PurchaseManagement },
           { path: "approval-management", Component: ApprovalManagement },
+          { path: "admin-batch-register", Component: AdminBatchRegister },
         ],
       },
     ],

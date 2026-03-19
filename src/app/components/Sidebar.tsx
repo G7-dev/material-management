@@ -10,6 +10,7 @@ import {
   CheckSquare,
   LogOut,
   Bell,
+  Users,
 } from 'lucide-react';
 import { cn } from './ui/utils';
 
@@ -89,6 +90,7 @@ export function Sidebar() {
 
   const adminNavItemsDynamic: NavItem[] = [
     { name: '管理平台', path: '/management', icon: Settings },
+    { name: '批量注册', path: '/admin-batch-register', icon: Users },
     { name: '物品上架', path: '/item-upload', icon: PackagePlus },
     { name: '物品补货', path: '/item-permission', icon: PackageCheck },
     { name: '低库存预警', path: '/low-stock-alert', icon: Bell, badge: getLowStockCount() },

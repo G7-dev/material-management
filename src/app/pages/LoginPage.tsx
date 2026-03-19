@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router';
 import { Package, Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+import { FirstLoginPasswordModal } from '../components/FirstLoginPasswordModal';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -15,6 +16,31 @@ export function LoginPage() {
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
+
+  // Check if user needs to reset password on first login
+  useEffect(() => {
+    const checkFirstLogin = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('is_first_login')
+            .eq('id', user.id)
+            .single();
+
+          if (profile?.is_first_login) {
+            setShowFirstLoginModal(true);
+          }
+        }
+      } catch (error) {
+        console.error('检查首次登录状态失败:', error);
+      }
+    };
+
+    checkFirstLogin();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -49,7 +75,22 @@ export function LoginPage() {
         toast.error(error.message);
       } else {
         toast.success('登录成功！');
-        navigate('/');
+        
+        // 检查是否需要首次登录修改密码
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('is_first_login')
+            .eq('id', user.id)
+            .single();
+
+          if (profile?.is_first_login) {
+            setShowFirstLoginModal(true);
+          } else {
+            navigate('/');
+          }
+        }
       }
     } catch (error) {
       toast.error('登录失败，请重试');
@@ -255,7 +296,32 @@ export function LoginPage() {
                 activeTab === 'login' ? '登录' : '注册'
               )}
             </Button>
+
+            {activeTab === 'login' && (
+              <div className="mt-4 text-center">
+                <Link 
+                  to="/forgot-password"
+                  className="text-xs text-primary hover:underline"
+                >
+                  忘记密码？
+                </Link>
+              </div>
+            )}
           </form>
+
+          {/* First Login Password Modal */}
+          {showFirstLoginModal && (
+            <FirstLoginPasswordModal
+              onClose={() => {
+                setShowFirstLoginModal(false);
+                supabase.auth.signOut();
+              }}
+              onSuccess={() => {
+                setShowFirstLoginModal(false);
+                navigate('/');
+              }}
+            />
+          )}
 
           {/* Footer */}
           <div className="mt-8 text-center">
