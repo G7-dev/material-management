@@ -79,7 +79,7 @@ interface ApproveModalProps {
 function ApproveModal({ approval, onClose, onConfirm }: ApproveModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
       <div className="relative z-10 w-full max-w-md">
         <Card className="border-border shadow-2xl shadow-emerald-500/10 overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
@@ -160,7 +160,7 @@ function RejectModal({ approval, onClose, onConfirm }: RejectModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
       <div className="relative z-10 w-full max-w-md">
         <Card className="border-border shadow-2xl shadow-red-500/10 overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-red-400 to-rose-500" />
@@ -371,8 +371,9 @@ export function ApprovalManagement() {
     } catch (error) {
       console.error('批准操作失败:', error);
       alert('批准失败：' + (error instanceof Error ? error.message : '未知错误'));
-      // 恢复状态
-      loadApprovals();
+      // 恢复状态 - 重新加载数据
+      const localApprovals = loadApprovals();
+      setApprovals(localApprovals);
     }
   };
 
@@ -397,8 +398,9 @@ export function ApprovalManagement() {
     } catch (error) {
       console.error('驳回操作失败:', error);
       alert('驳回失败：' + (error instanceof Error ? error.message : '未知错误'));
-      // 恢复状态
-      loadApprovals();
+      // 恢复状态 - 重新加载数据
+      const localApprovals = loadApprovals();
+      setApprovals(localApprovals);
     }
   };
 
@@ -775,7 +777,7 @@ function ViewModal({ approval, onClose }: ViewModalProps) {
   };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
       <div className="relative z-10 w-full max-w-2xl mx-4">
         <Card className="border-border shadow-2xl shadow-primary/10 overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-indigo-400 via-purple-500 to-pink-500" />

@@ -55,7 +55,7 @@ function NotificationModal({ requisition, onClose, onConfirm }: NotificationModa
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
       <Card className="relative z-10 w-full max-w-md border-border shadow-2xl">
         <div className="flex items-center gap-3 p-6 border-b border-border">
           <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">

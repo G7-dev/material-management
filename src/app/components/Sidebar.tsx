@@ -59,6 +59,7 @@ export function Sidebar() {
   // Dynamic pending approval count
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingConfirmCount, setPendingConfirmCount] = useState(0);
+  const [pendingPurchaseCount, setPendingPurchaseCount] = useState(0);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>('当前用户');
   const [isLoading, setIsLoading] = useState(true);
@@ -73,6 +74,30 @@ export function Sidebar() {
     };
     update();
     const interval = setInterval(update, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Update pending purchase count for purchase management
+  useEffect(() => {
+    const updatePurchaseCount = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        const { count } = await supabase
+          .from('requisitions')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('status', 'pending');
+        
+        setPendingPurchaseCount(count || 0);
+      } catch (error) {
+        console.error('Failed to get pending purchase count:', error);
+      }
+    };
+    
+    updatePurchaseCount();
+    const interval = setInterval(updatePurchaseCount, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -126,8 +151,8 @@ export function Sidebar() {
       name: '申购管理', 
       path: '/purchase-management', 
       icon: Package, 
-      badge: pendingCount,
-      badgeColor: pendingCount > 0 ? 'bg-red-500' : undefined
+      badge: pendingPurchaseCount,
+      badgeColor: pendingPurchaseCount > 0 ? 'bg-red-500' : undefined
     },
     { name: '审批管理', path: '/approval-management', icon: CheckSquare, badge: pendingCount },
   ];

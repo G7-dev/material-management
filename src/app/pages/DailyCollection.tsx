@@ -130,10 +130,9 @@ function ApplyModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md">
       <div
         className="bg-background rounded-2xl shadow-2xl shadow-black/20 border border-border/80 w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header with gradient bar */}
         <div className="relative">
