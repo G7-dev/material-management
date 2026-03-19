@@ -836,16 +836,20 @@ function ViewModal({ approval, onClose }: ViewModalProps) {
               </div>
             </div>
 
-            {/* Image placeholder */}
-            <div className="p-4 rounded-xl bg-muted/30 border border-border border-dashed">
-              <div className="flex items-center justify-center h-32 text-muted-foreground">
-                <div className="text-center">
-                  <Package className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  <p className="text-xs">物品图片预览区域</p>
-                  <p className="text-xs">（功能开发中）</p>
-                </div>
+            {/* Image */}
+            {(approval as any).image && (
+              <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                <h3 className="font-semibold text-foreground text-sm mb-3 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-primary" />
+                  物品图片
+                </h3>
+                <img 
+                  src={(approval as any).image} 
+                  alt={approval.itemName}
+                  className="w-full h-48 object-cover rounded-lg border border-border"
+                />
               </div>
-            </div>
+            )}
           </div>
 
           {/* Footer */}

@@ -57,20 +57,55 @@ export function ApplicationRecords() {
     loadData();
   }, []);
 
-  // Handle confirm receipt
+  // Handle confirm receipt - auto archive
   const handleConfirmReceipt = async (requisitionId: string) => {
     try {
       const { error } = await supabase
         .from('requisitions')
         .update({ 
-          status: 'confirmed',
-          confirmed_at: new Date().toISOString()
+          status: 'archived',
+          confirmed_at: new Date().toISOString(),
+          archived_at: new Date().toISOString()
         })
         .filter('id', 'eq', requisitionId);
 
       if (error) throw error;
 
-      toast.success('已确认收货');
+      toast.success('已确认收货并归档');
+      
+      // Reload data
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('requisitions')
+          .select('*')
+          .filter('user_id', 'eq', user.id)
+          .filter('status', 'neq', 'archived') // Don't show archived in user view
+          .order('created_at', { ascending: false });
+        setRequisitions(data || []);
+      }
+    } catch (error: any) {
+      console.error('Failed to confirm receipt:', error);
+      toast.error(`确认收货失败: ${error.message || '请重试'}`);
+    }
+  };
+
+  // Handle cancel requisition
+  const handleCancel = async (requisitionId: string) => {
+    if (!confirm('确定要取消该申购吗？')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('requisitions')
+        .update({ 
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString()
+        })
+        .filter('id', 'eq', requisitionId);
+
+      if (error) throw error;
+
+      toast.success('已取消申购');
       
       // Reload data
       const { data: { user } } = await supabase.auth.getUser();
@@ -83,8 +118,8 @@ export function ApplicationRecords() {
         setRequisitions(data || []);
       }
     } catch (error: any) {
-      console.error('Failed to confirm receipt:', error);
-      toast.error(`确认收货失败: ${error.message || '请重试'}`);
+      console.error('Failed to cancel:', error);
+      toast.error(`取消失败: ${error.message || '请重试'}`);
     }
   };
 
@@ -93,7 +128,8 @@ export function ApplicationRecords() {
     setRecords(getApplicationRecords());
   };
 
-  const filtered = records.filter((r) => {
+  // Filter both records and requisitions
+  const filteredRecords = records.filter((r) => {
     const matchSearch =
       !searchQuery ||
       r.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -107,12 +143,14 @@ export function ApplicationRecords() {
     return matchSearch && matchApplicant && matchItemName && matchAppType && matchStatus;
   });
 
+  // Calculate combined stats
   const pendingCount = records.filter((r) => r.status === 'pending').length;
   const approvedCount = records.filter((r) => r.status === 'approved').length;
   const rejectedCount = records.filter((r) => r.status === 'rejected').length;
+  const totalCount = records.length + requisitions.length;
 
   const stats = [
-    { label: '总申请数', value: String(records.length), color: 'text-amber-600', bgColor: 'bg-amber-500/5' },
+    { label: '总申请数', value: String(totalCount), color: 'text-amber-600', bgColor: 'bg-amber-500/5' },
     { label: '待审批', value: String(pendingCount), color: 'text-primary', bgColor: 'bg-primary/5' },
     { label: '已通过', value: String(approvedCount), color: 'text-emerald-600', bgColor: 'bg-emerald-500/5' },
   ];
@@ -297,9 +335,17 @@ export function ApplicationRecords() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge className={`${status.cls} border`}>
-                        {status.label}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge className={`${status.cls} border`}>
+                          {status.label}
+                        </Badge>
+                        {req.status === 'arrival_notified' && (
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="已到货通知" />
+                        )}
+                        {req.status === 'confirmed' && (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" title="已确认收货" />
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
@@ -312,6 +358,19 @@ export function ApplicationRecords() {
                           >
                             <CheckCircle2 className="w-3 h-3 mr-1" />
                             确认收货
+                          </Button>
+                        )}
+                        
+                        {/* Show cancel button for pending */}
+                        {req.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs border-red-500 text-red-600 hover:bg-red-500/10"
+                            onClick={() => handleCancel(req.id)}
+                          >
+                            <X className="w-3 h-3 mr-1" />
+                            取消
                           </Button>
                         )}
                         
@@ -367,7 +426,7 @@ export function ApplicationRecords() {
 
         {/* Pagination */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/30">
-          <p className="text-sm text-muted-foreground">共 {filtered.length} 条记录</p>
+          <p className="text-sm text-muted-foreground">共 {filteredRecords.length + requisitions.length} 条记录</p>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" disabled className="border-border">
               上一页

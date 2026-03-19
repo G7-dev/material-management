@@ -29,6 +29,7 @@ interface Requisition {
   created_at: string;
   estimated_delivery_date: string;
   notification_time?: string;
+  image?: string;
 }
 
 // ── Notification Modal ────────────────────────────────────────────────────────
@@ -183,6 +184,21 @@ function ViewModal({ requisition, onClose }: ViewModalProps) {
             </div>
           </div>
           
+          {/* Image */}
+          {requisition.image && (
+            <div className="p-4 rounded-xl bg-muted/30 border border-border">
+              <h3 className="font-semibold text-foreground text-sm mb-3 flex items-center gap-2">
+                <Package className="w-4 h-4 text-primary" />
+                物品图片
+              </h3>
+              <img 
+                src={requisition.image} 
+                alt={requisition.purchase_name}
+                className="w-full h-48 object-cover rounded-lg border border-border"
+              />
+            </div>
+          )}
+          
           {/* Status */}
           <div className="p-4 rounded-xl bg-primary/5 border border-primary/15">
             <div className="flex items-center gap-3">
@@ -220,13 +236,14 @@ export function PurchaseManagement() {
   const [viewingRequisition, setViewingRequisition] = useState<Requisition | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Load requisitions from Supabase
+  // Load requisitions from Supabase (exclude archived)
   const loadRequisitions = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('requisitions')
         .select('*')
+        .filter('status', 'neq', 'archived') // Don't show archived in purchase management
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -245,6 +262,7 @@ export function PurchaseManagement() {
         created_at: item.created_at,
         estimated_delivery_date: item.estimated_delivery_date,
         notification_time: item.notification_time,
+        image: item.image,
       }));
 
       setRequisitions(reqs);
@@ -411,22 +429,39 @@ export function PurchaseManagement() {
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
-        {[
-          { label: '待审批', value: requisitions.filter(r => r.status === 'pending').length, color: 'text-amber-600', bgColor: 'bg-amber-500/5' },
-          { label: '已批准', value: requisitions.filter(r => r.status === 'approved').length, color: 'text-emerald-600', bgColor: 'bg-emerald-500/5' },
-          { label: '已通知', value: requisitions.filter(r => r.status === 'arrival_notified').length, color: 'text-blue-600', bgColor: 'bg-blue-500/5' },
-          { label: '已归档', value: requisitions.filter(r => r.status === 'archived').length, color: 'text-gray-600', bgColor: 'bg-gray-500/5' },
-        ].map(stat => (
-          <Card key={stat.label} className="p-4 border-border">
-            <div className="flex items-center justify-between">
-              <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-                <Package className={`w-5 h-5 ${stat.color}`} />
+        {(() => {
+          const pendingCount = requisitions.filter(r => r.status === 'pending').length;
+          return [
+            { 
+              label: '待审批', 
+              value: pendingCount, 
+              color: 'text-amber-600', 
+              bgColor: 'bg-amber-500/5',
+              showBadge: pendingCount > 0,
+              badgeCount: pendingCount
+            },
+            { label: '已批准', value: requisitions.filter(r => r.status === 'approved').length, color: 'text-emerald-600', bgColor: 'bg-emerald-500/5' },
+            { label: '已通知', value: requisitions.filter(r => r.status === 'arrival_notified').length, color: 'text-blue-600', bgColor: 'bg-blue-500/5' },
+            { label: '已完成', value: requisitions.filter(r => r.status === 'archived').length, color: 'text-gray-600', bgColor: 'bg-gray-500/5' },
+          ].map(stat => (
+            <Card key={stat.label} className="p-4 border-border relative">
+              <div className="flex items-center justify-between">
+                <div className={`p-2 rounded-lg ${stat.bgColor}`}>
+                  <Package className={`w-5 h-5 ${stat.color}`} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold text-foreground">{stat.value}</span>
+                  {stat.showBadge && (
+                    <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-semibold flex items-center justify-center animate-pulse">
+                      {stat.badgeCount}
+                    </span>
+                  )}
+                </div>
               </div>
-              <span className="text-2xl font-bold text-foreground">{stat.value}</span>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">{stat.label}</p>
-          </Card>
-        ))}
+              <p className="text-sm text-muted-foreground mt-2">{stat.label}</p>
+            </Card>
+          ));
+        })()}
       </div>
 
       {/* Search */}

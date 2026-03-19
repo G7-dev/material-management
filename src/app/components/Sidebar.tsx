@@ -18,6 +18,7 @@ interface NavItem {
   path: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: number;
+  badgeColor?: string;
 }
 import { useState, useEffect } from 'react';
 import { getApplicationRecords } from '../utils/applicationStore';
@@ -91,7 +92,13 @@ export function Sidebar() {
     { name: '物品上架', path: '/item-upload', icon: PackagePlus },
     { name: '物品补货', path: '/item-permission', icon: PackageCheck },
     { name: '低库存预警', path: '/low-stock-alert', icon: Bell, badge: getLowStockCount() },
-    { name: '申购管理', path: '/purchase-management', icon: Package, badge: pendingCount },
+    { 
+      name: '申购管理', 
+      path: '/purchase-management', 
+      icon: Package, 
+      badge: pendingCount,
+      badgeColor: pendingCount > 0 ? 'bg-red-500' : undefined
+    },
     { name: '审批管理', path: '/approval-management', icon: CheckSquare, badge: pendingCount },
   ];
 
@@ -165,7 +172,7 @@ export function Sidebar() {
                         ? 'bg-white text-primary'
                         : isAlert
                           ? 'bg-amber-500 text-white'
-                          : 'bg-red-500 text-white'
+                          : item.badgeColor || 'bg-red-500 text-white'
                     )}>
                       {item.badge > 99 ? '99+' : item.badge}
                     </span>
