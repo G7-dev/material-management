@@ -59,6 +59,7 @@ export function Sidebar() {
   const [pendingConfirmCount, setPendingConfirmCount] = useState(0);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>('当前用户');
+  const [isLoading, setIsLoading] = useState(true);
   
   // Determine if current user is admin based on role
   const isAdmin = userRole === 'admin';
@@ -93,6 +94,8 @@ export function Sidebar() {
         }
       } catch (error) {
         console.error('Failed to get user info:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -174,14 +177,22 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 overflow-y-auto">
-        <div className="mb-2 px-3">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            {isAdmin ? '管理功能' : '物资操作'}
-          </h3>
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="w-4 h-4 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+            <span className="text-sm">加载中...</span>
+          </div>
         </div>
-        <ul className="space-y-1">
-          {navItems.map((item) => {
+      ) : (
+        <nav className="flex-1 p-4 overflow-y-auto">
+          <div className="mb-2 px-3">
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              {isAdmin ? '管理功能' : '物资操作'}
+            </h3>
+          </div>
+          <ul className="space-y-1">
+            {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
             const isAlert = item.path === '/low-stock-alert';
@@ -217,32 +228,22 @@ export function Sidebar() {
               </li>
             );
           })}
-        </ul>
+            </ul>
 
-        {/* Switch view */}
-        {!isAdmin && userRole === 'admin' && (
-          <div className="mt-6 pt-4 border-t border-border">
-            <Link
-              to="/management"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200"
-            >
-              <Settings className="w-4 h-4" />
-              <span className="text-sm font-medium">切换到管理</span>
-            </Link>
-          </div>
+            {/* Switch view */}
+            {!isAdmin && userRole === 'admin' && (
+              <div className="mt-6 pt-4 border-t border-border">
+                <Link
+                  to="/management"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span className="text-sm font-medium">切换到管理</span>
+                </Link>
+              </div>
+            )}
+          </nav>
         )}
-        {isAdmin && (
-          <div className="mt-6 pt-4 border-t border-border">
-            <Link
-              to="/"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200"
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              <span className="text-sm font-medium">切换到用户</span>
-            </Link>
-          </div>
-        )}
-      </nav>
 
       {/* Logout */}
       <div className="p-4 border-t border-border">
