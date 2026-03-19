@@ -35,7 +35,6 @@ const EMPTY_FORM = {
   expiry: TODAY,
   lowStockThreshold: '',
   notes: '',
-  stockPlatform: '',
 };
 
 const UNIT_OPTIONS = ['件', '个', '包', '张', '本', '盒', '套', '卷', '瓶', '箱'];
@@ -213,7 +212,7 @@ function SuccessOverlay({
   onContinue,
   onViewInventory,
 }: {
-  item: { name: string; category: string; quantity: string; stockPlatform: string };
+  item: { name: string; category: string; quantity: string };
   onContinue: () => void;
   onViewInventory: () => void;
 }) {
@@ -248,10 +247,6 @@ function SuccessOverlay({
               <span className="font-semibold text-primary">{item.quantity} 件</span>
             </div>
             <div className="h-px bg-border" />
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">库存类型</span>
-
-            </div>
           </div>
 
           <div className="flex gap-3">
@@ -376,7 +371,7 @@ export function ItemUpload() {
   };
 
   const isDirty       = Object.values(formData).some(v => v !== '' && v !== TODAY) || !!previewImage;
-  const requiredFilled = formData.name && formData.category && formData.quantity && formData.stockPlatform;
+  const requiredFilled = formData.name && formData.category && formData.quantity;
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -415,7 +410,6 @@ export function ItemUpload() {
       unit: formData.unit,
       quantity: parseInt(formData.quantity) || 0,
       lowStockThreshold: parseInt(formData.lowStockThreshold) || 0,
-      stockPlatform: formData.stockPlatform,
       expiry: formData.expiry,
       notes: formData.notes,
       image: previewImage ?? undefined,
@@ -900,7 +894,6 @@ export function ItemUpload() {
                   {[
                     { label: '规格', value: formData.specModel },
                     { label: '数量', value: formData.quantity },
-                    { label: '类型', value: formData.stockPlatform },
                     { label: '有效期', value: formData.expiry },
                   ].map(({ label, value }) => (
                     <div key={label} className="bg-muted/50 rounded-lg p-2.5 border border-border">

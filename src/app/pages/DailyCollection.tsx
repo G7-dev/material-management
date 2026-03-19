@@ -27,7 +27,6 @@ interface DisplayItem {
   unit: string;
   quantity: number;
   lowStockThreshold: number;
-  stockPlatform: string;
   expiry: string;
   notes: string;
   sizes?: SizeVariant[];
@@ -514,7 +513,6 @@ export function DailyCollection() {
       unit: item.unit,
       quantity: item.stock,
       lowStockThreshold: item.threshold,
-      stockPlatform: item.location,
       expiry: item.lastRestock,
       notes: '',
       sizes: item.sizes

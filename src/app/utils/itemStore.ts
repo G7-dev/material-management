@@ -9,7 +9,6 @@ export interface StoredItem {
   unit: string;           // 单位，如：件、包、张、个
   quantity: number;
   lowStockThreshold: number;
-  stockPlatform: string;
   expiry: string;
   notes: string;
   image?: string;
