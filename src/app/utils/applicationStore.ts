@@ -18,7 +18,6 @@ export interface ApplicationRecord {
   department?: string;
   employeeId?: string;
   expectedDate?: string;
-  notes?: string;
 }
 
 const STORAGE_KEY = 'wms_application_records_v1';

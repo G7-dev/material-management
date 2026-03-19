@@ -713,7 +713,7 @@ export function ApprovalManagement() {
                         <span className={`text-xs font-medium ${
                           approval.status === 'approved' ? 'text-emerald-600' : 'text-red-500'
                         }`}>
-                          {approval.status === 'approved' ? '已批准' : '已驳回'}
+                          {approval.statusLabel}
                         </span>
                       )}
                     </TableCell>
