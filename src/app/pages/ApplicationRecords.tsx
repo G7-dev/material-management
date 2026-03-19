@@ -31,6 +31,7 @@ export function ApplicationRecords() {
     applicationType: '',
     status: ''
   });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load both application records and purchase requisitions
@@ -227,12 +228,7 @@ export function ApplicationRecords() {
             </div>
             <Button 
               className="gap-2 h-11 px-6 bg-primary hover:bg-primary/90"
-              onClick={() => {
-                const panel = document.getElementById('advanced-filters-app');
-                if (panel) {
-                  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-                }
-              }}
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
             >
               <Filter className="w-4 h-4" />
               高级筛选
@@ -240,7 +236,7 @@ export function ApplicationRecords() {
           </div>
         
         {/* Advanced Filters Panel */}
-        <div id="advanced-filters-app" className="hidden">
+        <div className={showAdvancedFilters ? 'block' : 'hidden'}>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             {/* Applicant Filter */}
             <div>

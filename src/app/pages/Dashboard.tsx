@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ShoppingBag, FileCheck, CheckCircle, Clock, TrendingUp, Package, Calendar, ArrowRight, BarChart2 } from 'lucide-react';
+import { format, subMonths, isWithinInterval, parseISO } from 'date-fns';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { getApplicationRecords } from '../utils/applicationStore';
 import { getAllInventoryItems } from '../data/unifiedInventoryData';
 import type { ApplicationRecord } from '../utils/applicationStore';
+import { supabase } from '../../lib/supabase';
 
 const quickActions = [
   { label: '快捷领用', subLabel: '查看库存', icon: Package, color: 'text-primary', bgColor: 'bg-primary/5', path: '/daily-collection' },
@@ -18,16 +20,7 @@ const recentApplications = [
   { id: 2, item: '生成申购单', quantity: 1, status: 'waiting', date: '2026/3/18', type: '物品申购' },
 ];
 
-const collectionRanking = [
-  { name: 'A4打印纸', count: 87, category: '办公用品' },
-  { name: '中性笔',   count: 74, category: '办公用品' },
-  { name: 'U盘',      count: 52, category: '电子设备' },
-  { name: '订书机',   count: 41, category: '办公用品' },
-  { name: '文件夹',   count: 38, category: '办公用品' },
-  { name: '剪刀',     count: 29, category: '办公用品' },
-  { name: '固体胶',   count: 24, category: '办公用品' },
-  { name: '计算器',   count: 18, category: '电子设备' },
-];
+
 
 const BAR_COLORS = [
   '#6366f1', '#7c3aed', '#8b5cf6', '#a78bfa',
@@ -48,12 +41,14 @@ export function Dashboard() {
     { label: '已通过', value: '0', icon: CheckCircle, color: 'text-purple-600', bgColor: 'bg-purple-500/5', change: '+0%' },
     { label: '待签收', value: '0', icon: Clock, color: 'text-amber-600', bgColor: 'bg-amber-500/5', change: '+0%' },
   ]);
+  const [collectionRanking, setCollectionRanking] = useState<Array<{ name: string; count: number; category: string }>>([]);
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const totalCount = collectionRanking.reduce((s, i) => s + i.count, 0);
-  const topItem = collectionRanking[0];
+  const topItem = collectionRanking[0] || { name: '-', count: 0 };
 
-  // 加载实时统计数据
+  // 加载实时统计数据和近一个月领用排行
   useEffect(() => {
-    const loadStats = () => {
+    const loadStats = async () => {
       const records = getApplicationRecords();
       
       // 计算各状态数量
@@ -78,6 +73,52 @@ export function Dashboard() {
         { label: '已通过', value: String(approvedCount), icon: CheckCircle, color: 'text-purple-600', bgColor: 'bg-purple-500/5', change: `+${approvedCount}%` },
         { label: '待签收', value: String(pendingCount), icon: Clock, color: 'text-amber-600', bgColor: 'bg-amber-500/5', change: `+${pendingCount}%` },
       ]);
+
+      // 加载近一个月领用排行
+      try {
+        const today = new Date();
+        const oneMonthAgo = subMonths(today, 1);
+        
+        // 设置日期范围显示
+        setDateRange({
+          start: format(oneMonthAgo, 'yyyy年M月d日'),
+          end: format(today, 'yyyy年M月d日')
+        });
+        
+        // 从Supabase获取近一个月的已批准日常领用记录
+        const { data, error } = await supabase
+          .from('requisitions')
+          .select('purchase_name, purchase_quantity, created_at, status, application_type')
+          .eq('status', 'approved')
+          .eq('application_type', '日常领用')
+          .gte('created_at', oneMonthAgo.toISOString())
+          .lte('created_at', today.toISOString());
+
+        if (error) throw error;
+
+        // 按物品名称分组统计数量
+        const itemCounts: Record<string, number> = {};
+        data?.forEach(record => {
+          const itemName = record.purchase_name || '未知物品';
+          const quantity = parseInt(record.purchase_quantity) || 1;
+          itemCounts[itemName] = (itemCounts[itemName] || 0) + quantity;
+        });
+
+        // 转换为数组并排序，取前8名
+        const ranking = Object.entries(itemCounts)
+          .map(([name, count]) => ({
+            name,
+            count,
+            category: '办公用品' // 默认分类，可以根据需要调整
+          }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 8);
+
+        setCollectionRanking(ranking);
+      } catch (error) {
+        console.error('加载领用排行失败:', error);
+        setCollectionRanking([]);
+      }
     };
 
     loadStats();
@@ -110,7 +151,9 @@ export function Dashboard() {
             </div>
             <div>
               <h2 className="font-semibold text-foreground">近一个月领用排行</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">2026年2月18日 — 2026年3月18日</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {dateRange.start ? `${dateRange.start} — ${dateRange.end}` : '加载中...'}
+              </p>
             </div>
           </div>
           {/* Summary Pills */}
@@ -131,7 +174,7 @@ export function Dashboard() {
         <div className="flex gap-8">
           {/* Bar Chart — pure CSS */}
           <div className="flex-1 flex flex-col gap-1.5 justify-center">
-            {collectionRanking.map((item, i) => {
+            {collectionRanking.length > 0 ? collectionRanking.map((item, i) => {
               const pct = Math.round((item.count / topItem.count) * 100);
               const isActive = hoveredIndex === null || hoveredIndex === i;
               return (
@@ -160,12 +203,19 @@ export function Dashboard() {
                   </span>
                 </div>
               );
-            })}
+            }) : (
+              <div className="flex items-center justify-center h-32 text-muted-foreground">
+                <div className="text-center">
+                  <Package className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">暂无近一个月领用数据</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Rank List */}
           <div className="w-52 flex flex-col gap-2">
-            {collectionRanking.slice(0, 6).map((item, i) => {
+            {collectionRanking.length > 0 ? collectionRanking.slice(0, 6).map((item, i) => {
               const pct = Math.round((item.count / topItem.count) * 100);
               const isTop3 = i < 3;
               return (
@@ -207,7 +257,14 @@ export function Dashboard() {
                   )}
                 </div>
               );
-            })}
+            }) : (
+              <div className="flex items-center justify-center h-32 text-muted-foreground">
+                <div className="text-center">
+                  <Package className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">暂无排行数据</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </Card>

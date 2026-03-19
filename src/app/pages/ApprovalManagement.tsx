@@ -254,6 +254,7 @@ export function ApprovalManagement() {
     applicationType: '',
     status: ''
   });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // 每次 approvals 变化时同步写入 localStorage
   useEffect(() => {
@@ -450,20 +451,14 @@ export function ApprovalManagement() {
           <Button 
             variant="outline" 
             className="gap-2 border-border"
-            onClick={() => {
-              // Toggle advanced filters visibility
-              const panel = document.getElementById('advanced-filters');
-              if (panel) {
-                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-              }
-            }}
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
           >
             <Filter className="w-4 h-4" />高级筛选
           </Button>
         </div>
 
         {/* Advanced Filters Panel */}
-        <div id="advanced-filters" className="hidden">
+        <div className={showAdvancedFilters ? 'block' : 'hidden'}>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             {/* Applicant Filter */}
             <div>

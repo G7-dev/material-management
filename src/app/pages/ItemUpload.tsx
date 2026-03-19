@@ -681,16 +681,6 @@ export function ItemUpload() {
                   className="h-11 bg-muted/50 border-border"
                 />
               </div>
-              <div>
-                <DatePicker
-                  value={formData.expiry ? new Date(formData.expiry) : undefined}
-                  onChange={(date) => handleFieldChange('expiry', date ? date.toISOString().split('T')[0] : TODAY)}
-                  placeholder="请选择有效期限"
-                  size="md"
-                  variant="filled"
-                  label=""
-                />
-              </div>
               {/* ── 低库存预警数量 ── */}
               <div className="col-span-2">
                 {(() => {
