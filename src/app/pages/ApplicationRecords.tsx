@@ -152,6 +152,21 @@ export function ApplicationRecords() {
     return matchSearch && matchApplicant && matchItemName && matchAppType && matchStatus;
   });
 
+  // Filter requisitions with the same criteria
+  const filteredRequisitions = requisitions.filter((req) => {
+    const matchSearch =
+      !searchQuery ||
+      (req.purchase_name && req.purchase_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      '物品申购'.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchApplicant = !filters.applicant || (req.applicant_name && req.applicant_name === filters.applicant);
+    const matchItemName = !filters.itemName || (req.purchase_name && req.purchase_name.toLowerCase().includes(filters.itemName.toLowerCase()));
+    const matchAppType = !filters.applicationType || '物品申购' === filters.applicationType;
+    const matchStatus = !filters.status || req.status === filters.status;
+    
+    return matchSearch && matchApplicant && matchItemName && matchAppType && matchStatus;
+  });
+
   // Calculate combined stats
   const pendingCount = records.filter((r) => r.status === 'pending').length;
   const approvedCount = records.filter((r) => r.status === 'approved').length;
@@ -333,7 +348,7 @@ export function ApplicationRecords() {
             </TableHeader>
             <TableBody>
               {/* Show requisitions first */}
-              {requisitions.map((req, index) => {
+              {filteredRequisitions.map((req, index) => {
                 const statusConfig = {
                   pending: { cls: 'bg-amber-50 text-amber-600', label: '待审批' },
                   approved: { cls: 'bg-emerald-50 text-emerald-600', label: '已批准' },
@@ -453,7 +468,7 @@ export function ApplicationRecords() {
 
         {/* Pagination */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/30">
-          <p className="text-sm text-muted-foreground">共 {filteredRecords.length + requisitions.length} 条记录</p>
+          <p className="text-sm text-muted-foreground">共 {filteredRecords.length + filteredRequisitions.length} 条记录</p>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" disabled className="border-border">
               上一页
