@@ -26,6 +26,7 @@ export function ItemPurchase() {
   const [expectedDate, setExpectedDate] = useState('');
   const [purchaseReason, setPurchaseReason] = useState('');
   const [department, setDepartment] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   
@@ -81,6 +82,14 @@ export function ItemPurchase() {
     }
     if (!department) {
       toast.error('请选择所属部门');
+      return false;
+    }
+    if (!employeeId.trim()) {
+      toast.error('请输入工号');
+      return false;
+    }
+    if (!purchaseReason.trim()) {
+      toast.error('请输入申购理由');
       return false;
     }
     return true;
@@ -174,6 +183,7 @@ export function ItemPurchase() {
           estimated_delivery_date: expectedDate,
           applicant_name: profile.full_name || '未知用户',
           department: department,
+          employee_id: employeeId.trim(),
           created_at: new Date().toISOString(),
         });
       
@@ -191,6 +201,7 @@ export function ItemPurchase() {
       setQuantity(1);
       setExpectedDate('');
       setPurchaseReason('');
+      setEmployeeId('');
       
       // Navigate to application records after 2 seconds
       setTimeout(() => {
@@ -391,6 +402,21 @@ export function ItemPurchase() {
                 size="lg"
                 variant="filled"
                 required={true}
+              />
+            </div>
+
+            {/* Employee ID */}
+            <div className="mb-5">
+              <label className="block text-sm font-semibold text-foreground mb-2">
+                工号<span className="text-rose-500 ml-1">*</span>
+              </label>
+              <Input
+                type="text"
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                placeholder="请输入您的工号"
+                className="h-12 bg-gradient-to-br from-slate-50 to-slate-100/50 border-border"
+                required
               />
             </div>
 

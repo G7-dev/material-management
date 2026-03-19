@@ -9,6 +9,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { EnhancedSelect } from '../components/ui/enhanced-select';
+import { DatePicker } from '../components/ui/date-picker';
 import { saveApplicationRecord } from '../utils/applicationStore';
 import { getAllInventoryItems, updateItemStock, updateItemStockWithSizes, type UnifiedInventoryItem } from '../data/unifiedInventoryData';
 
@@ -70,7 +71,7 @@ function ApplyModal({
   const [name, setName] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [usage, setUsage] = useState('');
-  const [expectedDate, setExpectedDate] = useState('');
+  const [expectedDate, setExpectedDate] = useState<Date | undefined>(undefined);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -83,7 +84,7 @@ function ApplyModal({
     employeeId.trim() &&
     department &&
     usage.trim() &&
-    expectedDate &&
+    expectedDate instanceof Date &&
     quantity > 0 &&
     maxStock > 0 &&
     (!hasSizes || selectedSize);
@@ -93,8 +94,14 @@ function ApplyModal({
     setSubmitting(true);
     
     // Format expectedDate to include time
-    const expectedDateObj = expectedDate ? new Date(expectedDate) : new Date();
-    const formattedExpectedDate = expectedDateObj.toLocaleString('zh-CN', {
+    const formattedExpectedDate = expectedDate ? expectedDate.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).replace(/\//g, '-') : new Date().toLocaleString('zh-CN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -302,18 +309,20 @@ function ApplyModal({
 
           {/* Expected DateTime */}
           <div>
-            <label className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-indigo-500/60" />
-              预计领用时间 <span className="text-red-500">*</span>
-            </label>
-            <Input
-              type="datetime-local"
-              value={expectedDate}
-              onChange={(e) => setExpectedDate(e.target.value)}
-              className="h-11 bg-muted/50 border-border"
-              min={new Date().toISOString().slice(0, 16)}
+            <DatePicker
+              label={
+                <span className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-indigo-500/60" />
+                  预计领用时间 <span className="text-red-500">*</span>
+                </span>
+              }
+              value={expectedDate ? new Date(expectedDate) : undefined}
+              onChange={(date) => setExpectedDate(date ? date.toISOString() : '')}
+              placeholder="请选择预计领用时间"
+              showTime={true}
+              minDate={new Date()}
+              helperText="请选择预计使用物品的日期和时间（精确到分钟）"
             />
-            <p className="text-xs text-muted-foreground mt-1.5">请选择预计使用物品的日期和时间（精确到分钟）</p>
           </div>
 
           {/* Notes */}

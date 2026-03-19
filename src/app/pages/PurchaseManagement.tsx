@@ -11,6 +11,7 @@ import { Badge } from '../components/ui/badge';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../components/ui/table';
+import { DatePicker } from '../components/ui/date-picker';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
@@ -44,12 +45,11 @@ function NotificationModal({ requisition, onClose, onConfirm }: NotificationModa
   const defaultTime = new Date();
   defaultTime.setDate(defaultTime.getDate() + 1);
   defaultTime.setHours(10, 0, 0, 0);
-  const defaultValue = defaultTime.toISOString().slice(0, 16);
   
-  const [notificationTime, setNotificationTime] = useState(defaultValue);
+  const [notificationTime, setNotificationTime] = useState<Date>(defaultTime);
 
   const handleConfirm = () => {
-    onConfirm(notificationTime);
+    onConfirm(notificationTime.toISOString());
     onClose();
   };
 
@@ -68,16 +68,15 @@ function NotificationModal({ requisition, onClose, onConfirm }: NotificationModa
         </div>
         
         <div className="p-6 space-y-4">
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-foreground">选择领用时间</label>
-            <input
-              type="datetime-local"
-              value={notificationTime}
-              onChange={(e) => setNotificationTime(e.target.value)}
-              className="w-full h-11 rounded-lg border border-border bg-muted/50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-            />
-            <p className="text-xs text-muted-foreground">默认时间为第二天 10:00</p>
-          </div>
+          <DatePicker
+            label={<span className="block text-sm font-medium text-foreground">选择领用时间</span>}
+            value={notificationTime}
+            onChange={(date) => date && setNotificationTime(date)}
+            placeholder="请选择领用时间"
+            showTime={true}
+            minDate={new Date()}
+            helperText="默认时间为第二天 10:00"
+          />
           
           <div className="bg-muted/30 rounded-lg p-4 border border-border">
             <p className="text-sm font-medium text-foreground mb-1">{requisition.purchase_name}</p>

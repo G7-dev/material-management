@@ -320,49 +320,86 @@ export function ApprovalManagement() {
     { label: '已归档',  value: String(archivedCount), color: 'text-gray-500',  bg: 'bg-gray-50',  icon: CheckSquare  },
   ];
 
-  const handleApprove = (id: string) => {
-    // 找到对应的申请记录
-    const approval = approvals.find(a => a.id === id);
-    
-    // 如果是日常领用，更新库存
-    if (approval && approval.applicationType === '日常领用') {
-      // 解析物品名称（可能包含规格信息）
-      const baseItemName = approval.itemName.split(' (')[0];
-      
-      // 查找对应的库存物品
-      const inventoryItems = getAllInventoryItems();
-      const targetItem = inventoryItems.find(item => 
-        item.name === baseItemName
-      );
-      
-      if (targetItem) {
-        // 减少库存数量
-        const currentStock = targetItem.stock;
-        const requestQuantity = parseInt(approval.quantity) || 0;
-        const newStock = Math.max(0, currentStock - requestQuantity);
-        
-        if (newStock === 0) {
-          console.log(`物品 ${targetItem.name} 库存已耗尽`);
-        }
-        
-        // 更新库存
-        updateItemStock(targetItem.id, newStock);
+  const handleApprove = async (id: string) => {
+    try {
+      // 找到对应的申请记录
+      const approval = approvals.find(a => a.id === id);
+      if (!approval) {
+        throw new Error('未找到申请记录');
       }
+      
+      // 如果是日常领用，更新库存
+      if (approval.applicationType === '日常领用') {
+        // 解析物品名称（可能包含规格信息）
+        const baseItemName = approval.itemName.split(' (')[0];
+        
+        // 查找对应的库存物品
+        const inventoryItems = getAllInventoryItems();
+        const targetItem = inventoryItems.find(item => 
+          item.name === baseItemName
+        );
+        
+        if (targetItem) {
+          // 减少库存数量
+          const currentStock = targetItem.stock;
+          const requestQuantity = parseInt(approval.quantity) || 0;
+          const newStock = Math.max(0, currentStock - requestQuantity);
+          
+          if (newStock === 0) {
+            console.log(`物品 ${targetItem.name} 库存已耗尽`);
+          }
+          
+          // 更新库存
+          updateItemStock(targetItem.id, newStock);
+        } else {
+          console.warn(`未找到库存物品: ${baseItemName}`);
+        }
+      }
+      
+      // 更新本地状态
+      setApprovals(prev => prev.map(a =>
+        a.id === id ? { ...a, status: 'approved', statusLabel: '已批准' } : a
+      ));
+      
+      // 更新应用状态（异步）
+      await updateApplicationStatus(id, 'approved');
+      
+      // 关闭模态框
+      setApprovingItem(null);
+      
+      console.log('批准操作成功完成');
+    } catch (error) {
+      console.error('批准操作失败:', error);
+      alert('批准失败：' + (error instanceof Error ? error.message : '未知错误'));
+      // 恢复状态
+      loadApprovals();
     }
-    
-    setApprovals(prev => prev.map(a =>
-      a.id === id ? { ...a, status: 'approved', statusLabel: '已批准' } : a
-    ));
-    setApprovingItem(null);
-    updateApplicationStatus(id, 'approved');
   };
 
-  const handleReject = (id: string, reason: string) => {
-    setApprovals(prev => prev.map(a =>
-      a.id === id ? { ...a, status: 'rejected', statusLabel: '已驳回', rejectReason: reason } : a
-    ));
-    setRejectingItem(null);
-    updateApplicationStatus(id, 'rejected', reason);
+  const handleReject = async (id: string, reason: string) => {
+    try {
+      if (!reason || reason.trim().length === 0) {
+        throw new Error('驳回理由不能为空');
+      }
+      
+      // 更新本地状态
+      setApprovals(prev => prev.map(a =>
+        a.id === id ? { ...a, status: 'rejected', statusLabel: '已驳回', rejectReason: reason } : a
+      ));
+      
+      // 更新应用状态（异步）
+      await updateApplicationStatus(id, 'rejected', reason);
+      
+      // 关闭模态框
+      setRejectingItem(null);
+      
+      console.log('驳回操作成功完成');
+    } catch (error) {
+      console.error('驳回操作失败:', error);
+      alert('驳回失败：' + (error instanceof Error ? error.message : '未知错误'));
+      // 恢复状态
+      loadApprovals();
+    }
   };
 
   // Combine approvals and archived requisitions
