@@ -170,7 +170,7 @@ export function LoginPage() {
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 mb-5">
               <Package className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-2xl font-semibold text-foreground tracking-tight">物资管理系统</h1>
+            <h1 className="text-2xl font-semibold text-foreground tracking-tight">物资领用系统</h1>
             <p className="text-sm text-muted-foreground mt-2">智能化物资管理与审批平台</p>
           </div>
 
@@ -326,7 +326,7 @@ export function LoginPage() {
           {/* Footer */}
           <div className="mt-8 text-center">
             <p className="text-xs text-muted-foreground">
-              © 2024 物资管理系统 | 企业内部使用
+              © 2024 物资领用系统 | 企业内部使用
             </p>
           </div>
         </div>

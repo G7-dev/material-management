@@ -180,12 +180,10 @@ function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">库存类型</label>
-                <AppSelect
-                  defaultValue="日常领用"
-                  options={[
-                    { value: '日常领用', label: '日常领用' },
-                    { value: '申购物品', label: '申购物品' },
-                  ]}
+                <Input
+                  value="日常领用"
+                  disabled={true}
+                  className="h-11 bg-muted/30 border-border cursor-not-allowed opacity-75"
                 />
               </div>
               {qty && numQty > 0 && (
@@ -346,9 +344,8 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
                   </label>
                   <Input
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="请输入物品名称"
-                    className="h-10 bg-muted/50 border-border"
+                    disabled={true}
+                    className="h-10 bg-muted/30 border-border cursor-not-allowed opacity-75"
                   />
                 </div>
 
@@ -358,11 +355,10 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
                     <Tag className="w-3.5 h-3.5 inline mr-1.5 text-muted-foreground" />
                     分类
                   </label>
-                  <AppSelect
+                  <Input
                     value={category}
-                    onChange={(v) => setCategory(v)}
-                    height="h-10"
-                    options={CATEGORIES.map(c => ({ value: c, label: c }))}
+                    disabled={true}
+                    className="h-10 bg-muted/30 border-border cursor-not-allowed opacity-75"
                   />
                 </div>
 
@@ -371,11 +367,10 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
                     <Hash className="w-3.5 h-3.5 inline mr-1.5 text-muted-foreground" />
                     计量单位
                   </label>
-                  <AppSelect
+                  <Input
                     value={unit}
-                    onChange={(v) => setUnit(v)}
-                    height="h-10"
-                    options={UNITS.map(u => ({ value: u, label: u }))}
+                    disabled={true}
+                    className="h-10 bg-muted/30 border-border cursor-not-allowed opacity-75"
                   />
                 </div>
               </div>

@@ -79,9 +79,6 @@ export function ApplicationRecords() {
 
       toast.success('已确认收货并归档');
       
-      // 立即更新侧边栏提示
-      setPendingConfirmCount(0);
-      
       // Reload data
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -274,10 +271,10 @@ export function ApplicationRecords() {
               <label className="block text-xs text-muted-foreground mb-1">申请类型</label>
               <EnhancedSelect
                 value={filters.applicationType}
-                onChange={(value) => setFilters(prev => ({ ...prev, applicationType: value }))}
+                onChange={(value) => setFilters(prev => ({ ...prev, applicationType: value === 'all' ? '' : value }))}
                 placeholder="全部类型"
                 options={[
-                  { value: '', label: '全部类型' },
+                  { value: 'all', label: '全部类型' },
                   { value: '日常领用', label: '日常领用' },
                   { value: '物品申购', label: '物品申购' },
                 ]}
@@ -292,10 +289,10 @@ export function ApplicationRecords() {
               <label className="block text-xs text-muted-foreground mb-1">审批状态</label>
               <EnhancedSelect
                 value={filters.status}
-                onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+                onChange={(value) => setFilters(prev => ({ ...prev, status: value === 'all' ? '' : value }))}
                 placeholder="全部状态"
                 options={[
-                  { value: '', label: '全部状态' },
+                  { value: 'all', label: '全部状态' },
                   { value: 'pending', label: '待审核' },
                   { value: 'approved', label: '已批准' },
                   { value: 'rejected', label: '已驳回' },
