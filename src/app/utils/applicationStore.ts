@@ -16,6 +16,7 @@ export interface ApplicationRecord {
   rejectReason?: string;
   applicant?: string;
   department?: string;
+  employeeId?: string;
 }
 
 const STORAGE_KEY = 'wms_application_records_v1';

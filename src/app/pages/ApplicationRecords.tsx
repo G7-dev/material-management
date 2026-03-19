@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
+import { EnhancedSelect } from '../components/ui/enhanced-select';
 import {
   getApplicationRecords,
   deleteApplicationRecord,
@@ -78,6 +79,9 @@ export function ApplicationRecords() {
 
       toast.success('已确认收货并归档');
       
+      // 立即更新侧边栏提示
+      setPendingConfirmCount(0);
+      
       // Reload data
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -129,8 +133,10 @@ export function ApplicationRecords() {
   };
 
   const handleDelete = (id: string) => {
+    // 删除申请记录
     deleteApplicationRecord(id);
     setRecords(getApplicationRecords());
+    toast.success('申请单已删除');
   };
 
   // Filter both records and requisitions
@@ -266,30 +272,38 @@ export function ApplicationRecords() {
             {/* Application Type Filter */}
             <div>
               <label className="block text-xs text-muted-foreground mb-1">申请类型</label>
-              <select
+              <EnhancedSelect
                 value={filters.applicationType}
-                onChange={(e) => setFilters(prev => ({ ...prev, applicationType: e.target.value }))}
-                className="w-full h-9 rounded-lg border border-border bg-muted/30 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
-              >
-                <option value="">全部类型</option>
-                <option value="日常领用">日常领用</option>
-                <option value="物品申购">物品申购</option>
-              </select>
+                onChange={(value) => setFilters(prev => ({ ...prev, applicationType: value }))}
+                placeholder="全部类型"
+                options={[
+                  { value: '', label: '全部类型' },
+                  { value: '日常领用', label: '日常领用' },
+                  { value: '物品申购', label: '物品申购' },
+                ]}
+                size="sm"
+                variant="filled"
+                clearable={false}
+              />
             </div>
             
             {/* Status Filter */}
             <div>
               <label className="block text-xs text-muted-foreground mb-1">审批状态</label>
-              <select
+              <EnhancedSelect
                 value={filters.status}
-                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-                className="w-full h-9 rounded-lg border border-border bg-muted/30 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
-              >
-                <option value="">全部状态</option>
-                <option value="pending">待审核</option>
-                <option value="approved">已批准</option>
-                <option value="rejected">已驳回</option>
-              </select>
+                onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+                placeholder="全部状态"
+                options={[
+                  { value: '', label: '全部状态' },
+                  { value: 'pending', label: '待审核' },
+                  { value: 'approved', label: '已批准' },
+                  { value: 'rejected', label: '已驳回' },
+                ]}
+                size="sm"
+                variant="filled"
+                clearable={false}
+              />
             </div>
           </div>
           

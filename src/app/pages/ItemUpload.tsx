@@ -12,7 +12,8 @@ import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
-import { AppSelect } from '../components/ui/app-select';
+import { EnhancedSelect } from '../components/ui/enhanced-select';
+import { DatePicker } from '../components/ui/date-picker';
 import { saveStoredItem } from '../utils/itemStore';
 import { getAllInventoryItems } from '../data/unifiedInventoryData';
 
@@ -623,7 +624,7 @@ export function ItemUpload() {
                 <label className="block text-sm font-medium text-foreground mb-2">
                   物品分类 <span className="text-destructive">*</span>
                 </label>
-                <AppSelect
+                <EnhancedSelect
                   value={formData.category}
                   onChange={(v) => handleFieldChange('category', v)}
                   placeholder="请选择物品分类"
@@ -635,6 +636,9 @@ export function ItemUpload() {
                     { value: '鞋子',     label: '鞋子'     },
                     { value: '其他',     label: '其他'     },
                   ]}
+                  size="md"
+                  variant="filled"
+                  clearable={false}
                 />
               </div>
               <div>
@@ -678,15 +682,13 @@ export function ItemUpload() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                  有效期限
-                </label>
-                <Input
-                  type="date"
-                  value={formData.expiry}
-                  onChange={(e) => handleFieldChange('expiry', e.target.value)}
-                  className="h-11 bg-muted/50 border-border"
+                <DatePicker
+                  value={formData.expiry ? new Date(formData.expiry) : undefined}
+                  onChange={(date) => handleFieldChange('expiry', date ? date.toISOString().split('T')[0] : TODAY)}
+                  placeholder="请选择有效期限"
+                  size="md"
+                  variant="filled"
+                  label=""
                 />
               </div>
               {/* ── 低库存预警数量 ── */}

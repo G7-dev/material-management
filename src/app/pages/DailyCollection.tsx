@@ -8,6 +8,7 @@ import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
+import { EnhancedSelect } from '../components/ui/enhanced-select';
 import { saveApplicationRecord } from '../utils/applicationStore';
 import { getAllInventoryItems, updateItemStock, updateItemStockWithSizes, type UnifiedInventoryItem } from '../data/unifiedInventoryData';
 
@@ -88,7 +89,7 @@ function ApplyModal({
     if (!canSubmit) return;
     setSubmitting(true);
     
-    // Save application record
+    // Save application record (do NOT deduct stock here - wait for approval)
     saveApplicationRecord({
       itemId: item.id,
       itemName: item.name + (selectedSize ? ` (${selectedSize.label})` : ''),
@@ -98,43 +99,8 @@ function ApplyModal({
       applicationType: '日常领用',
       applicant: name.trim(),
       department,
+      employeeId: employeeId.trim(),
     });
-    
-    // Update inventory stock using unified data source
-    try {
-      // Find the item in unified inventory
-      const inventoryItems = getAllInventoryItems();
-      const targetItem = inventoryItems.find(invItem => invItem.name === item.name);
-      
-      if (targetItem) {
-        // Update stock based on whether a size is selected
-        if (selectedSize) {
-          // If a size is selected, update the size stock and recalculate total stock
-          const sizeIndex = targetItem.sizes.findIndex(s => s.id === selectedSize.id);
-          if (sizeIndex !== -1) {
-            // Update size stock
-            const newSizeStock = Math.max(0, targetItem.sizes[sizeIndex].stock - quantity);
-            
-            // Create new sizes array with updated stock
-            const newSizes = [...targetItem.sizes];
-            newSizes[sizeIndex] = { ...newSizes[sizeIndex], stock: newSizeStock };
-            
-            // Calculate new total stock as sum of all size stocks
-            const newTotalStock = newSizes.reduce((sum, s) => sum + s.stock, 0);
-            
-            // Update both total stock and size stocks in unified data
-            updateItemStockWithSizes(targetItem.id, newTotalStock, newSizes);
-          }
-        } else {
-          // No size selected, just update total stock
-          const currentStock = targetItem.stock;
-          const newStock = Math.max(0, currentStock - quantity);
-          updateItemStock(targetItem.id, newStock);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to update inventory stock:', error);
-    }
     
     setTimeout(() => {
       setSubmitting(false);
@@ -262,16 +228,14 @@ function ApplyModal({
               <Building2 className="w-3.5 h-3.5 text-indigo-500/60" />
               所属部门 <span className="text-red-500">*</span>
             </label>
-            <select
+            <EnhancedSelect
               value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              className="w-full h-11 rounded-xl border border-border/80 bg-muted/30 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/40 transition-all appearance-none cursor-pointer"
-            >
-              <option value="">请选择部门</option>
-              {DEPARTMENTS.map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
+              onChange={setDepartment}
+              placeholder="请选择部门"
+              options={DEPARTMENTS.map(d => ({ value: d, label: d }))}
+              size="md"
+              variant="filled"
+            />
           </div>
 
           {/* Quantity */}

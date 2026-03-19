@@ -7,7 +7,8 @@ import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
-import { AppSelect } from '../components/ui/app-select';
+import { EnhancedSelect } from '../components/ui/enhanced-select';
+import { DatePicker } from '../components/ui/date-picker';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { saveApplicationRecord } from '../utils/applicationStore';
@@ -296,10 +297,9 @@ export function ItemPurchase() {
                 <label className="block text-sm font-semibold text-foreground mb-2">
                   物品分类<span className="text-rose-500 ml-1">*</span>
                 </label>
-                <AppSelect
+                <EnhancedSelect
                   value={itemCategory}
                   onChange={setItemCategory}
-                  height="h-12"
                   placeholder="请选择物品分类"
                   options={[
                     { value: '办公耗材', label: '办公耗材' },
@@ -309,6 +309,8 @@ export function ItemPurchase() {
                     { value: '鞋子',     label: '鞋子'     },
                     { value: '其他',     label: '其他'     },
                   ]}
+                  size="lg"
+                  variant="filled"
                 />
               </div>
             </div>
@@ -355,11 +357,13 @@ export function ItemPurchase() {
                 <label className="block text-sm font-semibold text-foreground mb-2">
                   预计到货日期<span className="text-rose-500 ml-1">*</span>
                 </label>
-                <Input
-                  type="date"
-                  value={expectedDate}
-                  onChange={(e) => setExpectedDate(e.target.value)}
-                  className="h-12 bg-gradient-to-br from-slate-50 to-slate-100/50 border-border"
+                <DatePicker
+                  value={expectedDate ? new Date(expectedDate) : undefined}
+                  onChange={(date) => setExpectedDate(date ? date.toISOString().split('T')[0] : '')}
+                  placeholder="请选择预计到货日期"
+                  size="lg"
+                  variant="filled"
+                  minDate={new Date()}
                 />
               </div>
             </div>
@@ -379,16 +383,15 @@ export function ItemPurchase() {
               <label className="block text-sm font-semibold text-foreground mb-2">
                 所属部门<span className="text-rose-500 ml-1">*</span>
               </label>
-              <select
+              <EnhancedSelect
                 value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full h-12 rounded-lg border border-border bg-gradient-to-br from-slate-50 to-slate-100/50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/60"
-              >
-                <option value="">请选择部门</option>
-                {DEPARTMENTS.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
+                onChange={setDepartment}
+                placeholder="请选择部门"
+                options={DEPARTMENTS.map(dept => ({ value: dept, label: dept }))}
+                size="lg"
+                variant="filled"
+                required={true}
+              />
             </div>
 
             {/* Admin push notice */}
