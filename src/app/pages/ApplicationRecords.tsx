@@ -62,8 +62,11 @@ export function ApplicationRecords() {
     try {
       const { error } = await supabase
         .from('requisitions')
-        .update({ status: 'confirmed' })
-        .eq('id', requisitionId);
+        .update({ 
+          status: 'confirmed',
+          confirmed_at: new Date().toISOString()
+        })
+        .filter('id', 'eq', requisitionId);
 
       if (error) throw error;
 
@@ -75,13 +78,13 @@ export function ApplicationRecords() {
         const { data } = await supabase
           .from('requisitions')
           .select('*')
-          .eq('user_id', user.id)
+          .filter('user_id', 'eq', user.id)
           .order('created_at', { ascending: false });
         setRequisitions(data || []);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to confirm receipt:', error);
-      toast.error('确认收货失败');
+      toast.error(`确认收货失败: ${error.message || '请重试'}`);
     }
   };
 

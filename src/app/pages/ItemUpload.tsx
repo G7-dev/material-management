@@ -32,7 +32,6 @@ const EMPTY_FORM = {
   specModel: '',
   unit: '',
   quantity: '',
-  stockPlatform: '',
   expiry: TODAY,
   lowStockThreshold: '',
   notes: '',
@@ -250,7 +249,7 @@ function SuccessOverlay({
             <div className="h-px bg-border" />
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">库存类型</span>
-              <span className="font-medium text-foreground">{item.stockPlatform}</span>
+
             </div>
           </div>
 
@@ -681,20 +680,6 @@ export function ItemUpload() {
                   onChange={(e) => handleFieldChange('quantity', e.target.value)}
                   placeholder="请输入数量"
                   className="h-11 bg-muted/50 border-border"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  组件库存台 <span className="text-destructive">*</span>
-                </label>
-                <AppSelect
-                  value={formData.stockPlatform}
-                  onChange={(v) => handleFieldChange('stockPlatform', v)}
-                  placeholder="请选择类型"
-                  options={[
-                    { value: '日常领用', label: '日常领用' },
-                    { value: '申购物品', label: '申购物品' },
-                  ]}
                 />
               </div>
               <div>
