@@ -35,6 +35,7 @@ const EMPTY_FORM = {
   expiry: TODAY,
   lowStockThreshold: '',
   notes: '',
+  stockPlatform: '',
 };
 
 const UNIT_OPTIONS = ['件', '个', '包', '张', '本', '盒', '套', '卷', '瓶', '箱'];
@@ -692,6 +693,24 @@ export function ItemUpload() {
                   value={formData.expiry}
                   onChange={(e) => handleFieldChange('expiry', e.target.value)}
                   className="h-11 bg-muted/50 border-border"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  组件库存台 <span className="text-destructive">*</span>
+                </label>
+                <AppSelect
+                  value={formData.stockPlatform}
+                  onChange={(v) => handleFieldChange('stockPlatform', v)}
+                  placeholder="请选择库存位置"
+                  options={[
+                    { value: '备件库存', label: '备件库存' },
+                    { value: '耗材库存', label: '耗材库存' },
+                    { value: '办公用品库', label: '办公用品库' },
+                    { value: '设备库', label: '设备库' },
+                    { value: '应急物资库', label: '应急物资库' },
+                    { value: '其他', label: '其他' },
+                  ]}
                 />
               </div>
               {/* ── 低库存预警数量 ── */}

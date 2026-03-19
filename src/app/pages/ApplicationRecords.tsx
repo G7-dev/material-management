@@ -30,10 +30,12 @@ export function ApplicationRecords() {
     applicationType: '',
     status: ''
   });
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load both application records and purchase requisitions
   useEffect(() => {
     const loadData = async () => {
+      setIsLoading(true);
       // Load local application records
       setRecords(getApplicationRecords());
       
@@ -52,6 +54,8 @@ export function ApplicationRecords() {
         }
       } catch (error) {
         console.error('Failed to load requisitions:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -174,50 +178,63 @@ export function ApplicationRecords() {
         <p className="text-muted-foreground mt-1">查看您的物资申领和申购记录</p>
       </div>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center gap-3 text-muted-foreground">
+            <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+            <span>正在加载申请记录...</span>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {stats.map((stat, index) => (
-          <Card key={index} className="p-6 border-border hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
-            <div className="flex items-center justify-between mb-4">
-              <div className={`${stat.bgColor} p-3 rounded-xl`}>
-                <Calendar className={`w-5 h-5 ${stat.color}`} />
+      {!isLoading && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {stats.map((stat, index) => (
+            <Card key={index} className="p-6 border-border hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <div className={`${stat.bgColor} p-3 rounded-xl`}>
+                  <Calendar className={`w-5 h-5 ${stat.color}`} />
+                </div>
+                <TrendingUp className="w-5 h-5 text-emerald-500" />
               </div>
-              <TrendingUp className="w-5 h-5 text-emerald-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
-              <h3 className="text-3xl font-bold text-foreground">{stat.value}</h3>
-            </div>
-          </Card>
-        ))}
-      </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
+                <h3 className="text-3xl font-bold text-foreground">{stat.value}</h3>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Filters and Search */}
-      <Card className="p-5 border-border">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="搜索物资名称或申请类型..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-11 h-11 bg-muted/50 border-border"
-            />
+      {!isLoading && (
+        <Card className="p-5 border-border">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="搜索物资名称或申请类型..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-11 h-11 bg-muted/50 border-border"
+              />
+            </div>
+            <Button 
+              className="gap-2 h-11 px-6 bg-primary hover:bg-primary/90"
+              onClick={() => {
+                const panel = document.getElementById('advanced-filters-app');
+                if (panel) {
+                  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+                }
+              }}
+            >
+              <Filter className="w-4 h-4" />
+              高级筛选
+            </Button>
           </div>
-          <Button 
-            className="gap-2 h-11 px-6 bg-primary hover:bg-primary/90"
-            onClick={() => {
-              const panel = document.getElementById('advanced-filters-app');
-              if (panel) {
-                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-              }
-            }}
-          >
-            <Filter className="w-4 h-4" />
-            高级筛选
-          </Button>
-        </div>
         
         {/* Advanced Filters Panel */}
         <div id="advanced-filters-app" className="hidden">
@@ -288,8 +305,10 @@ export function ApplicationRecords() {
           </div>
         </div>
       </Card>
+      )}
 
       {/* Table */}
+      {!isLoading && (
       <Card className="border-border overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
@@ -444,6 +463,7 @@ export function ApplicationRecords() {
           </div>
         </div>
       </Card>
+      )}
     </div>
   );
 }

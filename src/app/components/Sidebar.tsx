@@ -104,7 +104,18 @@ export function Sidebar() {
     { name: '审批管理', path: '/approval-management', icon: CheckSquare, badge: pendingCount },
   ];
 
-  const navItems = isAdmin ? adminNavItemsDynamic : userNavItems;
+  const navItems = isAdmin ? adminNavItemsDynamic : [
+    { name: '工作台', path: '/', icon: LayoutDashboard },
+    { name: '日常领用', path: '/daily-collection', icon: Package },
+    { name: '物品申购', path: '/item-purchase', icon: ShoppingCart },
+    { 
+      name: '申请记录', 
+      path: '/application-records', 
+      icon: FileText,
+      badge: pendingConfirmCount,
+      badgeColor: pendingConfirmCount > 0 ? 'bg-blue-500' : undefined
+    },
+  ];
 
   return (
     <aside className="w-64 bg-white border-r border-border h-screen flex flex-col">
