@@ -32,20 +32,31 @@ const getLowStockCount = () => {
   return items.filter(item => getSeverity(item.stock, item.threshold) !== 'normal').length;
 };
 
-const userNavItems: NavItem[] = [
-  { name: '工作台', path: '/', icon: LayoutDashboard },
-  { name: '日常领用', path: '/daily-collection', icon: Package },
-  { name: '物品申购', path: '/item-purchase', icon: ShoppingCart },
-  { name: '申请记录', path: '/application-records', icon: FileText },
-];
-
-
+// Check for requisitions that need confirmation (arrival_notified status)
+const getPendingConfirmCount = async () => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return 0;
+    
+    const { count } = await supabase
+      .from('requisitions')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('status', 'arrival_notified');
+    
+    return count || 0;
+  } catch (error) {
+    console.error('Failed to get pending confirm count:', error);
+    return 0;
+  }
+};
 
 export function Sidebar() {
   const location = useLocation();
   
   // Dynamic pending approval count
   const [pendingCount, setPendingCount] = useState(0);
+  const [pendingConfirmCount, setPendingConfirmCount] = useState(0);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>('当前用户');
   
@@ -86,6 +97,18 @@ export function Sidebar() {
     };
 
     getUserInfo();
+  }, []);
+
+  // Update pending confirmation count for application records
+  useEffect(() => {
+    const updateConfirmCount = async () => {
+      const count = await getPendingConfirmCount();
+      setPendingConfirmCount(count);
+    };
+    
+    updateConfirmCount();
+    const interval = setInterval(updateConfirmCount, 30000); // Update every 30 seconds
+    return () => clearInterval(interval);
   }, []);
 
   const adminNavItemsDynamic: NavItem[] = [
