@@ -115,8 +115,19 @@ export function Dashboard() {
           .slice(0, 8);
 
         setCollectionRanking(ranking);
-      } catch (error) {
+      } catch (error: any) {
         console.error('加载领用排行失败:', error);
+        
+        // 检测认证错误，token失效时跳转到登录页
+        if (error?.message?.includes('Invalid Refresh Token') || 
+            error?.message?.includes('Refresh Token Not Found') ||
+            error?.status === 401) {
+          console.warn('认证已过期，正在跳转到登录页...');
+          await supabase.auth.signOut();
+          navigate('/login', { state: { from: '/' }, replace: true });
+          return;
+        }
+        
         setCollectionRanking([]);
       }
     };

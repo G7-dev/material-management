@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Settings, FileCheck, TrendingUp, Package,
   BarChart2, ArrowRight, Bell, AlertTriangle, TrendingDown
@@ -7,22 +7,15 @@ import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { inventoryItems, getSeverity, SEVERITY_CONFIG } from '../data/inventoryData';
 import { useNavigate } from 'react-router';
+import { format, subMonths } from 'date-fns';
+import { supabase } from '../../lib/supabase';
 
 const quickActions = [
   { label: '物品管理', subLabel: '管理库存物品', icon: Package, path: '/item-upload' },
   { label: '等待管理', subLabel: '处理待审批申请', icon: FileCheck, path: '/approval-management' },
 ];
 
-const collectionRanking = [
-  { name: 'A4打印纸', count: 87, category: '办公用品' },
-  { name: '中性笔',   count: 74, category: '办公用品' },
-  { name: 'U盘',      count: 52, category: '电子设备' },
-  { name: '订书机',   count: 41, category: '办公用品' },
-  { name: '文件夹',   count: 38, category: '办公用品' },
-  { name: '剪刀',     count: 29, category: '办公用品' },
-  { name: '固体胶',   count: 24, category: '办公用品' },
-  { name: '计算器',   count: 18, category: '电子设备' },
-];
+
 
 const BAR_COLORS = [
   '#6366f1', '#7c3aed', '#8b5cf6', '#a78bfa',
@@ -37,8 +30,77 @@ const CATEGORY_COLOR: Record<string, string> = {
 export function ManagementPlatform() {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const navigate = useNavigate();
+  const [collectionRanking, setCollectionRanking] = useState<Array<{ name: string; count: number; category: string }>>([]);
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  
   const totalCount = collectionRanking.reduce((s, i) => s + i.count, 0);
-  const topItem = collectionRanking[0];
+  const topItem = collectionRanking[0] || { name: '-', count: 0 };
+
+  // 加载近一个月领用排行
+  useEffect(() => {
+    const loadCollectionRanking = async () => {
+      try {
+        const today = new Date();
+        const oneMonthAgo = subMonths(today, 1);
+        
+        // 设置日期范围显示
+        setDateRange({
+          start: format(oneMonthAgo, 'yyyy年M月d日'),
+          end: format(today, 'yyyy年M月d日')
+        });
+        
+        // 从Supabase获取近一个月的已批准日常领用记录
+        const { data, error } = await supabase
+          .from('requisitions')
+          .select('purchase_name, purchase_quantity, created_at, status, application_type')
+          .eq('status', 'approved')
+          .eq('application_type', '日常领用')
+          .gte('created_at', oneMonthAgo.toISOString())
+          .lte('created_at', today.toISOString());
+
+        if (error) throw error;
+
+        // 按物品名称分组统计数量
+        const itemCounts: Record<string, number> = {};
+        data?.forEach(record => {
+          const itemName = record.purchase_name || '未知物品';
+          const quantity = parseInt(record.purchase_quantity) || 1;
+          itemCounts[itemName] = (itemCounts[itemName] || 0) + quantity;
+        });
+
+        // 转换为数组并排序，取前8名
+        const ranking = Object.entries(itemCounts)
+          .map(([name, count]) => ({
+            name,
+            count,
+            category: '办公用品' // 默认分类，可以根据需要调整
+          }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 8);
+
+        setCollectionRanking(ranking);
+      } catch (error: any) {
+        console.error('加载领用排行失败:', error);
+        
+        // 检测认证错误，token失效时跳转到登录页
+        if (error?.message?.includes('Invalid Refresh Token') || 
+            error?.message?.includes('Refresh Token Not Found') ||
+            error?.status === 401) {
+          console.warn('认证已过期，正在跳转到登录页...');
+          await supabase.auth.signOut();
+          navigate('/login', { state: { from: '/management' }, replace: true });
+          return;
+        }
+        
+        setCollectionRanking([]);
+      }
+    };
+
+    loadCollectionRanking();
+    // 每30秒刷新一次数据
+    const interval = setInterval(loadCollectionRanking, 30000);
+    return () => clearInterval(interval);
+  }, [navigate]);
 
   // Low stock summary
   const alertItems = inventoryItems.map(item => ({
@@ -160,7 +222,9 @@ export function ManagementPlatform() {
             </div>
             <div>
               <h2 className="font-semibold text-foreground">近一个月领用排行</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">2026年2月18日 — 2026年3月18日</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {dateRange.start ? `${dateRange.start} — ${dateRange.end}` : '加载中...'}
+              </p>
             </div>
           </div>
           {/* Summary Pills */}
