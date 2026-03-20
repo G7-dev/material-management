@@ -50,13 +50,24 @@ export function ItemPurchase() {
           }
 
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to load user department:', error);
+        
+        // 检测认证错误，token失效时跳转到登录页
+        if (error?.message?.includes('Invalid Refresh Token') || 
+            error?.message?.includes('Refresh Token Not Found') ||
+            error?.status === 401 ||
+            error?.status === 406) {
+          console.warn('认证已过期，正在跳转到登录页...');
+          await supabase.auth.signOut();
+          navigate('/login', { state: { from: '/item-purchase' }, replace: true });
+          return;
+        }
       }
     };
     
     loadUserDept();
-  }, []);
+  }, [navigate]);
   
   // Form validation
   const validateForm = () => {

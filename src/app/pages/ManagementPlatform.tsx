@@ -52,9 +52,9 @@ export function ManagementPlatform() {
         // 从Supabase获取近一个月的已批准日常领用记录
         const { data, error } = await supabase
           .from('requisitions')
-          .select('purchase_name, purchase_quantity, created_at, status, application_type')
+          .select('purchase_name, purchase_quantity, created_at, status, requisition_type')
           .eq('status', 'approved')
-          .eq('application_type', '日常领用')
+          .eq('requisition_type', 'daily_request')
           .gte('created_at', oneMonthAgo.toISOString())
           .lte('created_at', today.toISOString());
 
