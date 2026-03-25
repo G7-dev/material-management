@@ -47,7 +47,7 @@ function Calendar({
   showTime = false,
   onTimeChange,
 }: CalendarProps) {
-  const [selectedTime, setSelectedTime] = React.useState({ hours: new Date().getHours(), minutes: new Date().getMinutes() });
+  const [selectedTime, setSelectedTime] = useState({ hours: new Date().getHours(), minutes: new Date().getMinutes() });
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -272,10 +272,10 @@ function DatePicker({
   size = "md",
   variant = "default",
 }: DatePickerProps) {
-  const [month, setMonth] = React.useState(value || new Date());
-  const [open, setOpen] = React.useState(false);
+  const [month, setMonth] = useState(value || new Date());
+  const [open, setOpen] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (value) {
       setMonth(value);
     }
