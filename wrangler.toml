@@ -1,0 +1,7 @@
+name = "material-management"
+main = "src/main.tsx"
+compatibility_date = "2025-03-25"
+
+[build]
+command = "pnpm install && pnpm run build"
+output_dir = "dist"
