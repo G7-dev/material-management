@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { useState, useEffect, type MouseEvent } from "react";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
@@ -307,7 +307,7 @@ function DatePicker({
     }
   };
 
-  const handleClear = (e: React.MouseEvent) => {
+  const handleClear = (e: MouseEvent) => {
     e.stopPropagation();
     onChange?.(undefined);
   };
