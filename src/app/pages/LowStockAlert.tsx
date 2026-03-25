@@ -10,23 +10,18 @@ import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import {
-  getAllInventoryItems,
-  updateItemStock,
-  type UnifiedInventoryItem,
-  getSeverity,
+  fetchMaterials,
+  updateMaterialStock,
+  type Material,
+  type MaterialSize,
+  getMaterialStockStatus,
   SEVERITY_CONFIG,
-  type Severity,
-} from '../data/unifiedInventoryData';
+  type StockSeverity,
+} from '../utils/materialsDB';
 import { AppSelect } from '../components/ui/app-select';
+import { format } from 'date-fns';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface SizeVariant {
-  id: string;
-  label: string;
-  spec: string;
-  stock: number;
-}
-
 interface ItemOverride {
   name?: string;
   category?: string;
@@ -37,21 +32,22 @@ interface ItemOverride {
 
 // ── Restock Modal ─────────────────────────────────────────────────────────────
 interface RestockModalProps {
-  item: UnifiedInventoryItem & { currentStock: number; currentThreshold: number };
+  item: Material;
   onClose: () => void;
-  onConfirm: (itemId: number, sizeId: string, qty: number) => void;
+  onConfirm: (materialId: string, sizeId: string | null, qty: number) => void;
 }
 function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
-  const [selectedSize, setSelectedSize] = useState<SizeVariant | null>(
-    item.sizes.length === 1 ? item.sizes[0] : null
+  const hasSizes = item.sizes && item.sizes.length > 0;
+  const [selectedSize, setSelectedSize] = useState<MaterialSize | null>(
+    hasSizes && item.sizes.length === 1 ? item.sizes[0] : null
   );
   const [qty, setQty] = useState('');
-  const sev = getSeverity(item.currentStock, item.currentThreshold);
-  const cfg = SEVERITY_CONFIG[sev];
+  const { severity } = getMaterialStockStatus(item);
+  const cfg = SEVERITY_CONFIG[severity];
   const numQty = Number(qty);
-  const currentQty = selectedSize ? selectedSize.stock : item.currentStock;
+  const currentQty = selectedSize ? selectedSize.stock : item.stock;
   const afterStock = currentQty + numQty;
-  const canConfirm = selectedSize && numQty > 0;
+  const canConfirm = (hasSizes ? selectedSize !== null : true) && numQty > 0;
 
   const handleConfirm = () => {
     if (!canConfirm) return;
@@ -216,10 +212,10 @@ function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
 
 // ── Edit Item Modal ────────────────────────────────────────────────────────────
 interface EditModalProps {
-  item: UnifiedInventoryItem & { currentStock: number; currentThreshold: number };
+  item: Material;
   onClose: () => void;
   onSave: (
-    itemId: number,
+    materialId: string,
     override: ItemOverride,
     newStock: number,
     newThreshold: number | Record<string, number>
@@ -573,26 +569,26 @@ function SeverityBadge({ severity }: { severity: Severity }) {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-type TabKey = Severity | 'all';
+type TabKey = StockSeverity | 'all';
 
 export function LowStockAlert() {
   const [search, setSearch]             = useState('');
   const [activeTab, setActiveTab]       = useState<TabKey>('all');
-  const [thresholds, setThresholds]     = useState<Record<number, number>>({});
-  const [stockData, setStockData]       = useState<Record<number, number>>({});
-  const [itemOverrides, setItemOverrides] = useState<Record<number, ItemOverride>>({});
-  const [restockedIds, setRestockedIds] = useState<number[]>([]);
-  const [selectedItem, setSelectedItem] =
-    useState<(UnifiedInventoryItem & { currentStock: number; currentThreshold: number }) | null>(null);
-  const [editingItem, setEditingItem]   =
-    useState<(UnifiedInventoryItem & { currentStock: number; currentThreshold: number }) | null>(null);
+  const [thresholds, setThresholds]     = useState<Record<string, number>>({});
+  const [restockedIds, setRestockedIds] = useState<string[]>([]);
+  const [selectedItem, setSelectedItem] = useState<Material | null>(null);
+  const [editingItem, setEditingItem]   = useState<Material | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [dismissedBanner, setDismissedBanner] = useState(false);
-  const [allItems, setAllItems] = useState<UnifiedInventoryItem[]>([]);
+  const [materials, setMaterials]       = useState<Material[]>([]);
+  const [loading, setLoading]           = useState(true);
 
-  // Load data from unified source
-  const loadData = useCallback(() => {
-    setAllItems(getAllInventoryItems());
+  // Load data from database
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    const data = await fetchMaterials();
+    setMaterials(data);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -606,31 +602,22 @@ export function LowStockAlert() {
     };
   }, [loadData]);
 
-  const getThreshold = (item: UnifiedInventoryItem) => thresholds[item.id]  ?? item.threshold;
-  const getStock     = (item: UnifiedInventoryItem) => stockData[item.id]   ?? item.stock;
-  const getName      = (item: UnifiedInventoryItem) => itemOverrides[item.id]?.name     ?? item.name;
-  const getCategory  = (item: UnifiedInventoryItem) => itemOverrides[item.id]?.category ?? item.category;
-  const getSpec      = (item: UnifiedInventoryItem) => itemOverrides[item.id]?.spec     ?? item.spec;
-  const getLocation  = (item: UnifiedInventoryItem) => itemOverrides[item.id]?.location ?? item.location;
-  const getUnit      = (item: UnifiedInventoryItem) => itemOverrides[item.id]?.unit     ?? item.unit;
+  const getThreshold = (material: Material) => thresholds[material.id] ?? material.safe_stock;
 
   const enriched = useMemo(() =>
-    allItems.map(item => {
-      const currentStock     = getStock(item);
-      const currentThreshold = getThreshold(item);
+    materials.map(material => {
+      const threshold = getThreshold(material);
+      const status = getMaterialStockStatus({ ...material, safe_stock: threshold });
+      
       return {
-        ...item,
-        name:      getName(item),
-        category:  getCategory(item),
-        spec:      getSpec(item),
-        location:  getLocation(item),
-        unit:      getUnit(item),
-        currentStock,
-        currentThreshold,
-        severity: getSeverity(currentStock, currentThreshold),
+        ...material,
+        currentThreshold: threshold,
+        severity: status.severity,
+        currentStock: status.overallStock,
+        lowStockSizes: status.lowStockSizes,
       };
     }),
-    [allItems, thresholds, stockData, itemOverrides]
+    [materials, thresholds]
   );
 
   const counts = useMemo(() => ({
@@ -652,45 +639,31 @@ export function LowStockAlert() {
     [enriched, search, activeTab]
   );
 
-  const handleRestock = (itemId: number, _sizeId: string, qty: number) => {
-    const current = getStock(allItems.find(i => i.id === itemId)!);
-    const newStock = current + qty;
+  const handleRestock = async (materialId: string, sizeId: string | null, qty: number) => {
+    const material = materials.find(m => m.id === materialId);
+    if (!material) return;
+
+    const result = await updateMaterialStock(materialId, sizeId, qty, 'restock');
     
-    // Update in state
-    setStockData(prev => ({ ...prev, [itemId]: newStock }));
-    
-    // Persist to storage
-    updateItemStock(itemId, newStock);
-    
-    setRestockedIds(prev => [...prev, itemId]);
-    setTimeout(() => setRestockedIds(prev => prev.filter(id => id !== itemId)), 3000);
+    if (result.success) {
+      setRestockedIds(prev => [...prev, materialId]);
+      setTimeout(() => setRestockedIds(prev => prev.filter(id => id !== materialId)), 3000);
+    }
   };
 
   const handleSaveEdit = (
-    itemId: number,
+    materialId: string,
     override: ItemOverride,
     newStock: number,
     newThreshold: number | Record<string, number>
   ) => {
-    setItemOverrides(prev => ({ ...prev, [itemId]: override }));
-    setStockData(prev => ({ ...prev, [itemId]: newStock }));
-    
-    // Handle size-specific thresholds
-    if (typeof newThreshold === 'object') {
-      // Save thresholds for each size
-      Object.keys(newThreshold).forEach(sizeId => {
-        setThresholds(prev => ({ 
-          ...prev, 
-          [`${itemId}_${sizeId}`]: newThreshold[sizeId]
-        }));
-      });
-    } else {
-      // Save single threshold for items without sizes
-      setThresholds(prev => ({ ...prev, [itemId]: newThreshold }));
+    // Handle threshold update
+    if (typeof newThreshold === 'number') {
+      setThresholds(prev => ({ ...prev, [materialId]: newThreshold }));
     }
     
-    // Persist stock change
-    updateItemStock(itemId, newStock);
+    // Note: 库存更新通过补货操作完成，编辑仅修改阈值
+    toast.success('设置已保存');
   };
 
   const statCards: Array<{ key: Severity; label: string; val: number; color: string; bg: string; border: string }> = [

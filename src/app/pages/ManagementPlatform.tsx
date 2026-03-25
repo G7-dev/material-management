@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { inventoryItems, getSeverity, SEVERITY_CONFIG } from '../data/inventoryData';
+import { fetchMaterials, getMaterialStockStatus, SEVERITY_CONFIG } from '../utils/materialsDB';
 import { useNavigate } from 'react-router';
 import { format, subMonths } from 'date-fns';
 import { supabase } from '../../lib/supabase';
