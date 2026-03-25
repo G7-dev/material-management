@@ -323,12 +323,9 @@ export function ItemPurchase() {
                   onChange={setItemCategory}
                   placeholder="请选择物品分类"
                   options={[
-                    { value: '办公耗材', label: '办公耗材' },
-                    { value: '清洁工具', label: '清洁工具' },
-                    { value: '穿戴品',   label: '穿戴品'   },
-                    { value: '衣服',     label: '衣服'     },
-                    { value: '鞋子',     label: '鞋子'     },
-                    { value: '其他',     label: '其他'     },
+                    { value: '办公类', label: '办公类' },
+                    { value: '劳保类', label: '劳保类' },
+                    { value: '物耗类', label: '物耗类' },
                   ]}
                   size="lg"
                   variant="filled"

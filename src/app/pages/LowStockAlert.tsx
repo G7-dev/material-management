@@ -222,7 +222,7 @@ interface EditModalProps {
   ) => void;
 }
 
-const CATEGORIES = ['办公用品', '电子设备', '耗材', '清洁用品', '劳保用品', '其他'];
+const CATEGORIES = ['办公类', '劳保类', '物耗类'];
 const UNITS      = ['个', '支', '包', '把', '本', '件', '盒', '瓶', '卷', '套'];
 
 function EditItemModal({ item, onClose, onSave }: EditModalProps) {
@@ -817,7 +817,7 @@ export function LowStockAlert() {
           <table className="w-full">
             <thead>
               <tr className="bg-muted/30 border-b border-border">
-                {['物品名称', '当前库存', '预警阈值', '库存水位', '状态', '最近补货', '操作'].map(h => (
+                {['物品名称', '物品编码', '当前库存', '预警阈值', '库存水位', '状态', '最近补货', '操作'].map(h => (
                   <th key={h} className="text-left text-xs font-medium text-muted-foreground px-5 py-3 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -825,7 +825,7 @@ export function LowStockAlert() {
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-16 text-muted-foreground text-sm">
+                  <td colSpan={8} className="text-center py-16 text-muted-foreground text-sm">
                     <Package className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     暂无匹配物品
                   </td>
@@ -861,9 +861,15 @@ export function LowStockAlert() {
                                 <span className="w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0" title="已编辑" />
                               )}
                             </div>
-                            <p className="text-xs text-muted-foreground">{item.category} · {item.location}</p>
+                            <p className="text-xs text-muted-foreground">{item.category}</p>
                           </div>
                         </div>
+                      </td>
+
+                      {/* Item code & unit price */}
+                      <td className="px-5 py-4">
+                        <p className="text-xs text-primary font-medium">{item.item_code || '-'}</p>
+                        {item.unit_price ? <p className="text-xs text-muted-foreground mt-0.5">¥{item.unit_price}</p> : null}
                       </td>
 
                       {/* Current stock */}

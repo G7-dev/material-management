@@ -47,7 +47,7 @@ function Calendar({
   showTime = false,
   onTimeChange,
 }: CalendarProps) {
-  const [selectedTime, setSelectedTime] = React.useState({ hours: 0, minutes: 0 });
+  const [selectedTime, setSelectedTime] = React.useState({ hours: new Date().getHours(), minutes: new Date().getMinutes() });
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -191,29 +191,63 @@ function Calendar({
       {/* Time Picker */}
       {showTime && (
         <div className="mt-4 pt-4 border-t border-border">
-          <label className="block text-sm font-medium text-foreground mb-2">
+          <label className="block text-sm font-medium text-foreground mb-3">
             时间
           </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min={0}
-              max={23}
-              value={selectedTime.hours}
-              onChange={(e) => handleTimeChange("hours", parseInt(e.target.value) || 0)}
-              className="w-16 text-center h-9 rounded-lg border border-border bg-background px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
-              placeholder="时"
-            />
-            <span className="text-muted-foreground">:</span>
-            <input
-              type="number"
-              min={0}
-              max={59}
-              value={selectedTime.minutes}
-              onChange={(e) => handleTimeChange("minutes", parseInt(e.target.value) || 0)}
-              className="w-16 text-center h-9 rounded-lg border border-border bg-background px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
-              placeholder="分"
-            />
+          <div className="flex items-center justify-center gap-1">
+            {/* Hour selector */}
+            <div className="flex flex-col items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const newVal = (selectedTime.hours + 1) % 24;
+                  handleTimeChange('hours', newVal);
+                }}
+                className="w-9 h-6 flex items-center justify-center rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+              >
+                <ChevronUpIcon className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-xl font-bold text-foreground w-10 text-center tabular-nums">
+                {String(selectedTime.hours).padStart(2, '0')}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const newVal = (selectedTime.hours - 1 + 24) % 24;
+                  handleTimeChange('hours', newVal);
+                }}
+                className="w-9 h-6 flex items-center justify-center rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+              >
+                <ChevronRightIcon className="w-3.5 h-3.5 rotate-90" />
+              </button>
+            </div>
+            <span className="text-lg font-bold text-muted-foreground mx-2">:</span>
+            {/* Minute selector */}
+            <div className="flex flex-col items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const newVal = (selectedTime.minutes + 5) % 60;
+                  handleTimeChange('minutes', newVal);
+                }}
+                className="w-9 h-6 flex items-center justify-center rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+              >
+                <ChevronUpIcon className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-xl font-bold text-foreground w-10 text-center tabular-nums">
+                {String(selectedTime.minutes).padStart(2, '0')}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const newVal = (selectedTime.minutes - 5 + 60) % 60;
+                  handleTimeChange('minutes', newVal);
+                }}
+                className="w-9 h-6 flex items-center justify-center rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+              >
+                <ChevronRightIcon className="w-3.5 h-3.5 rotate-90" />
+              </button>
+            </div>
           </div>
         </div>
       )}

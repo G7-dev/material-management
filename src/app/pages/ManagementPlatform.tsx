@@ -396,7 +396,7 @@ export function ManagementPlatform() {
               <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center">
                 <FileCheck className="w-4 h-4 text-secondary" />
               </div>
-              <h2 className="font-semibold text-foreground">审批管理</h2>
+              <h2 className="font-semibold text-foreground">发放管理</h2>
             </div>
           </div>
           <div className="space-y-4">

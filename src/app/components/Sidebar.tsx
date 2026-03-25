@@ -16,7 +16,7 @@ import { cn } from './ui/utils';
 import { useState, useEffect } from 'react';
 import { getApplicationRecords } from '../utils/applicationStore';
 import { supabase } from '../../lib/supabase';
-import { getAllInventoryItems, getSeverity } from '../data/unifiedInventoryData';
+import { fetchMaterials } from '../utils/materialsDB';
 import { toast } from 'sonner';
 
 interface NavItem {
@@ -27,10 +27,19 @@ interface NavItem {
   badgeColor?: string;
 }
 
-// Compute live low-stock count from unified data
-const getLowStockCount = () => {
-  const items = getAllInventoryItems();
-  return items.filter(item => getSeverity(item.stock, item.threshold) !== 'normal').length;
+// Compute live low-stock count from database
+const getLowStockCount = async () => {
+  try {
+    const materials = await fetchMaterials();
+    return materials.filter(m => {
+      const totalStock = m.sizes && m.sizes.length > 0
+        ? m.sizes.reduce((sum, s) => sum + s.stock, 0)
+        : m.stock;
+      return totalStock <= m.safe_stock;
+    }).length;
+  } catch {
+    return 0;
+  }
 };
 
 // Check for requisitions that need confirmation (arrival_notified status)
@@ -64,12 +73,26 @@ export function Sidebar() {
   const [userName, setUserName] = useState<string>('当前用户');
   const [isLoading, setIsLoading] = useState(true);
   
+  // Dynamic low-stock badge
+  const [lowStockCount, setLowStockCount] = useState(0);
+
+  // Update low-stock count periodically
+  useEffect(() => {
+    const update = async () => {
+      const count = await getLowStockCount();
+      setLowStockCount(count);
+    };
+    update();
+    const interval = setInterval(update, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Determine if current user is admin based on role
   const isAdmin = userRole === 'admin';
 
   useEffect(() => {
-    const update = () => {
-      const records = getApplicationRecords();
+    const update = async () => {
+      const records = await getApplicationRecords();
       setPendingCount(records.filter(r => r.status === 'pending').length);
     };
     update();
@@ -146,15 +169,15 @@ export function Sidebar() {
     { name: '批量注册', path: '/admin-batch-register', icon: Users },
     { name: '物品上架', path: '/item-upload', icon: PackagePlus },
     { name: '物品补货', path: '/item-permission', icon: PackageCheck },
-    { name: '低库存预警', path: '/low-stock-alert', icon: Bell, badge: getLowStockCount() },
-    { 
-      name: '申购管理', 
-      path: '/purchase-management', 
-      icon: Package, 
+    { name: '低库存预警', path: '/low-stock-alert', icon: Bell, badge: lowStockCount },
+    {
+      name: '需求管理',
+      path: '/purchase-management',
+      icon: Package,
       badge: pendingPurchaseCount,
       badgeColor: pendingPurchaseCount > 0 ? 'bg-red-500' : undefined
     },
-    { name: '审批管理', path: '/approval-management', icon: CheckSquare, badge: pendingCount },
+    { name: '发放管理', path: '/approval-management', icon: CheckSquare, badge: pendingCount },
   ];
 
   const navItems = isAdmin ? adminNavItemsDynamic : [

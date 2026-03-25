@@ -33,6 +33,8 @@ const EMPTY_FORM = {
   specModel: '',
   unit: '',
   quantity: '',
+  unitPrice: '',
+  itemCode: '',
   expiry: TODAY,
   lowStockThreshold: '',
   notes: '',
@@ -412,6 +414,8 @@ export function ItemUpload() {
       unit: formData.unit,
       stock: parseInt(formData.quantity) || 0,
       safe_stock: parseInt(formData.lowStockThreshold) || 0,
+      unit_price: parseFloat(formData.unitPrice) || 0,
+      item_code: formData.itemCode.trim() || undefined,
     });
 
     // 刷新缓存
@@ -633,12 +637,9 @@ export function ItemUpload() {
                   onChange={(v) => handleFieldChange('category', v)}
                   placeholder="请选择物品分类"
                   options={[
-                    { value: '办公耗材', label: '办公耗材' },
-                    { value: '清洁工具', label: '清洁工具' },
-                    { value: '穿戴品',   label: '穿戴品'   },
-                    { value: '衣服',     label: '衣服'     },
-                    { value: '鞋子',     label: '鞋子'     },
-                    { value: '其他',     label: '其他'     },
+                    { value: '办公类', label: '办公类' },
+                    { value: '劳保类', label: '劳保类' },
+                    { value: '物耗类', label: '物耗类' },
                   ]}
                   size="md"
                   variant="filled"
@@ -651,6 +652,27 @@ export function ItemUpload() {
                   value={formData.specModel}
                   onChange={(e) => handleFieldChange('specModel', e.target.value)}
                   placeholder="型号、A4, 100张、营业号"
+                  className="h-11 bg-muted/50 border-border"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">物品编码</label>
+                <Input
+                  value={formData.itemCode}
+                  onChange={(e) => handleFieldChange('itemCode', e.target.value)}
+                  placeholder="输入物品编码（选填）"
+                  className="h-11 bg-muted/50 border-border"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">单价（元）</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.unitPrice}
+                  onChange={(e) => handleFieldChange('unitPrice', e.target.value)}
+                  placeholder="请输入单价"
                   className="h-11 bg-muted/50 border-border"
                 />
               </div>
@@ -871,7 +893,9 @@ export function ItemUpload() {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {[
                     { label: '规格', value: formData.specModel },
+                    { label: '编码', value: formData.itemCode },
                     { label: '数量', value: formData.quantity },
+                    { label: '单价', value: formData.unitPrice ? `¥${formData.unitPrice}` : '' },
                     { label: '有效期', value: formData.expiry },
                   ].map(({ label, value }) => (
                     <div key={label} className="bg-muted/50 rounded-lg p-2.5 border border-border">

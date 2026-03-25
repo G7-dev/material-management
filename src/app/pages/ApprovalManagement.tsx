@@ -3,7 +3,7 @@ import {
   CheckSquare, Search, Filter, AlertCircle, Clock,
   FileText, Package, X, CheckCircle2, XCircle,
   User, Briefcase, Hash, ShoppingBag, MessageSquare,
-  CalendarDays, AlertTriangle, Eye
+  CalendarDays, AlertTriangle, Eye, Download
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -21,6 +21,7 @@ import {
 } from '../utils/applicationStore';
 import { supabase } from '../../lib/supabase';
 import { fetchMaterials, requestMaterialOut } from '../utils/materialsDB';
+import * as XLSX from 'xlsx';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ApprovalStatus = 'pending' | 'approved' | 'rejected';
@@ -449,9 +450,9 @@ export function ApprovalManagement() {
       <div>
         <h1 className="text-3xl font-semibold text-foreground flex items-center gap-2">
           <CheckSquare className="w-8 h-8 text-primary" />
-          审批管理
+          发放管理
         </h1>
-        <p className="text-muted-foreground mt-1">处理物资申请和审批流程，确保资源合理分配</p>
+        <p className="text-muted-foreground mt-1">管理物资发放申请和审批流程，确保资源合理分配</p>
       </div>
 
       {/* Stats */}
@@ -487,12 +488,38 @@ export function ApprovalManagement() {
               className="pl-10 h-10 bg-muted/50 border-border"
             />
           </div>
-          <Button 
-            variant="outline" 
+            <Button
+            variant="outline"
             className="gap-2 border-border"
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
           >
             <Filter className="w-4 h-4" />高级筛选
+          </Button>
+          <Button
+            className="gap-2 border-border bg-emerald-500 hover:bg-emerald-600 text-white"
+            onClick={() => {
+              const data = filtered.map((a, i) => ({
+                '序号': i + 1,
+                '申请人': a.applicant,
+                '工号': a.workId,
+                '部门': a.department,
+                '物品名称': a.itemName,
+                '数量': a.quantity,
+                '用途': a.purpose,
+                '申请类型': a.applicationType,
+                '申请日期': a.applicationDate,
+                '预计使用日期': a.expectedDate || '-',
+                '状态': a.statusLabel,
+              }));
+              const ws = XLSX.utils.json_to_sheet(data);
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, '发放管理');
+              XLSX.writeFile(wb, `发放管理_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.xlsx`);
+              toast.success('导出成功');
+            }}
+          >
+            <Download className="w-4 h-4" />
+            导出Excel
           </Button>
         </div>
 
@@ -608,7 +635,9 @@ export function ApprovalManagement() {
                 <TableHead className="font-semibold text-foreground text-center">申请人</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">工号</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">部门</TableHead>
+                <TableHead className="font-semibold text-foreground text-center">物品编码</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">物品名称</TableHead>
+                <TableHead className="font-semibold text-foreground text-center">单价</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">数量</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">用途</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">申请类型</TableHead>
@@ -622,7 +651,7 @@ export function ApprovalManagement() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center py-16 text-muted-foreground">
+                  <TableCell colSpan={14} className="text-center py-16 text-muted-foreground">
                     <Package className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     暂无匹配记录
                   </TableCell>
@@ -650,6 +679,8 @@ export function ApprovalManagement() {
                       </span>
                     </TableCell>
                     <TableCell className="font-medium text-center">{approval.itemName}</TableCell>
+                    <TableCell className="text-center text-xs text-primary font-medium">{(approval as any).itemCode || '-'}</TableCell>
+                    <TableCell className="text-center text-xs font-medium">{(approval as any).unitPrice ? `¥${(approval as any).unitPrice}` : '-'}</TableCell>
                     <TableCell className="text-center">{approval.quantity}</TableCell>
                     <TableCell className="text-center">
                       <span className="text-sm text-muted-foreground max-w-[120px] truncate block mx-auto" title={approval.purpose}>

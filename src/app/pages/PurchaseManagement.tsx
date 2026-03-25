@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   CheckSquare, Package, Calendar, Clock, Eye, Bell,
   Search, Filter, User, Building2, PackagePlus,
-  CheckCircle2, X, Send
+  CheckCircle2, X, Send, Download
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -14,6 +14,7 @@ import {
 import { DatePicker } from '../components/ui/date-picker';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Requisition {
@@ -422,8 +423,8 @@ export function PurchaseManagement() {
     <div className="p-8 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-semibold text-foreground tracking-tight">申购管理</h1>
-        <p className="text-muted-foreground mt-1">处理物资申购请求和到货通知</p>
+        <h1 className="text-3xl font-semibold text-foreground tracking-tight">需求管理</h1>
+        <p className="text-muted-foreground mt-1">处理物资需求请求和到货通知</p>
       </div>
 
       {/* Stats */}
@@ -478,6 +479,31 @@ export function PurchaseManagement() {
           <Button variant="outline" className="gap-2 h-11 border-border">
             <Filter className="w-4 h-4" />
             筛选
+          </Button>
+          <Button
+            className="gap-2 h-11 bg-emerald-500 hover:bg-emerald-600 text-white"
+            onClick={() => {
+              const data = filtered.map((r, i) => ({
+                '序号': i + 1,
+                '姓名': r.applicant_name,
+                '部门': r.department,
+                '物品名称': r.purchase_name,
+                '规格': r.purchase_specification,
+                '数量': r.purchase_quantity,
+                '单位': r.purchase_unit,
+                '状态': r.status_label,
+                '创建时间': r.created_at ? new Date(r.created_at).toLocaleDateString('zh-CN') : '',
+                '预计到货': r.estimated_delivery_date ? new Date(r.estimated_delivery_date).toLocaleDateString('zh-CN') : '',
+              }));
+              const ws = XLSX.utils.json_to_sheet(data);
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, '需求管理');
+              XLSX.writeFile(wb, `需求管理_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.xlsx`);
+              toast.success('导出成功');
+            }}
+          >
+            <Download className="w-4 h-4" />
+            导出Excel
           </Button>
         </div>
       </Card>

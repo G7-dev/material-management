@@ -32,7 +32,8 @@ interface Item {
   spec: string;
   tags: string[];
   stock: number;
-  location: string;
+  unit_price: number;
+  item_code: string;
   status: string;
   sizes: SizeVariant[];
   image?: string;
@@ -265,7 +266,8 @@ export function ItemPermission() {
             spec: m.specification ? `规格: ${m.specification}` : '—',
             tags: totalStock === 0 ? ['已发'] : (m.safe_stock > 0 && totalStock <= m.safe_stock ? ['可用库存', '低库存'] : ['可用库存']),
             stock: totalStock,
-            location: m.location || '备件库存',
+            unit_price: m.unit_price || 0,
+            item_code: m.item_code || '',
             status,
             sizes,
             image: m.image_url || undefined,
@@ -375,14 +377,14 @@ export function ItemPermission() {
       item.spec.toLowerCase().includes(searchQuery.toLowerCase());
     const matchTab =
       selectedTab === 'all' ||
-      (selectedTab === 'office'       && item.category === '办公用品') ||
-      (selectedTab === 'electronics'  && item.category === '电子设备') ||
+      (selectedTab === 'office'       && item.category === '办公类') ||
+      (selectedTab === 'electronics'  && item.category === '劳保类') ||
       (selectedTab === 'custom'       && item.tags && item.tags.includes('新上架'));
     return matchSearch && matchTab;
   });
 
-  const officeCount      = allItems.filter(i => i.category === '办公用品').length;
-  const electronicsCount = allItems.filter(i => i.category === '电子设备').length;
+  const officeCount      = allItems.filter(i => i.category === '办公类').length;
+  const electronicsCount = allItems.filter(i => i.category === '劳保类').length;
   const customCount      = allItems.filter(i => i.tags && i.tags.includes('新上架')).length;
   const lowStockCount    = allItems.filter(i => isAnyLow(i)).length;
 
@@ -439,8 +441,8 @@ export function ItemPermission() {
         <div className="flex gap-2 mt-4 pt-4 border-t border-border flex-wrap">
           {[
             { key: 'all',         label: `全部物资 (${allItems.length})` },
-            { key: 'office',      label: `办公用品 (${officeCount})`      },
-            { key: 'electronics', label: `电子设备 (${electronicsCount})` },
+            { key: 'office',      label: `办公类 (${officeCount})`      },
+            { key: 'electronics', label: `劳保类 (${electronicsCount})` },
           ].map(tab => (
             <button
               key={tab.key}
@@ -554,10 +556,13 @@ export function ItemPermission() {
               <div className="flex flex-col flex-1 gap-3">
                 <div>
                   <h3 className="font-semibold text-foreground mb-0.5">{item.name}</h3>
-                  <p className="text-xs text-muted-foreground">{item.category}</p>
+                  <p className="text-xs text-muted-foreground">{item.category} {item.item_code && <span className="text-primary/70">· {item.item_code}</span>}</p>
                 </div>
 
-                <p className="text-xs text-muted-foreground">{item.spec}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">{item.spec}</p>
+                  {item.unit_price > 0 && <p className="text-xs font-semibold text-primary">¥{item.unit_price}</p>}
+                </div>
 
                 {/* Mini size stock pills */}
                 <div className="flex flex-wrap gap-1">
@@ -605,6 +610,12 @@ export function ItemPermission() {
                       </span>
                     </div>
                   </div>
+                  {item.unit_price > 0 && (
+                    <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-primary/5 border border-primary/15">
+                      <span className="text-xs text-muted-foreground">合计金额</span>
+                      <span className="text-sm font-bold text-primary">¥{(item.unit_price * totalStock).toFixed(2)}</span>
+                    </div>
+                  )}
 
                   {isRestocked ? (
                     <div className="flex items-center justify-center gap-1.5 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 text-sm font-medium">

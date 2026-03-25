@@ -20,7 +20,8 @@ export interface Material {
   unit: string;
   stock: number;
   safe_stock: number;
-  location?: string;
+  unit_price?: number;
+  item_code?: string;
   image_url?: string;
   status: 'active' | 'inactive';
   sizes: MaterialSize[];
@@ -173,7 +174,8 @@ export async function addMaterial(material: {
   unit: string;
   stock: number;
   safe_stock: number;
-  location?: string;
+  unit_price?: number;
+  item_code?: string;
   image_url?: string;
   sizes?: MaterialSize[];
 }): Promise<string | null> {
@@ -191,7 +193,8 @@ export async function addMaterial(material: {
         unit: material.unit,
         stock: material.stock,
         safe_stock: safeStock,
-        location: material.location || '备件库',
+        unit_price: material.unit_price || 0,
+        item_code: material.item_code || null,
         image_url: material.image_url,
         sizes: material.sizes || [],
         status: 'active'
