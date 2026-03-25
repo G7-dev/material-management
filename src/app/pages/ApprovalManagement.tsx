@@ -48,6 +48,20 @@ const STORAGE_KEY = 'approval_management_data';
 async function loadApprovals(): Promise<Approval[]> {
   // Load from Supabase-backed applicationStore
   const appRecords = await getApplicationRecords();
+  
+  // 获取物品编码和单价
+  const materialIds = [...new Set(appRecords.map(r => r.itemId).filter(Boolean))];
+  const materialMap: Record<string, { itemCode?: string; unitPrice?: number }> = {};
+  if (materialIds.length > 0) {
+    const { data: materials } = await supabase
+      .from('materials')
+      .select('id, item_code, unit_price')
+      .in('id', materialIds);
+    (materials || []).forEach((m: any) => {
+      materialMap[m.id] = { itemCode: m.item_code, unitPrice: m.unit_price };
+    });
+  }
+
   const fromApp: Approval[] = appRecords.map((r) => ({
     id: r.id,
     applicant: r.applicant || '用户',
@@ -63,6 +77,8 @@ async function loadApprovals(): Promise<Approval[]> {
     status: r.status,
     statusLabel: r.statusLabel,
     rejectReason: r.rejectReason,
+    itemCode: materialMap[r.itemId]?.itemCode,
+    unitPrice: materialMap[r.itemId]?.unitPrice,
   }));
   return fromApp;
 }
@@ -645,13 +661,12 @@ export function ApprovalManagement() {
                 <TableHead className="font-semibold text-foreground text-center">预计使用日期</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">查看</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">状态</TableHead>
-                <TableHead className="font-semibold text-foreground text-center">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={14} className="text-center py-16 text-muted-foreground">
+                  <TableCell colSpan={13} className="text-center py-16 text-muted-foreground">
                     <Package className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     暂无匹配记录
                   </TableCell>
@@ -718,33 +733,6 @@ export function ApprovalManagement() {
                           </span>
                         )}
                       </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {approval.status === 'pending' ? (
-                        <div className="flex gap-2 justify-center">
-                          <Button
-                            size="sm"
-                            className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-md text-white"
-                            onClick={() => setApprovingItem(approval)}
-                          >
-                            批准
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-border hover:bg-red-500/10 hover:text-red-600 hover:border-red-500/30"
-                            onClick={() => setRejectingItem(approval)}
-                          >
-                            驳回
-                          </Button>
-                        </div>
-                      ) : (
-                        <span className={`text-xs font-medium ${
-                          approval.status === 'approved' ? 'text-emerald-600' : 'text-red-500'
-                        }`}>
-                          {approval.statusLabel}
-                        </span>
-                      )}
                     </TableCell>
                   </TableRow>
                 ))
