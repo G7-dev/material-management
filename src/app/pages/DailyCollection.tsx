@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Package, Search, ArrowRight, X, ShoppingBag, CheckCircle2,
   ChevronDown, ChevronUp, User, Building2, Hash, FileText,
-  Sparkles, Box, Minus, Plus, Layers, Calendar,
+  Sparkles, Box, Minus, Plus, Layers, Calendar, Clock,
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -73,6 +73,7 @@ function ApplyModal({
   const [employeeId, setEmployeeId] = useState('');
   const [usage, setUsage] = useState('');
   const [expectedDate, setExpectedDate] = useState<Date | undefined>(undefined);
+  const [expectedTime, setExpectedTime] = useState('9:00'); // 默认9:00
   const [submitting, setSubmitting] = useState(false);
 
   const hasSizes = item.sizes && item.sizes.length > 0;
@@ -85,6 +86,7 @@ function ApplyModal({
     department &&
     usage.trim() &&
     expectedDate instanceof Date &&
+    expectedTime &&
     quantity > 0 &&
     maxStock > 0 &&
     (!hasSizes || selectedSize);
@@ -100,15 +102,18 @@ function ApplyModal({
     if (!canSubmit) return;
     setSubmitting(true);
     
+    // Merge date and selected time
+    let finalDateTime: Date;
+    if (expectedDate) {
+      const [hours, minutes] = expectedTime.split(':').map(Number);
+      finalDateTime = new Date(expectedDate);
+      finalDateTime.setHours(hours, minutes, 0, 0);
+    } else {
+      finalDateTime = new Date();
+    }
+    
     // Format expectedDate to include time
-    const formattedExpectedDate = expectedDate ? expectedDate.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }).replace(/\//g, '-') : new Date().toLocaleString('zh-CN', {
+    const formattedExpectedDate = finalDateTime.toLocaleString('zh-CN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -313,21 +318,42 @@ function ApplyModal({
             />
           </div>
 
-          {/* Expected DateTime */}
+          {/* Expected Date */}
           <div>
             <DatePicker
               label={
                 <span className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-indigo-500/60" />
-                  预计领用时间 <span className="text-red-500">*</span>
+                  预计领用日期 <span className="text-red-500">*</span>
                 </span>
               }
               value={expectedDate}
               onChange={(date) => setExpectedDate(date)}
-              placeholder="请选择预计领用时间"
-              showTime={true}
+              placeholder="请选择日期"
+              showTime={false}
               minDate={new Date()}
-              helperText="预计什么时候使用（精确到分钟）"
+              helperText="请选择预计领用的日期"
+            />
+          </div>
+
+          {/* Expected Time */}
+          <div>
+            <label className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-indigo-500/60" />
+              预计领用时间 <span className="text-red-500">*</span>
+            </label>
+            <EnhancedSelect
+              value={expectedTime}
+              onChange={setExpectedTime}
+              placeholder="请选择时间"
+              options={[
+                { value: '8:40', label: '08:40' },
+                { value: '9:00', label: '09:00' },
+                { value: '9:30', label: '09:30' },
+              ]}
+              size="md"
+              variant="filled"
+              helperText="请选择预计领用的具体时间"
             />
           </div>
         </div>
