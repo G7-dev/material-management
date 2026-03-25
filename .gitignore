@@ -31,3 +31,9 @@ lerna-debug.log*
 # 其他
 .cache
 .temp
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
