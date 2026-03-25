@@ -30,6 +30,9 @@ interface ItemOverride {
   unit?: string;
 }
 
+// 兼容性修复：Cloudflare Workers 自动注入
+const itemOverrides: Record<string, ItemOverride> = {};
+
 // ── Restock Modal ─────────────────────────────────────────────────────────────
 interface RestockModalProps {
   item: Material;
