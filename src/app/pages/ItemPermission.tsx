@@ -3,7 +3,7 @@ import {
   RefreshCw, Search, Filter, Package, X,
   PackagePlus, CheckCircle2, AlertTriangle,
   TrendingUp, Layers, Sparkles,
-  Trash2,
+  Trash2, Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card } from '../components/ui/card';
@@ -11,6 +11,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { AppSelect } from '../components/ui/app-select';
+import * as XLSX from 'xlsx';
 import {
   fetchMaterials, restockMaterial, deleteMaterial,
   type Material, type MaterialSize,
@@ -395,6 +396,52 @@ export function ItemPermission() {
   const customCount      = allItems.filter(i => i.tags && i.tags.includes('新上架')).length;
   const lowStockCount    = allItems.filter(i => isAnyLow(i)).length;
 
+  // Export to Excel
+  const exportToExcel = (items: Item[]) => {
+    const data = items.map((item, index) => {
+      const totalStock = getTotalStock(item);
+      const hasLow = isAnyLow(item);
+      const status = totalStock === 0 ? '已发' : hasLow ? '低库存' : '正常';
+      
+      // 合并规格和库存信息
+      const sizeDetails = item.sizes.map(s => `${s.label}: ${s.stock}件`).join(', ');
+      
+      return {
+        '序号': index + 1,
+        '物品名称': item.name,
+        '分类': item.category,
+        '规格详情': sizeDetails || '-',
+        '总库存': `${totalStock}件`,
+        '单价': item.unit_price ? `¥${item.unit_price}` : '-',
+        '物品编码': item.item_code || '-',
+        '状态': status,
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '物品补货清单');
+    
+    // 设置列宽
+    const colWidths = [
+      { wch: 6 },   // 序号
+      { wch: 20 },  // 物品名称
+      { wch: 12 },  // 分类
+      { wch: 40 },  // 规格详情
+      { wch: 10 },  // 总库存
+      { wch: 10 },  // 单价
+      { wch: 15 },  // 物品编码
+      { wch: 10 },  // 状态
+    ];
+    ws['!cols'] = colWidths;
+    
+    // 导出文件
+    const timestamp = new Date().toLocaleDateString('zh-CN').replace(/\//g, '-');
+    XLSX.writeFile(wb, `物品补货清单_${timestamp}.xlsx`);
+    
+    toast.success('Excel导出成功！');
+  };
+
   return (
     <div className="p-8 space-y-6">
       {/* Header */}
@@ -443,6 +490,14 @@ export function ItemPermission() {
           <Button variant="outline" className="gap-2 h-10 border-border">
             <Filter className="w-4 h-4" />
             筛选
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2 h-10 border-border"
+            onClick={() => exportToExcel(filteredItems)}
+          >
+            <Download className="w-4 h-4" />
+            导出Excel
           </Button>
         </div>
         <div className="flex gap-2 mt-4 pt-4 border-t border-border flex-wrap">
