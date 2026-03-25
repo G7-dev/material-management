@@ -13,12 +13,6 @@ const quickActions = [
   { label: '查看记录', subLabel: '历史记录', icon: Calendar, color: 'text-cyan-600', bgColor: 'bg-cyan-500/5', path: '/application-records' },
 ];
 
-  const [recentApplications, setRecentApplications] = useState<Array<{
-    id: string; item: string; quantity: number; status: string; date: string; type: string;
-  }>>([]);
-
-
-
 const BAR_COLORS = [
   '#6366f1', '#7c3aed', '#8b5cf6', '#a78bfa',
   '#818cf8', '#93c5fd', '#60a5fa', '#38bdf8',
