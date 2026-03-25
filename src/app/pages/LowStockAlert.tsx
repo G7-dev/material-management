@@ -231,6 +231,16 @@ interface EditModalProps {
 const CATEGORIES = ['办公类', '劳保类', '物耗类'];
 const UNITS      = ['个', '支', '包', '把', '本', '件', '盒', '瓶', '卷', '套'];
 
+// 本地辅助函数：根据库存和阈值计算严重等级
+function getSeverity(stock: number, threshold: number): StockSeverity {
+  if (stock === 0) return 'empty';
+  if (stock <= Math.ceil(threshold * 0.3)) return 'critical';
+  if (stock <= threshold) return 'warning';
+  return 'normal';
+}
+
+type Severity = StockSeverity;
+
 function EditItemModal({ item, onClose, onSave }: EditModalProps) {
   // Basic info states
   const [name,      setName]      = useState(item.name);
