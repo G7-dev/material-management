@@ -5,10 +5,19 @@ import {
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { fetchMaterials, getMaterialStockStatus, SEVERITY_CONFIG } from '../utils/materialsDB';
+import { fetchMaterials, getMaterialStockStatus, SEVERITY_CONFIG, type StockSeverity } from '../utils/materialsDB';
 import { useNavigate } from 'react-router';
 import { format, subMonths } from 'date-fns';
 import { supabase } from '../../lib/supabase';
+
+interface AlertItem {
+  id: string;
+  name: string;
+  unit: string;
+  stock: number;
+  threshold: number;
+  severity: StockSeverity;
+}
 
 const quickActions = [
   { label: '物品管理', subLabel: '管理库存物品', icon: Package, path: '/item-upload' },
@@ -32,25 +41,27 @@ export function ManagementPlatform() {
   const navigate = useNavigate();
   const [collectionRanking, setCollectionRanking] = useState<Array<{ name: string; count: number; category: string }>>([]);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [alertItems, setAlertItems] = useState<AlertItem[]>([]);
   
   const totalCount = collectionRanking.reduce((s, i) => s + i.count, 0);
   const topItem = collectionRanking[0] || { name: '-', count: 0 };
 
-  // 加载近一个月领用排行
+  // 加载数据
   useEffect(() => {
-    const loadCollectionRanking = async () => {
+    const loadData = async () => {
       try {
+        // 加载近一个月领用排行
         const today = new Date();
         const oneMonthAgo = subMonths(today, 1);
         
-        // 设置日期范围显示
         setDateRange({
           start: format(oneMonthAgo, 'yyyy年M月d日'),
           end: format(today, 'yyyy年M月d日')
         });
         
         // 从Supabase获取近一个月的已批准日常领用记录
-        const { data, error } = await supabase
+        const { data: requisitionsData, error: reqError } = await supabase
           .from('requisitions')
           .select('purchase_name, purchase_quantity, created_at, status, requisition_type')
           .eq('status', 'approved')
@@ -58,11 +69,11 @@ export function ManagementPlatform() {
           .gte('created_at', oneMonthAgo.toISOString())
           .lte('created_at', today.toISOString());
 
-        if (error) throw error;
+        if (reqError) throw reqError;
 
         // 按物品名称分组统计数量
         const itemCounts: Record<string, number> = {};
-        data?.forEach(record => {
+        requisitionsData?.forEach(record => {
           const itemName = record.purchase_name || '未知物品';
           const quantity = parseInt(record.purchase_quantity) || 1;
           itemCounts[itemName] = (itemCounts[itemName] || 0) + quantity;
@@ -79,8 +90,30 @@ export function ManagementPlatform() {
           .slice(0, 8);
 
         setCollectionRanking(ranking);
+
+        // 加载库存数据并计算预警
+        const materialsData = await fetchMaterials();
+        setMaterials(materialsData);
+        
+        const alerts = materialsData.map(material => {
+          const status = getMaterialStockStatus(material);
+          const threshold = material.safe_stock;
+          const currentStock = status.overallStock;
+          
+          return {
+            id: material.id,
+            name: material.name,
+            unit: material.unit,
+            stock: currentStock,
+            threshold: threshold,
+            severity: status.severity
+          };
+        }).filter(item => item.severity !== 'normal');
+        
+        setAlertItems(alerts);
+        
       } catch (error: any) {
-        console.error('加载领用排行失败:', error);
+        console.error('加载数据失败:', error);
         
         // 检测认证错误，token失效时跳转到登录页
         if (error?.message?.includes('Invalid Refresh Token') || 
@@ -93,25 +126,22 @@ export function ManagementPlatform() {
         }
         
         setCollectionRanking([]);
+        setAlertItems([]);
       }
     };
 
-    loadCollectionRanking();
+    loadData();
     // 每30秒刷新一次数据
-    const interval = setInterval(loadCollectionRanking, 30000);
+    const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, [navigate]);
 
   // Low stock summary
-  const alertItems = inventoryItems.map(item => ({
-    ...item,
-    severity: getSeverity(item.stock, item.threshold),
-  })).filter(i => i.severity !== 'normal');
   const emptyCnt    = alertItems.filter(i => i.severity === 'empty').length;
   const criticalCnt = alertItems.filter(i => i.severity === 'critical').length;
   const warningCnt  = alertItems.filter(i => i.severity === 'warning').length;
 
-  // Severity pills — plain array, no `as const`, icons rendered inline
+  // Severity pills
   const severityPills = [
     { label: '缺货', count: emptyCnt,    colorCls: 'bg-red-500/10 text-red-600 border-red-500/20' },
     { label: '危险', count: criticalCnt, colorCls: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },

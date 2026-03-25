@@ -5,13 +5,16 @@ import {
   TrendingUp, Layers, Sparkles,
   Trash2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { AppSelect } from '../components/ui/app-select';
-import { getStoredItems, updateStoredItemStock, deleteStoredItem, type StoredItem } from '../utils/itemStore';
-import { getAllInventoryItems, updateItemStock, updateItemStockWithSizes, deleteInventoryItem, type UnifiedInventoryItem } from '../data/unifiedInventoryData';
+import {
+  fetchMaterials, restockMaterial, deleteMaterial,
+  type Material, type MaterialSize,
+} from '../utils/materialsDB';
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -23,149 +26,22 @@ interface SizeVariant {
 }
 
 interface Item {
-  id: number;
+  id: string;
   name: string;
   category: string;
   spec: string;
-  size: string;
   tags: string[];
   stock: number;
   location: string;
   status: string;
   sizes: SizeVariant[];
   image?: string;
-  _storedId?: string;
-}
-
-// ── Static seed data ──────────────────────────────────────────────────────────
-
-const STATIC_ITEMS: Item[] = [
-  {
-    id: 1, name: '123', category: '办用品', spec: '规格: B-5',
-    size: '尺寸: 4x4 5cm等', tags: ['已发', '可用库存'],
-    stock: 2, location: '备件库存', status: 'low',
-    sizes: [
-      { id: 'A4', label: 'A4', spec: '297×210mm', stock: 2 },
-      { id: 'A5', label: 'A5', spec: '210×148mm', stock: 0 },
-      { id: 'B5', label: 'B5', spec: '257×182mm', stock: 5 },
-      { id: 'B4', label: 'B4', spec: '364×257mm', stock: 1 },
-    ],
-  },
-  {
-    id: 2, name: '订书机', category: '办公用品', spec: '型号: B标准型',
-    size: '尺寸: 5cm垂', tags: ['可用库存'],
-    stock: 9, location: '备件库存', status: 'available',
-    sizes: [
-      { id: 'mini',     label: '迷你型', spec: '针10mm', stock: 3 },
-      { id: 'standard', label: '标准型', spec: '针12mm', stock: 4 },
-      { id: 'heavy',    label: '重型',   spec: '针23mm', stock: 2 },
-    ],
-  },
-  {
-    id: 3, name: 'U盘', category: '电子设备', spec: '规格: USB 3.0',
-    size: '尺寸: 5cm垂', tags: ['可用库存'],
-    stock: 22, location: '备件库存', status: 'available',
-    sizes: [
-      { id: '32gb',  label: '32GB',  spec: 'USB 3.0', stock: 8  },
-      { id: '64gb',  label: '64GB',  spec: 'USB 3.0', stock: 10 },
-      { id: '128gb', label: '128GB', spec: 'USB 3.0', stock: 4  },
-      { id: '256gb', label: '256GB', spec: 'USB 3.0', stock: 0  },
-    ],
-  },
-  {
-    id: 4, name: '文件夹', category: '办公用品', spec: '规格: 塑料 档案夹',
-    size: '尺寸: 5cm垂', tags: ['可用库存'],
-    stock: 30, location: '备件库存', status: 'available',
-    sizes: [
-      { id: 'a4_thin',  label: 'A4 薄', spec: '2cm背宽', stock: 13 },
-      { id: 'a4_thick', label: 'A4 厚', spec: '4cm背宽', stock: 9  },
-      { id: 'a3',       label: 'A3',    spec: '2cm背宽', stock: 8  },
-    ],
-  },
-  {
-    id: 5, name: 'A4打印纸', category: '办公用品', spec: '规格: 复印纸',
-    size: '尺寸: 500张/包', tags: ['可用库存'],
-    stock: 110, location: '备件库存', status: 'available',
-    sizes: [
-      { id: '70g', label: '70g', spec: '500张/包', stock: 40 },
-      { id: '80g', label: '80g', spec: '500张/包', stock: 45 },
-      { id: '90g', label: '90g', spec: '500张/包', stock: 25 },
-    ],
-  },
-  {
-    id: 6, name: '中性笔', category: '办公用品', spec: '规格: 墨蓝/黑/红',
-    size: '尺寸: 中号', tags: ['可用库存'],
-    stock: 90, location: '备件库存', status: 'available',
-    sizes: [
-      { id: '0.5mm_blue',  label: '0.5mm 蓝', spec: '墨蓝色', stock: 30 },
-      { id: '0.5mm_black', label: '0.5mm 黑', spec: '黑色',   stock: 35 },
-      { id: '0.5mm_red',   label: '0.5mm 红', spec: '红色',   stock: 25 },
-      { id: '0.7mm_black', label: '0.7mm 黑', spec: '黑色',   stock: 0  },
-    ],
-  },
-  {
-    id: 7, name: '55', category: '电子设备', spec: '规格: 123 | 213',
-    size: '尺寸: -', tags: ['已发'],
-    stock: 0, location: '备件库存', status: 'issued',
-    sizes: [
-      { id: 's', label: 'S', spec: '小号', stock: 0 },
-      { id: 'm', label: 'M', spec: '中号', stock: 0 },
-    ],
-  },
-];
-
-// ── Convert a StoredItem → Item ───────────────────────────────────────────────
-
-const CUSTOM_ID_OFFSET = 10000;
-
-function storedToItem(s: StoredItem, index: number): Item {
-  const qty = s.quantity;
-  const thr = s.lowStockThreshold;
-  const status = qty === 0 ? 'issued' : (thr > 0 && qty <= thr ? 'low' : 'available');
-  return {
-    id: CUSTOM_ID_OFFSET + index,
-    name: s.name,
-    category: s.category,
-    spec: [
-      s.specModel && `型号: ${s.specModel}`,
-      s.unit      && `单位: ${s.unit}`,
-    ].filter(Boolean).join(' | ') || '—',
-    size: s.unit ? `单位: ${s.unit}` : '—',
-    tags: ['新上架'],
-    stock: qty,
-    location: '备件库存',
-    status,
-    image: s.image,
-    sizes: [
-      {
-        id: 'default',
-        label: s.specModel || '标准',
-        spec: s.unit || '—',
-        stock: qty,
-      },
-    ],
-    _storedId: s.id,
-  };
-}
-
-/** Merge static seed items with any items saved via ItemUpload */
-function buildAllItems(): Item[] {
-  const custom = getStoredItems().map((s, i) => storedToItem(s, i));
-  return [...STATIC_ITEMS, ...custom];
+  safe_stock: number;
 }
 
 // ── Per-item per-size stock map ───────────────────────────────────────────────
 
-type SizeStockMap = Record<number, Record<string, number>>;
-
-function initStockData(itemList: Item[]): SizeStockMap {
-  const map: SizeStockMap = {};
-  itemList.forEach(item => {
-    map[item.id] = {};
-    item.sizes.forEach(s => { map[item.id][s.id] = s.stock; });
-  });
-  return map;
-}
+type SizeStockMap = Record<string, Record<string, number>>;
 
 // ── Size Preview Grid ─────────────────────────────────────────────────────────
 
@@ -236,7 +112,7 @@ interface RestockModalProps {
   item: Item;
   sizeStock: Record<string, number>;
   onClose: () => void;
-  onConfirm: (itemId: number, sizeId: string, quantity: number) => void;
+  onConfirm: (itemId: string, sizeId: string, quantity: number) => void;
 }
 
 function RestockModal({ item, sizeStock, onClose, onConfirm }: RestockModalProps) {
@@ -244,16 +120,19 @@ function RestockModal({ item, sizeStock, onClose, onConfirm }: RestockModalProps
     item.sizes.length === 1 ? item.sizes[0] : null
   );
   const [quantity, setQuantity] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const qty        = parseInt(quantity) || 0;
   const currentQty = selectedSize ? (sizeStock[selectedSize.id] ?? selectedSize.stock) : 0;
   const afterStock = currentQty + qty;
 
-  const canConfirm = selectedSize && qty > 0;
+  const canConfirm = selectedSize && qty > 0 && !submitting;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!canConfirm) return;
-    onConfirm(item.id, selectedSize.id, qty);
+    setSubmitting(true);
+    await onConfirm(item.id, selectedSize.id, qty);
+    setSubmitting(false);
     onClose();
   };
 
@@ -339,7 +218,7 @@ function RestockModal({ item, sizeStock, onClose, onConfirm }: RestockModalProps
             className="flex-1 h-11 bg-gradient-to-r from-primary to-secondary hover:shadow-lg hover:shadow-primary/25 disabled:opacity-50 transition-all"
           >
             <PackagePlus className="w-4 h-4 mr-2" />
-            确认补货
+            {submitting ? '补货中...' : '确认补货'}
           </Button>
           <Button variant="outline" onClick={onClose} className="px-6 h-11 border-border">
             取消
@@ -356,101 +235,93 @@ export function ItemPermission() {
   const [searchQuery, setSearchQuery]   = useState('');
   const [selectedTab, setSelectedTab]   = useState('all');
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [restockedIds, setRestockedIds] = useState<number[]>([]);
+  const [restockedIds, setRestockedIds] = useState<string[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
-  const [deletedIds, setDeletedIds]     = useState<number[]>([]);
+  const [deletedIds, setDeletedIds]     = useState<string[]>([]);
+  const [loading, setLoading]           = useState(false);
 
-  // Dynamic item list (static seed + localStorage uploads)
+  // Dynamic item list from Supabase
   const [allItems, setAllItems] = useState<Item[]>([]);
-  
-  useEffect(() => {
-    const loadItems = () => {
-      try {
-        const items = getAllInventoryItems();
-        setAllItems(items || []);
-        
-        // Initialize size stock data
-        const stockMap: SizeStockMap = {};
-        items.forEach(item => {
-          stockMap[item.id] = {};
-          item.sizes.forEach(s => {
-            stockMap[item.id][s.id] = s.stock;
-          });
+
+  const loadItems = useCallback(async () => {
+    setLoading(true);
+    try {
+      const materials = await fetchMaterials();
+      const items: Item[] = materials
+        .filter(m => m.status === 'active')
+        .map(m => {
+          const hasSizes = m.sizes && m.sizes.length > 0;
+          const sizes: SizeVariant[] = hasSizes
+            ? m.sizes.map(s => ({ id: s.id, label: s.label, spec: s.spec, stock: s.stock }))
+            : [{ id: 'default', label: '标准', spec: m.specification || '', stock: m.stock }];
+
+          const totalStock = sizes.reduce((sum, s) => sum + s.stock, 0);
+          const status = totalStock === 0 ? 'issued' : (m.safe_stock > 0 && totalStock <= m.safe_stock ? 'low' : 'available');
+
+          return {
+            id: m.id,
+            name: m.name,
+            category: m.category || '未分类',
+            spec: m.specification ? `规格: ${m.specification}` : '—',
+            tags: totalStock === 0 ? ['已发'] : (m.safe_stock > 0 && totalStock <= m.safe_stock ? ['可用库存', '低库存'] : ['可用库存']),
+            stock: totalStock,
+            location: m.location || '备件库存',
+            status,
+            sizes,
+            image: m.image_url || undefined,
+            safe_stock: m.safe_stock,
+          };
         });
-        setSizeStockData(stockMap);
-      } catch (error) {
-        console.error('Failed to load inventory items:', error);
-        setAllItems([]);
-        setSizeStockData({});
-      }
-    };
-    
+      setAllItems(items);
+    } catch (error) {
+      console.error('Failed to load items:', error);
+      setAllItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
     loadItems();
-    window.addEventListener('focus', loadItems);
     window.addEventListener('inventoryUpdated', loadItems);
     return () => {
-      window.removeEventListener('focus', loadItems);
       window.removeEventListener('inventoryUpdated', loadItems);
     };
-  }, []);
+  }, [loadItems]);
 
   // Per-item per-size stock map
   const [sizeStockData, setSizeStockData] = useState<SizeStockMap>({});
 
-  // Re-read localStorage when the component mounts or the window regains focus
   const refresh = useCallback(() => {
-    const fresh = getAllInventoryItems();
-    setAllItems(fresh);
-    setSizeStockData(prev => {
-      const next = { ...prev };
-      fresh.forEach(item => {
-        if (!next[item.id]) {
-          next[item.id] = {};
-          item.sizes.forEach(s => { next[item.id][s.id] = s.stock; });
-        }
-      });
-      return next;
-    });
-  }, []);
+    loadItems();
+  }, [loadItems]);
 
-  const handleRestock = (itemId: number, sizeId: string, quantity: number) => {
-    setSizeStockData(prev => {
-      const itemSizes = { ...(prev[itemId] ?? {}) };
-      itemSizes[sizeId] = (itemSizes[sizeId] ?? 0) + quantity;
+  const handleRestock = async (itemId: string, sizeId: string, quantity: number) => {
+    const item = allItems.find(i => i.id === itemId);
+    if (!item) return;
 
-      // Calculate new total stock
-      const newTotal = Object.values(itemSizes).reduce((a, b) => a + b, 0);
-      
-      // Get the item to get its sizes
-      const item = allItems.find(i => i.id === itemId);
-      if (item) {
-        // Create updated sizes array
-        const newSizes = item.sizes.map(size => ({
-          ...size,
-          stock: itemSizes[size.id] ?? size.stock
-        }));
-        
-        // Update both total stock and size stocks using unified data source
-        updateItemStockWithSizes(itemId, newTotal, newSizes);
-      }
+    const isDefaultSize = sizeId === 'default';
+    const sizeIdOrNull = isDefaultSize ? null : sizeId;
 
-      return { ...prev, [itemId]: itemSizes };
-    });
-    setRestockedIds(prev => [...prev, itemId]);
-    setTimeout(() => {
-      setRestockedIds(prev => prev.filter(id => id !== itemId));
-    }, 3000);
+    const result = await restockMaterial(itemId, sizeIdOrNull, quantity, `${item.name} 手动补货`);
+    if (result.success) {
+      setRestockedIds(prev => [...prev, itemId]);
+      setTimeout(() => {
+        setRestockedIds(prev => prev.filter(id => id !== itemId));
+      }, 3000);
+      loadItems();
+    }
   };
 
-  const handleDelete = (itemId: number) => {
-    // Delete using unified data source
-    deleteInventoryItem(itemId);
-    
-    setDeletedIds(prev => [...prev, itemId]);
-    setTimeout(() => {
-      setDeletedIds(prev => prev.filter(id => id !== itemId));
-    }, 3000);
-    refresh();
+  const handleDelete = async (itemId: string) => {
+    const success = await deleteMaterial(itemId);
+    if (success) {
+      setDeletedIds(prev => [...prev, itemId]);
+      setTimeout(() => {
+        setDeletedIds(prev => prev.filter(id => id !== itemId));
+      }, 3000);
+      loadItems();
+    }
   };
 
   const getTotalStock = (item: Item) =>
@@ -462,30 +333,26 @@ export function ItemPermission() {
   // Merge items with same name into one item with multiple size variants
   const mergedItems = (() => {
     const itemMap = new Map<string, Item>();
-    
+
     allItems.forEach(item => {
       if (deletedIds.includes(item.id)) return;
-      
+
       const existingItem = itemMap.get(item.name);
       if (existingItem) {
-        // Merge sizes if item already exists
         const newSize: SizeVariant = {
           id: `size_${existingItem.sizes.length}`,
           label: item.spec || '默认',
           spec: item.spec || '',
-          stock: getTotalStock(item)
+          stock: getTotalStock(item),
         };
         existingItem.sizes.push(newSize);
-        
-        // If either has image, keep it
         if (item.image && !existingItem.image) {
           existingItem.image = item.image;
         }
       } else {
-        // Create new item with size array
         const newItem: Item = {
           ...item,
-          sizes: item.sizes && item.sizes.length > 0 
+          sizes: item.sizes && item.sizes.length > 0
             ? [...item.sizes]
             : [{
                 id: 'default',
@@ -497,7 +364,7 @@ export function ItemPermission() {
         itemMap.set(item.name, newItem);
       }
     });
-    
+
     return Array.from(itemMap.values());
   })();
 
@@ -533,12 +400,6 @@ export function ItemPermission() {
           <p className="text-muted-foreground mt-1">查看库存状态并对不足物品进行补货操作</p>
         </div>
         <div className="flex items-center gap-3">
-          {customCount > 0 && (
-            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/8 border border-primary/20">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm text-primary font-medium">{customCount} 件新上架</span>
-            </div>
-          )}
           {lowStockCount > 0 && (
             <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/8 border border-amber-500/20">
               <AlertTriangle className="w-4 h-4 text-amber-600" />
@@ -549,8 +410,9 @@ export function ItemPermission() {
             variant="outline"
             className="gap-2 h-10 border-border"
             onClick={refresh}
+            disabled={loading}
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             刷新
           </Button>
         </div>
@@ -579,7 +441,6 @@ export function ItemPermission() {
             { key: 'all',         label: `全部物资 (${allItems.length})` },
             { key: 'office',      label: `办公用品 (${officeCount})`      },
             { key: 'electronics', label: `电子设备 (${electronicsCount})` },
-            ...(customCount > 0 ? [{ key: 'custom', label: `新上架 (${customCount})` }] : []),
           ].map(tab => (
             <button
               key={tab.key}
@@ -597,7 +458,7 @@ export function ItemPermission() {
       </Card>
 
       {/* Empty state */}
-      {filteredItems.length === 0 && (
+      {filteredItems.length === 0 && !loading && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
             <Package className="w-8 h-8 text-muted-foreground/50" />
@@ -611,13 +472,22 @@ export function ItemPermission() {
         </div>
       )}
 
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center gap-3 text-muted-foreground">
+            <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+            <span>加载中...</span>
+          </div>
+        </div>
+      )}
+
       {/* Items Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filteredItems.map(item => {
           const totalStock  = getTotalStock(item);
           const hasLow      = isAnyLow(item);
           const isRestocked = restockedIds.includes(item.id);
-          const isCustom    = item.tags && item.tags.includes('新上架');
           const emptySizes  = item.sizes.filter(s => (sizeStockData[item.id]?.[s.id] ?? s.stock) === 0);
           const lowSizes    = item.sizes.filter(s => {
             const q = sizeStockData[item.id]?.[s.id] ?? s.stock;
@@ -627,9 +497,7 @@ export function ItemPermission() {
           return (
             <Card
               key={item.id}
-              className={`p-5 border-border hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group flex flex-col ${
-                isCustom ? 'ring-1 ring-primary/20 border-primary/30' : ''
-              }`}
+              className={`p-5 border-border hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group flex flex-col`}
             >
               {/* Thumbnail */}
               <div className="relative w-full h-32 rounded-xl bg-gradient-to-br from-primary/5 to-secondary/5 flex items-center justify-center mb-4 border border-primary/10 group-hover:border-primary/20 transition-all overflow-hidden flex-shrink-0">
@@ -653,8 +521,8 @@ export function ItemPermission() {
                       className={`text-xs font-medium border ${
                         tag === '已发'
                           ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
-                          : tag === '新上架'
-                          ? 'bg-primary/10 text-primary border-primary/20'
+                          : tag === '低库存'
+                          ? 'bg-amber-500/10 text-amber-700 border-amber-500/20'
                           : 'bg-secondary/10 text-secondary border-secondary/20'
                       }`}
                     >
@@ -782,9 +650,7 @@ export function ItemPermission() {
                 即将删除 <span className="text-foreground font-medium">{deleteTarget.name}</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                {deleteTarget._storedId
-                  ? '此操作将从系统中永久移除该物品，不可恢复。'
-                  : '此为系统预置物品，将从当前视图中隐藏。'}
+                此操作将从系统中软删除该物品（标记为停用）。
               </p>
             </div>
             <div className="flex gap-3 px-6 pb-6">

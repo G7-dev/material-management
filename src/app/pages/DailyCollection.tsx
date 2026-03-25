@@ -11,7 +11,7 @@ import { Badge } from '../components/ui/badge';
 import { EnhancedSelect } from '../components/ui/enhanced-select';
 import { DatePicker } from '../components/ui/date-picker';
 import { saveApplicationRecord } from '../utils/applicationStore';
-import { getAllInventoryItems, updateItemStock, updateItemStockWithSizes, type UnifiedInventoryItem } from '../data/unifiedInventoryData';
+import { fetchMaterials, type Material } from '../utils/materialsDB';
 
 // ── Size / Spec variant ───────────────────────────────────────────────────────
 interface SizeVariant {
@@ -22,7 +22,7 @@ interface SizeVariant {
 }
 
 interface DisplayItem {
-  id: number;
+  id: string;
   name: string;
   category: string;
   specModel: string;
@@ -32,6 +32,7 @@ interface DisplayItem {
   expiry: string;
   notes: string;
   sizes?: SizeVariant[];
+  image?: string;
 }
 
 // ── Departments ───────────────────────────────────────────────────────────────
@@ -88,7 +89,7 @@ function ApplyModal({
     maxStock > 0 &&
     (!hasSizes || selectedSize);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     
@@ -109,8 +110,8 @@ function ApplyModal({
       hour12: false
     }).replace(/\//g, '-');
     
-    // Save application record (do NOT deduct stock here - wait for approval)
-    saveApplicationRecord({
+    // Save application record to Supabase (do NOT deduct stock here - wait for approval)
+    await saveApplicationRecord({
       itemId: item.id,
       itemName: item.name + (selectedSize ? ` (${selectedSize.label})` : ''),
       quantity,
@@ -121,6 +122,7 @@ function ApplyModal({
       department,
       employeeId: employeeId.trim(),
       expectedDate: formattedExpectedDate,
+      sizeLabel: selectedSize?.label,
     });
     
     setTimeout(() => {
@@ -505,19 +507,20 @@ export function DailyCollection() {
   const [applyItem, setApplyItem] = useState<DisplayItem | null>(null);
   const [toast, setToast] = useState('');
 
-  const loadItems = () => {
-    const inventoryItems = getAllInventoryItems();
-    const displayItems: DisplayItem[] = inventoryItems.map(item => ({
-      id: item.id,
-      name: item.name,
-      category: item.category,
-      specModel: item.spec,
-      unit: item.unit,
-      quantity: item.stock,
-      lowStockThreshold: item.threshold,
-      expiry: item.lastRestock,
+  const loadItems = async () => {
+    const materials = await fetchMaterials();
+    const displayItems: DisplayItem[] = materials.map(m => ({
+      id: m.id,
+      name: m.name,
+      category: m.category,
+      specModel: m.specification || '',
+      unit: m.unit,
+      quantity: m.stock,
+      lowStockThreshold: m.safe_stock,
+      expiry: m.updated_at,
       notes: '',
-      sizes: item.sizes
+      sizes: m.sizes,
+      image: m.image_url || undefined,
     }));
     setItems(displayItems);
   };

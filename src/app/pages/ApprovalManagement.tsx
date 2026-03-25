@@ -19,8 +19,8 @@ import {
   updateApplicationStatus,
   type ApplicationRecord,
 } from '../utils/applicationStore';
-import { getAllInventoryItems, updateItemStock } from '../data/unifiedInventoryData';
 import { supabase } from '../../lib/supabase';
+import { fetchMaterials, requestMaterialOut } from '../utils/materialsDB';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ApprovalStatus = 'pending' | 'approved' | 'rejected';
@@ -44,9 +44,9 @@ interface Approval {
 
 const STORAGE_KEY = 'approval_management_data';
 
-function loadApprovals(): Approval[] {
-  // Load from shared applicationStore and convert
-  const appRecords = getApplicationRecords();
+async function loadApprovals(): Promise<Approval[]> {
+  // Load from Supabase-backed applicationStore
+  const appRecords = await getApplicationRecords();
   const fromApp: Approval[] = appRecords.map((r) => ({
     id: r.id,
     applicant: r.applicant || '用户',
@@ -267,8 +267,8 @@ export function ApprovalManagement() {
   // Load approvals from localStorage and archived requisitions from Supabase
   useEffect(() => {
     const loadData = async () => {
-      // Load from localStorage (daily collection applications)
-      const localApprovals = loadApprovals();
+      // Load from Supabase-backed applicationStore (daily collection applications)
+      const localApprovals = await loadApprovals();
       setApprovals(localApprovals);
       
       // Load archived requisitions from Supabase
@@ -334,23 +334,19 @@ export function ApprovalManagement() {
         const baseItemName = approval.itemName.split(' (')[0];
         
         // 查找对应的库存物品
-        const inventoryItems = getAllInventoryItems();
-        const targetItem = inventoryItems.find(item => 
-          item.name === baseItemName
-        );
+        const materials = await fetchMaterials();
+        const targetItem = materials.find(m => m.name === baseItemName);
         
         if (targetItem) {
-          // 减少库存数量
-          const currentStock = targetItem.stock;
+          // 使用 materialsDB 扣减库存
           const requestQuantity = parseInt(approval.quantity) || 0;
-          const newStock = Math.max(0, currentStock - requestQuantity);
-          
-          if (newStock === 0) {
-            console.log(`物品 ${targetItem.name} 库存已耗尽`);
-          }
-          
-          // 更新库存
-          updateItemStock(targetItem.id, newStock);
+          await requestMaterialOut(
+            targetItem.id,
+            null, // sizeId
+            requestQuantity,
+            approval.id, // referenceId
+            `审批通过：${approval.applicant} 领用 ${baseItemName} ${requestQuantity} ${targetItem.unit}`
+          );
         } else {
           console.warn(`未找到库存物品: ${baseItemName}`);
         }
@@ -372,7 +368,7 @@ export function ApprovalManagement() {
       console.error('批准操作失败:', error);
       alert('批准失败：' + (error instanceof Error ? error.message : '未知错误'));
       // 恢复状态 - 重新加载数据
-      const localApprovals = loadApprovals();
+      const localApprovals = await loadApprovals();
       setApprovals(localApprovals);
     }
   };
@@ -399,7 +395,7 @@ export function ApprovalManagement() {
       console.error('驳回操作失败:', error);
       alert('驳回失败：' + (error instanceof Error ? error.message : '未知错误'));
       // 恢复状态 - 重新加载数据
-      const localApprovals = loadApprovals();
+      const localApprovals = await loadApprovals();
       setApprovals(localApprovals);
     }
   };

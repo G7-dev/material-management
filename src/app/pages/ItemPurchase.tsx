@@ -11,7 +11,6 @@ import { EnhancedSelect } from '../components/ui/enhanced-select';
 import { DatePicker } from '../components/ui/date-picker';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import { saveApplicationRecord } from '../utils/applicationStore';
 
 export function ItemPurchase() {
   const navigate = useNavigate();

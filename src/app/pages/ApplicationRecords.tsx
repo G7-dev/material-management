@@ -38,8 +38,9 @@ export function ApplicationRecords() {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      // Load local application records
-      setRecords(getApplicationRecords());
+      // Load application records from Supabase
+      const appRecords = await getApplicationRecords();
+      setRecords(appRecords);
       
       // Load purchase requisitions from Supabase
       try {
@@ -130,10 +131,11 @@ export function ApplicationRecords() {
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     // 删除申请记录
-    deleteApplicationRecord(id);
-    setRecords(getApplicationRecords());
+    await deleteApplicationRecord(id);
+    const appRecords = await getApplicationRecords();
+    setRecords(appRecords);
     toast.success('申请单已删除');
   };
 

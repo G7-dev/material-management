@@ -5,8 +5,6 @@ import { format, subMonths, isWithinInterval, parseISO } from 'date-fns';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { getApplicationRecords } from '../utils/applicationStore';
-import { getAllInventoryItems } from '../data/unifiedInventoryData';
-import type { ApplicationRecord } from '../utils/applicationStore';
 import { supabase } from '../../lib/supabase';
 
 const quickActions = [
@@ -15,10 +13,9 @@ const quickActions = [
   { label: '查看记录', subLabel: '历史记录', icon: Calendar, color: 'text-cyan-600', bgColor: 'bg-cyan-500/5', path: '/application-records' },
 ];
 
-const recentApplications = [
-  { id: 1, item: '订书机', quantity: 1, status: 'pending', date: '2026/3/17', type: '日常领用' },
-  { id: 2, item: '生成申购单', quantity: 1, status: 'waiting', date: '2026/3/18', type: '物品申购' },
-];
+  const [recentApplications, setRecentApplications] = useState<Array<{
+    id: string; item: string; quantity: number; status: string; date: string; type: string;
+  }>>([]);
 
 
 
@@ -49,7 +46,7 @@ export function Dashboard() {
   // 加载实时统计数据和近一个月领用排行
   useEffect(() => {
     const loadStats = async () => {
-      const records = getApplicationRecords();
+      const records = await getApplicationRecords();
       
       // 计算各状态数量
       const pendingCount = records.filter(r => r.status === 'pending').length;
@@ -73,6 +70,17 @@ export function Dashboard() {
         { label: '已通过', value: String(approvedCount), icon: CheckCircle, color: 'text-purple-600', bgColor: 'bg-purple-500/5', change: `+${approvedCount}%` },
         { label: '待签收', value: String(pendingCount), icon: Clock, color: 'text-amber-600', bgColor: 'bg-amber-500/5', change: `+${pendingCount}%` },
       ]);
+
+      // 加载最近申请记录（动态数据）
+      const recent = records.slice(0, 5).map(r => ({
+        id: r.id,
+        item: r.itemName,
+        quantity: r.quantity,
+        status: r.status,
+        date: r.applicationDate,
+        type: r.applicationType,
+      }));
+      setRecentApplications(recent);
 
       // 加载近一个月领用排行
       try {

@@ -14,8 +14,8 @@ import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { EnhancedSelect } from '../components/ui/enhanced-select';
 import { DatePicker } from '../components/ui/date-picker';
-import { saveStoredItem } from '../utils/itemStore';
-import { getAllInventoryItems } from '../data/unifiedInventoryData';
+import { addMaterial, fetchMaterials } from '../utils/materialsDB';
+import type { Material } from '../utils/materialsDB';
 
 const tips = [
   { icon: ImageIcon, text: '建议上传清晰正面图，分辨率不低于 800×800px' },
@@ -329,6 +329,12 @@ export function ItemUpload() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const nameInputRef = useRef<HTMLDivElement>(null);
+  const [allMaterials, setAllMaterials]   = useState<Material[]>([]);
+
+  // 加载所有物资用于自动填充和建议
+  useEffect(() => {
+    fetchMaterials().then(setAllMaterials);
+  }, []);
 
   const completedFields = Object.values(formData).filter(v => v.trim() !== '').length;
   const totalFields     = Object.keys(formData).length;
@@ -340,9 +346,8 @@ export function ItemUpload() {
       
       // Auto-fill category and unit if name matches existing item
       if (key === 'name' && value) {
-        const existingItems = getAllInventoryItems();
-        const matchedItem = existingItems.find(item => 
-          item.name.toLowerCase() === value.toLowerCase()
+        const matchedItem = allMaterials.find(m => 
+          m.name.toLowerCase() === value.toLowerCase()
         );
         
         if (matchedItem) {
@@ -362,11 +367,10 @@ export function ItemUpload() {
 
   const getNameSuggestions = () => {
     if (!formData.name) return [];
-    const existingItems = getAllInventoryItems();
-    return existingItems
-      .filter(item => 
-        item.name.toLowerCase().includes(formData.name.toLowerCase()) &&
-        item.name.toLowerCase() !== formData.name.toLowerCase()
+    return allMaterials
+      .filter(m => 
+        m.name.toLowerCase().includes(formData.name.toLowerCase()) &&
+        m.name.toLowerCase() !== formData.name.toLowerCase()
       )
       .slice(0, 5);
   };
@@ -389,10 +393,9 @@ export function ItemUpload() {
     if (!requiredFilled || isUploading) return;
     
     // Check for duplicates (name + specModel)
-    const existingItems = getAllInventoryItems();
-    const isDuplicate = existingItems.some(item => 
-      item.name.toLowerCase() === formData.name.toLowerCase() &&
-      item.spec.toLowerCase() === formData.specModel.toLowerCase()
+    const isDuplicate = allMaterials.some(m => 
+      m.name.toLowerCase() === formData.name.toLowerCase() &&
+      (m.specification || '').toLowerCase() === formData.specModel.toLowerCase()
     );
     
     if (isDuplicate) {
@@ -401,20 +404,21 @@ export function ItemUpload() {
     }
     
     setIsUploading(true);
-    await new Promise(r => setTimeout(r, 1600));
 
-    // Persist to shared localStorage store so 物品补货 can read it
-    saveStoredItem({
+    const newId = await addMaterial({
       name: formData.name,
       category: formData.category,
-      specModel: formData.specModel,
+      specification: formData.specModel,
       unit: formData.unit,
-      quantity: parseInt(formData.quantity) || 0,
-      lowStockThreshold: parseInt(formData.lowStockThreshold) || 0,
-      expiry: formData.expiry,
-      notes: formData.notes,
-      image: previewImage ?? undefined,
+      stock: parseInt(formData.quantity) || 0,
+      safe_stock: parseInt(formData.lowStockThreshold) || 0,
     });
+
+    // 刷新缓存
+    if (newId) {
+      const refreshed = await fetchMaterials();
+      setAllMaterials(refreshed);
+    }
 
     setIsUploading(false);
     setSavedItem({ ...formData });
