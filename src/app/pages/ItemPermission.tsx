@@ -254,7 +254,7 @@ export function ItemPermission() {
           const hasSizes = m.sizes && m.sizes.length > 0;
           const sizes: SizeVariant[] = hasSizes
             ? m.sizes.map(s => ({ id: s.id, label: s.label, spec: s.spec, stock: s.stock }))
-            : [{ id: 'default', label: '标准', spec: m.specification || '', stock: m.stock }];
+            : [{ id: 'default', label: m.specification || '标准', spec: m.specification || '', stock: m.stock }];
 
           const totalStock = sizes.reduce((sum, s) => sum + s.stock, 0);
           const status = totalStock === 0 ? 'issued' : (m.safe_stock > 0 && totalStock <= m.safe_stock ? 'low' : 'available');
@@ -341,10 +341,14 @@ export function ItemPermission() {
 
       const existingItem = itemMap.get(item.name);
       if (existingItem) {
+        // 从 specification 字段提取实际规格名
+        const specLabel = item.spec !== '—' && item.spec.startsWith('规格: ')
+          ? item.spec.replace('规格: ', '')
+          : item.spec !== '—' ? item.spec : '默认';
         const newSize: SizeVariant = {
           id: `size_${existingItem.sizes.length}`,
-          label: item.spec || '默认',
-          spec: item.spec || '',
+          label: specLabel,
+          spec: specLabel,
           stock: getTotalStock(item),
         };
         existingItem.sizes.push(newSize);
@@ -352,14 +356,17 @@ export function ItemPermission() {
           existingItem.image = item.image;
         }
       } else {
+        const specLabel = item.spec !== '—' && item.spec.startsWith('规格: ')
+          ? item.spec.replace('规格: ', '')
+          : item.spec !== '—' ? item.spec : '默认';
         const newItem: Item = {
           ...item,
           sizes: item.sizes && item.sizes.length > 0
             ? [...item.sizes]
             : [{
                 id: 'default',
-                label: item.spec || '默认',
-                spec: item.spec || '',
+                label: specLabel,
+                spec: specLabel,
                 stock: getTotalStock(item)
               }]
         };
