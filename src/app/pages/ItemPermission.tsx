@@ -566,11 +566,6 @@ export function ItemPermission() {
                   <p className="text-xs text-muted-foreground">{item.category} {item.item_code && <span className="text-primary/70">· {item.item_code}</span>}</p>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">{item.spec}</p>
-                  {item.unit_price > 0 && <p className="text-xs font-semibold text-primary">¥{item.unit_price}</p>}
-                </div>
-
                 {/* Mini size stock pills */}
                 <div className="flex flex-wrap gap-1">
                   {item.sizes.slice(0, 4).map(sv => {
@@ -589,7 +584,7 @@ export function ItemPermission() {
                         <span className={`w-1 h-1 rounded-full ${
                           isEmpty ? 'bg-red-500' : isLow ? 'bg-amber-500' : 'bg-emerald-500'
                         }`} />
-                        {sv.label} {qty}
+                        {sv.label} {qty} 件
                       </span>
                     );
                   })}

@@ -877,7 +877,9 @@ export function LowStockAlert() {
                                 <span className="w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0" title="已编辑" />
                               )}
                             </div>
-                            <p className="text-xs text-muted-foreground">{item.category}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {item.category} {item.spec && item.spec !== '—' && <span className="ml-1">· {item.spec}</span>}
+                            </p>
                           </div>
                         </div>
                       </td>
