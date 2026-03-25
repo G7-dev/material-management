@@ -89,6 +89,13 @@ function ApplyModal({
     maxStock > 0 &&
     (!hasSizes || selectedSize);
 
+  // 如果没有多规格但有sizes数组（合并后的单规格），自动选中第一个
+  useEffect(() => {
+    if (hasSizes && item.sizes!.length === 1 && !selectedSize) {
+      setSelectedSize(item.sizes![0]);
+    }
+  }, [hasSizes, item.sizes, selectedSize]);
+
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
@@ -509,20 +516,57 @@ export function DailyCollection() {
 
   const loadItems = async () => {
     const materials = await fetchMaterials();
-    const displayItems: DisplayItem[] = materials.map(m => ({
-      id: m.id,
-      name: m.name,
-      category: m.category,
-      specModel: m.specification || '',
-      unit: m.unit,
-      quantity: m.stock,
-      lowStockThreshold: m.safe_stock,
-      expiry: m.updated_at,
-      notes: '',
-      sizes: m.sizes,
-      image: m.image_url || undefined,
-    }));
-    setItems(displayItems);
+    
+    // 先创建所有物品的基础列表
+    const rawItems: DisplayItem[] = materials.map(m => {
+      const hasSizes = m.sizes && m.sizes.length > 0;
+      return {
+        id: m.id,
+        name: m.name,
+        category: m.category,
+        specModel: m.specification || '',
+        unit: m.unit,
+        quantity: m.stock,
+        lowStockThreshold: m.safe_stock,
+        expiry: m.updated_at,
+        notes: '',
+        sizes: hasSizes ? m.sizes : [{ id: 'default', label: m.specification || '标准', spec: m.specification || '', stock: m.stock }],
+        image: m.image_url || undefined,
+      };
+    });
+    
+    // 合并同名物品
+    const itemMap = new Map<string, DisplayItem>();
+    
+    rawItems.forEach(item => {
+      const existingItem = itemMap.get(item.name);
+      if (existingItem) {
+        // 合并规格
+        if (item.sizes && item.sizes.length > 0) {
+          item.sizes.forEach(size => {
+            // 如果是单规格（default），使用specModel作为label
+            const sizeLabel = size.id === 'default' ? item.specModel || '默认' : size.label;
+            existingItem.sizes!.push({
+              id: size.id === 'default' ? `size_${existingItem.sizes!.length}` : size.id,
+              label: sizeLabel,
+              spec: size.spec,
+              stock: size.stock,
+            });
+          });
+        }
+        // 更新总库存
+        existingItem.quantity += item.quantity;
+        // 如果有图片且原物品没有图片，复制图片
+        if (item.image && !existingItem.image) {
+          existingItem.image = item.image;
+        }
+      } else {
+        // 新物品
+        itemMap.set(item.name, { ...item });
+      }
+    });
+    
+    setItems(Array.from(itemMap.values()));
   };
 
   useEffect(() => {
