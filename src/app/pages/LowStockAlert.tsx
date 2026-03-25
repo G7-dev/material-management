@@ -30,8 +30,11 @@ interface ItemOverride {
   unit?: string;
 }
 
-// 兼容性修复：Cloudflare Workers 自动注入
+// 兼容性修复：Cloudflare Workers 自动注入变量可能缺失
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const itemOverrides: Record<string, ItemOverride> = {};
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const stockData: Record<string, number> = {};
 
 // ── Restock Modal ─────────────────────────────────────────────────────────────
 interface RestockModalProps {
