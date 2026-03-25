@@ -238,7 +238,7 @@ export function ItemPurchase() {
   };
 
   return (
-    <div className="p-8 space-y-6 max-w-4xl">
+    <div className="p-8 space-y-6 max-w-2xl mx-auto">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-semibold text-foreground flex items-center gap-3">
