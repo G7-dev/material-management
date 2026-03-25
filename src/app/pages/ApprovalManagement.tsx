@@ -682,6 +682,7 @@ export function ApprovalManagement() {
             ))}
           </div>
         ) : (
+        <>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -790,6 +791,7 @@ export function ApprovalManagement() {
             <span className="text-sm text-muted-foreground ml-2">/ 10 条/页</span>
           </div>
         </div>
+        </>
         )}
       </Card>
 
