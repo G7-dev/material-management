@@ -25,6 +25,9 @@ const CATEGORY_COLOR: Record<string, string> = {
 
 export function Dashboard() {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [recentApplications, setRecentApplications] = useState<Array<{
+    id: string; item: string; quantity: number; status: string; date: string; type: string;
+  }>>([]);
   const navigate = useNavigate();
   const [stats, setStats] = useState([
     { label: '当前领用', value: '0', icon: ShoppingBag, color: 'text-primary', bgColor: 'bg-primary/5', change: '+0%' },
