@@ -18,6 +18,7 @@ import { getApplicationRecords } from '../utils/applicationStore';
 import { supabase } from '../../lib/supabase';
 import { fetchMaterials } from '../utils/materialsDB';
 import { toast } from 'sonner';
+import { getCache, setCache } from '../utils/cache';
 
 interface NavItem {
   name: string;
@@ -124,23 +125,31 @@ export function Sidebar() {
     return () => clearInterval(interval);
   }, []);
 
-  // Get user role and name
+  // Get user role and name (with cache)
   useEffect(() => {
     const getUserInfo = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          // 先用缓存快速渲染
+          const cached = getCache<{ role: string | null; name: string }>('user_info');
+          if (cached) {
+            setUserRole(cached.role);
+            setUserName(cached.name);
+            setIsLoading(false);
+          }
+
           const { data: profile } = await supabase
             .from('profiles')
             .select('role, full_name, username')
             .eq('id', user.id)
             .single();
           
-          setUserRole(profile?.role || null);
-          
-          // Set user name: full_name > username > '当前用户'
+          const role = profile?.role || null;
           const name = profile?.full_name || profile?.username || '当前用户';
+          setUserRole(role);
           setUserName(name);
+          setCache('user_info', { role, name }, 10 * 60 * 1000);
         }
       } catch (error) {
         console.error('Failed to get user info:', error);
@@ -228,12 +237,14 @@ export function Sidebar() {
 
       {/* Navigation */}
       {isLoading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <div className="w-4 h-4 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-            <span className="text-sm">加载中...</span>
-          </div>
-        </div>
+        <nav className="flex-1 p-4 space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+              <div className="w-4 h-4 rounded bg-muted/60 animate-pulse" />
+              <div className={`h-3.5 rounded bg-muted/60 animate-pulse ${i === 0 ? 'w-24' : i === 1 ? 'w-20' : 'w-16'}`} />
+            </div>
+          ))}
+        </nav>
       ) : (
         <nav className="flex-1 p-4 overflow-y-auto">
           <div className="mb-2 px-3">

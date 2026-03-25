@@ -481,13 +481,21 @@ export function ItemPermission() {
         </div>
       )}
 
-      {/* Loading */}
+      {/* Skeleton Loading */}
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="flex items-center gap-3 text-muted-foreground">
-            <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-            <span>加载中...</span>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Card key={i} className="p-5 border-border animate-pulse">
+              <div className="w-full h-32 rounded-xl bg-muted/50 mb-4" />
+              <div className="h-4 w-24 rounded bg-muted/50 mb-2" />
+              <div className="h-3 w-32 rounded bg-muted/40 mb-3" />
+              <div className="space-y-2 mb-4">
+                <div className="h-3 w-20 rounded bg-muted/40" />
+                <div className="h-3 w-16 rounded bg-muted/40" />
+              </div>
+              <div className="h-9 w-full rounded-lg bg-muted/40" />
+            </Card>
+          ))}
         </div>
       )}
 

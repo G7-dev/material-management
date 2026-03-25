@@ -513,8 +513,10 @@ export function DailyCollection() {
   const [items, setItems] = useState<DisplayItem[]>([]);
   const [applyItem, setApplyItem] = useState<DisplayItem | null>(null);
   const [toast, setToast] = useState('');
+  const [dataLoading, setDataLoading] = useState(true);
 
   const loadItems = async () => {
+    setDataLoading(true);
     const materials = await fetchMaterials();
     
     // 先创建所有物品的基础列表
@@ -567,6 +569,7 @@ export function DailyCollection() {
     });
     
     setItems(Array.from(itemMap.values()));
+    setDataLoading(false);
   };
 
   useEffect(() => {
@@ -691,8 +694,27 @@ export function DailyCollection() {
         </div>
       </Card>
 
+      {/* Skeleton Loading */}
+      {dataLoading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="rounded-2xl border border-border/60 overflow-hidden">
+              <div className="w-full h-40 bg-muted/40 animate-pulse" />
+              <div className="p-4 space-y-3">
+                <div className="h-4 w-28 rounded bg-muted/50 animate-pulse" />
+                <div className="h-3 w-36 rounded bg-muted/40 animate-pulse" />
+                <div className="flex items-center justify-between">
+                  <div className="h-3 w-16 rounded bg-muted/40 animate-pulse" />
+                  <div className="h-9 w-24 rounded-xl bg-muted/40 animate-pulse" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Empty */}
-      {filtered.length === 0 && (
+      {!dataLoading && filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-100/50 to-purple-100/50 flex items-center justify-center mb-5 shadow-sm border border-indigo-100/40">
             <Package className="w-10 h-10 text-indigo-300" />

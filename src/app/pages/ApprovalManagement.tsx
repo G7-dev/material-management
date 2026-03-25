@@ -270,6 +270,7 @@ export function ApprovalManagement() {
   const [viewingItem, setViewingItem]     = useState<Approval | null>(null);
   const [activeTab, setActiveTab]         = useState<ApprovalStatus | 'all'>('pending');
   const [search, setSearch]               = useState('');
+  const [dataLoading, setDataLoading]     = useState(true);
   const [filters, setFilters]             = useState({
     applicant: '',
     itemName: '',
@@ -286,6 +287,7 @@ export function ApprovalManagement() {
   // Load approvals from localStorage and archived requisitions from Supabase
   useEffect(() => {
     const loadData = async () => {
+      setDataLoading(true);
       // Load from Supabase-backed applicationStore (daily collection applications)
       const localApprovals = await loadApprovals();
       setApprovals(localApprovals);
@@ -322,6 +324,7 @@ export function ApprovalManagement() {
       } catch (error) {
         console.error('Failed to load archived requisitions:', error);
       }
+      setDataLoading(false);
     };
 
     loadData();
@@ -647,6 +650,38 @@ export function ApprovalManagement() {
 
       {/* Approval Table */}
       <Card className="border-border bg-white overflow-hidden">
+        {dataLoading ? (
+          <div className="p-6 space-y-4">
+            {/* Skeleton header row */}
+            <div className="grid grid-cols-14 gap-3">
+              {Array.from({ length: 14 }).map((_, i) => (
+                <div key={i} className="h-3 rounded bg-muted/50 animate-pulse" />
+              ))}
+            </div>
+            {/* Skeleton data rows */}
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="grid grid-cols-14 gap-3 py-4 border-t border-border/30">
+                <div className="h-4 w-6 rounded bg-muted/40 animate-pulse mx-auto" />
+                <div className="space-y-1.5">
+                  <div className="h-3.5 w-16 rounded bg-muted/50 animate-pulse" />
+                  <div className="h-2.5 w-10 rounded bg-muted/40 animate-pulse" />
+                </div>
+                <div className="h-3.5 w-12 rounded bg-muted/40 animate-pulse mx-auto" />
+                <div className="h-6 w-16 rounded-md bg-muted/40 animate-pulse mx-auto" />
+                <div className="h-3 w-10 rounded bg-muted/40 animate-pulse mx-auto" />
+                <div className="h-3.5 w-20 rounded bg-muted/40 animate-pulse mx-auto" />
+                <div className="h-3 w-10 rounded bg-muted/40 animate-pulse mx-auto" />
+                <div className="h-3 w-12 rounded bg-muted/40 animate-pulse mx-auto" />
+                <div className="h-3 w-24 rounded bg-muted/40 animate-pulse mx-auto" />
+                <div className="h-5 w-16 rounded-md bg-muted/40 animate-pulse mx-auto" />
+                <div className="h-3 w-16 rounded bg-muted/40 animate-pulse mx-auto" />
+                <div className="h-3 w-16 rounded bg-muted/40 animate-pulse mx-auto" />
+                <div className="h-8 w-8 rounded-lg bg-muted/40 animate-pulse mx-auto" />
+                <div className="h-6 w-14 rounded-md bg-muted/40 animate-pulse mx-auto" />
+              </div>
+            ))}
+          </div>
+        ) : (
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -755,6 +790,7 @@ export function ApprovalManagement() {
             <span className="text-sm text-muted-foreground ml-2">/ 10 条/页</span>
           </div>
         </div>
+        )}
       </Card>
 
       {/* ── Modals ── */}

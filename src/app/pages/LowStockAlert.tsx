@@ -829,7 +829,34 @@ export function LowStockAlert() {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
+        {loading ? (
+          <div className="space-y-3 px-2">
+            <div className="grid grid-cols-8 gap-4 mb-2">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-3 w-full rounded bg-muted/50 animate-pulse" />
+              ))}
+            </div>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="grid grid-cols-8 gap-4 py-4 border-b border-border/50">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-muted/40 animate-pulse flex-shrink-0" />
+                  <div className="space-y-1.5">
+                    <div className="h-3.5 w-20 rounded bg-muted/50 animate-pulse" />
+                    <div className="h-2.5 w-14 rounded bg-muted/40 animate-pulse" />
+                  </div>
+                </div>
+                <div className="h-3 w-12 rounded bg-muted/40 animate-pulse self-center" />
+                <div className="h-5 w-10 rounded bg-muted/40 animate-pulse self-center" />
+                <div className="h-3 w-10 rounded bg-muted/40 animate-pulse self-center" />
+                <div className="h-2 w-24 rounded-full bg-muted/40 animate-pulse self-center" />
+                <div className="h-5 w-14 rounded-md bg-muted/40 animate-pulse self-center" />
+                <div className="h-3 w-16 rounded bg-muted/40 animate-pulse self-center" />
+                <div className="h-8 w-16 rounded-lg bg-muted/40 animate-pulse self-center" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-muted/30 border-b border-border">
@@ -976,6 +1003,7 @@ export function LowStockAlert() {
             </tbody>
           </table>
         </div>
+        )}
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-border bg-muted/20 flex items-center justify-between">

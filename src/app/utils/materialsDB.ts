@@ -1,6 +1,7 @@
 // 物资数据库操作工具函数
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+import { getCache, setCache, invalidateMaterialCache } from './cache';
 
 // 规格接口
 export interface MaterialSize {
@@ -50,8 +51,14 @@ export interface InventoryLog {
 // 库存状态类型
 export type StockSeverity = 'empty' | 'critical' | 'warning' | 'normal';
 
-// 获取所有物资（带库存状态）
-export async function fetchMaterials(): Promise<Material[]> {
+// 获取所有物资（带库存状态和缓存）
+export async function fetchMaterials(useCache = true): Promise<Material[]> {
+  // 优先使用缓存
+  if (useCache) {
+    const cached = getCache<Material[]>('materials');
+    if (cached) return cached;
+  }
+
   try {
     const { data, error } = await supabase
       .from('materials')
@@ -64,7 +71,10 @@ export async function fetchMaterials(): Promise<Material[]> {
       return [];
     }
 
-    return data || [];
+    const result = data || [];
+    // 写入缓存
+    setCache('materials', result);
+    return result;
   } catch (error) {
     console.error('获取物资异常:', error);
     toast.error('获取物资数据异常');
@@ -264,6 +274,9 @@ export async function updateMaterialStock(
       
       // 触发库存更新事件
       window.dispatchEvent(new CustomEvent('inventoryUpdated'));
+
+      // 清除缓存，下次获取会从数据库拉最新数据
+      invalidateMaterialCache();
       
       return {
         success: true,
