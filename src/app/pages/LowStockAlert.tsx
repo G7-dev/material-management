@@ -682,45 +682,14 @@ export function LowStockAlert() {
 
   const alertCount = counts.empty + counts.critical + counts.warning;
 
-  // Merge items with same name into one entry with combined sizes
-  const merged = useMemo(() => {
-    const itemMap = new Map<string, MaterialWithStatus>();
-
-    enriched.forEach(item => {
-      const existing = itemMap.get(item.name);
-      if (existing) {
-        // 合并 sizes：把当前物品的 sizes 添加到已有物品
-        const newSizes = [...(existing.sizes || [])];
-        (item.sizes || []).forEach(size => {
-          if (!newSizes.find(s => s.id === size.id)) {
-            newSizes.push(size);
-          }
-        });
-        existing.sizes = newSizes;
-        // 合并库存
-        existing.currentStock += item.currentStock;
-        existing.stock += item.stock;
-        // 取更严重的等级
-        const severityOrder = ['empty', 'critical', 'warning', 'normal'];
-        if (severityOrder.indexOf(item.severity) < severityOrder.indexOf(existing.severity)) {
-          existing.severity = item.severity;
-        }
-      } else {
-        itemMap.set(item.name, { ...item, sizes: [...(item.sizes || [])] });
-      }
-    });
-
-    return Array.from(itemMap.values());
-  }, [enriched]);
-
   const filtered = useMemo(() =>
-    merged.filter(item => {
+    enriched.filter(item => {
       const q = search.toLowerCase();
       const matchSearch = item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q);
       const matchTab    = activeTab === 'all' || item.severity === activeTab;
       return matchSearch && matchTab;
     }),
-    [merged, search, activeTab]
+    [enriched, search, activeTab]
   );
 
   const handleRestock = async (materialId: string, sizeId: string | null, qty: number) => {
