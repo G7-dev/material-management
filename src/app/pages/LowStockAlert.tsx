@@ -19,6 +19,7 @@ import {
   SEVERITY_CONFIG,
   type StockSeverity,
 } from '../utils/materialsDB';
+import { invalidateMaterialCache } from '../utils/cache';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface ItemOverride {
@@ -639,6 +640,8 @@ export function LowStockAlert() {
   // Load data from database
   const loadData = useCallback(async () => {
     setLoading(true);
+    // 先清除缓存，确保从数据库获取最新数据
+    invalidateMaterialCache();
     const data = await fetchMaterials(false);
     setMaterials(data);
     setLoading(false);

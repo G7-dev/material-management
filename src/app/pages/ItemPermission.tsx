@@ -16,6 +16,7 @@ import {
   fetchMaterials, restockMaterial, deleteMaterial,
   type Material, type MaterialSize,
 } from '../utils/materialsDB';
+import { invalidateMaterialCache } from '../utils/cache';
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -250,6 +251,7 @@ export function ItemPermission() {
   const loadItems = useCallback(async () => {
     setLoading(true);
     try {
+      invalidateMaterialCache();
       const materials = await fetchMaterials(false);
       const items: Item[] = materials
         .filter(m => m.status === 'active')
