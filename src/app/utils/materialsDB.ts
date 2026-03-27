@@ -63,6 +63,7 @@ export async function fetchMaterials(useCache = true): Promise<Material[]> {
     const { data, error } = await supabase
       .from('materials')
       .select('*')
+      .eq('status', 'active')
       .order('updated_at', { ascending: false });
 
     if (error) {
