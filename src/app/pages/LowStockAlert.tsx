@@ -4,7 +4,7 @@ import {
   Settings2, PackagePlus, X, TrendingDown,
   CheckCircle2, Bell, Filter, ArrowUpRight, Clock, ShieldAlert,
   Pencil, Save, RotateCcw, Info, Tag, FileText,
-  Hash, Trash2, AlertCircle
+  Hash
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -73,11 +73,13 @@ function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-md mx-4">
-        <Card className="border-border shadow-2xl shadow-primary/10 overflow-hidden">
+      <div className="relative z-10 w-full max-w-md mx-4 max-h-[90vh] flex flex-col">
+        <Card className="border-border shadow-2xl shadow-primary/10 overflow-hidden flex flex-col">
           <div className="h-1 bg-gradient-to-r from-primary to-secondary" />
-          <div className="p-6">
-            <div className="flex items-start justify-between mb-6">
+          
+          {/* Header - Fixed */}
+          <div className="p-6 pb-4 border-b border-border">
+            <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
                   <PackagePlus className="w-5 h-5 text-primary" />
@@ -93,7 +95,10 @@ function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
                 <X className="w-4 h-4" />
               </button>
             </div>
+          </div>
 
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto p-6 pt-4">
             <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border mb-5">
               <div className="w-9 h-9 rounded-lg bg-primary/8 flex items-center justify-center border border-primary/10">
                 <Package className="w-4 h-4 text-primary" />
@@ -207,8 +212,11 @@ function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
                 </div>
               )}
             </div>
+          </div>
 
-            <div className="flex gap-3 mt-6">
+          {/* Actions - Fixed at bottom */}
+          <div className="p-6 pt-4 border-t border-border bg-muted/20">
+            <div className="flex gap-3">
               <Button
                 onClick={handleConfirm}
                 disabled={!canConfirm}
@@ -235,8 +243,6 @@ interface EditModalProps {
     newStock: number,
     newThreshold: number | Record<string, number>
   ) => void;
-  onDeleteSize: (materialId: string, sizeId: string) => Promise<{ success: boolean; message?: string }>;
-  onDeleteItem: (materialId: string) => Promise<boolean>;
 }
 
 // 本地辅助函数：根据库存和阈值计算严重等级
@@ -249,7 +255,7 @@ function getSeverity(stock: number, threshold: number): StockSeverity {
 
 type Severity = StockSeverity;
 
-function EditItemModal({ item, onClose, onSave, onDeleteSize, onDeleteItem }: EditModalProps) {
+function EditItemModal({ item, onClose, onSave }: EditModalProps) {
   // Basic info states
   const [name,      setName]      = useState(item.name);
   const [category,  setCategory]  = useState(item.category);
@@ -264,11 +270,6 @@ function EditItemModal({ item, onClose, onSave, onDeleteSize, onDeleteItem }: Ed
     });
     return initial;
   });
-
-  // Delete confirmation states
-  const [deleteSizeConfirm, setDeleteSizeConfirm] = useState<{sizeId: string, sizeLabel: string} | null>(null);
-  const [deleteItemConfirm, setDeleteItemConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const numStock     = Math.max(0, Number(stock) || 0);
   const previewSev   = getSeverity(numStock, item.currentThreshold);
@@ -309,14 +310,14 @@ function EditItemModal({ item, onClose, onSave, onDeleteSize, onDeleteItem }: Ed
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-xl">
-        <Card className="border-border shadow-2xl shadow-primary/10 overflow-hidden">
+      <div className="relative z-10 w-full max-w-xl max-h-[90vh] flex flex-col">
+        <Card className="border-border shadow-2xl shadow-primary/10 overflow-hidden flex flex-col">
           {/* Top gradient bar */}
           <div className="h-1 bg-gradient-to-r from-violet-500 via-primary to-secondary" />
 
-          <div className="p-6">
-            {/* Header */}
-            <div className="flex items-start justify-between mb-6">
+          {/* Header - Fixed at top */}
+          <div className="p-6 pb-4 border-b border-border">
+            <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
                   <Pencil className="w-5 h-5 text-violet-600" />
@@ -350,7 +351,10 @@ function EditItemModal({ item, onClose, onSave, onDeleteSize, onDeleteItem }: Ed
                 </button>
               </div>
             </div>
+          </div>
 
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto p-6 pt-4">
             {/* ── Section 1: Basic Info ── */}
             <div className="mb-5">
               <div className="flex items-center gap-2 mb-3">
@@ -438,18 +442,7 @@ function EditItemModal({ item, onClose, onSave, onDeleteSize, onDeleteItem }: Ed
                     <div key={size.id} className="p-3 rounded-lg bg-muted/20 border border-border">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-foreground">{size.label}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">库存: {size.stock} {unit}</span>
-                          {item.sizes.length > 1 && (
-                            <button
-                              onClick={() => setDeleteSizeConfirm({sizeId: size.id, sizeLabel: size.label})}
-                              className="w-6 h-6 rounded-md flex items-center justify-center text-red-500/60 hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                              title="删除此规格"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
+                        <span className="text-xs text-muted-foreground">库存: {size.stock} {unit}</span>
                       </div>
                       <div className="flex items-center gap-3">
                         <label className="text-xs text-muted-foreground whitespace-nowrap">预警阈值:</label>
@@ -486,25 +479,6 @@ function EditItemModal({ item, onClose, onSave, onDeleteSize, onDeleteItem }: Ed
                     </div>
                   </div>
                 )}
-                
-                {/* Delete entire item warning */}
-                <div className="mt-4 p-3 rounded-lg bg-red-500/5 border border-red-500/20">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-red-500 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-red-700 mb-1">⚠️ 危险操作：永久删除</p>
-                      <p className="text-xs text-red-600/80">
-                        删除整个物品将永久删除该物品及其所有规格，数据将从数据库中彻底删除，无法恢复！
-                      </p>
-                      <button
-                        onClick={() => setDeleteItemConfirm(true)}
-                        className="mt-2 px-3 py-1.5 rounded-md bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors"
-                      >
-                        永久删除整个物品
-                      </button>
-                    </div>
-                  </div>
-                </div>
               </div>
             ) : (
               <>
@@ -552,8 +526,10 @@ function EditItemModal({ item, onClose, onSave, onDeleteSize, onDeleteItem }: Ed
               )}
             </>
             )}
+          </div>
 
-            {/* Actions */}
+          {/* Actions - Fixed at bottom */}
+          <div className="p-6 pt-4 border-t border-border bg-muted/20">
             <div className="flex gap-3">
               <Button
                 onClick={handleSave}
@@ -567,124 +543,6 @@ function EditItemModal({ item, onClose, onSave, onDeleteSize, onDeleteItem }: Ed
                 取消
               </Button>
             </div>
-
-            {/* Delete Size Confirmation Modal */}
-            {deleteSizeConfirm && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-                <Card className="w-full max-w-sm border-border shadow-2xl">
-                  <div className="p-6 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
-                      <AlertTriangle className="w-7 h-7 text-red-500" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">确认删除规格</h3>
-                    <p className="text-sm text-muted-foreground mb-1">
-                      即将删除规格 <span className="text-foreground font-medium">{deleteSizeConfirm.sizeLabel}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      此操作将从数据库中永久删除该规格，无法恢复。
-                    </p>
-                  </div>
-                  <div className="flex gap-3 px-6 pb-6">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 h-10 border-border" 
-                      onClick={() => setDeleteSizeConfirm(null)}
-                      disabled={deleting}
-                    >
-                      取消
-                    </Button>
-                    <Button
-                      className="flex-1 h-10 bg-red-500 hover:bg-red-600 text-white"
-                      onClick={async () => {
-                        setDeleting(true);
-                        const result = await onDeleteSize(item.id, deleteSizeConfirm.sizeId);
-                        setDeleting(false);
-                        if (result.success) {
-                          setDeleteSizeConfirm(null);
-                          onClose(); // 关闭编辑模态框
-                        }
-                      }}
-                      disabled={deleting}
-                    >
-                      {deleting ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" />
-                          删除中...
-                        </>
-                      ) : (
-                        <>
-                          <Trash2 className="w-4 h-4 mr-1.5" />
-                          确认删除
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {/* Delete Item Confirmation Modal */}
-            {deleteItemConfirm && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-                <Card className="w-full max-w-md border-border shadow-2xl">
-                  <div className="p-6 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
-                      <AlertTriangle className="w-7 h-7 text-red-500" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">确认永久删除</h3>
-                    <p className="text-sm text-muted-foreground mb-1">
-                      即将永久删除物品 <span className="text-foreground font-medium">{item.name}</span>
-                    </p>
-                    <p className="text-xs text-red-600/80 font-medium mb-2">
-                      ⚠️ 警告：此操作将从数据库中永久删除该物品及其所有规格，无法恢复！
-                    </p>
-                    <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20">
-                      <p className="text-xs text-red-700">
-                        <span className="font-semibold">影响范围：</span><br />
-                        • {item.sizes.length} 个规格将被永久删除<br />
-                        • 该物品将从数据库中彻底移除<br />
-                        • 相关的库存流水记录将保留（用于审计）
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 px-6 pb-6">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 h-10 border-border" 
-                      onClick={() => setDeleteItemConfirm(false)}
-                      disabled={deleting}
-                    >
-                      取消
-                    </Button>
-                    <Button
-                      className="flex-1 h-10 bg-red-500 hover:bg-red-600 text-white"
-                      onClick={async () => {
-                        setDeleting(true);
-                        const result = await onDeleteItem(item.id);
-                        setDeleting(false);
-                        if (result) {
-                          setDeleteItemConfirm(false);
-                          onClose(); // 关闭编辑模态框
-                        }
-                      }}
-                      disabled={deleting}
-                    >
-                      {deleting ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" />
-                          删除中...
-                        </>
-                      ) : (
-                        <>
-                          <Trash2 className="w-4 h-4 mr-1.5" />
-                          确认删除
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </Card>
-              </div>
-            )}
           </div>
         </Card>
       </div>
@@ -857,35 +715,25 @@ export function LowStockAlert() {
   ) => {
     // Handle threshold update
     if (typeof newThreshold === 'number') {
+      // 单规格物品 - 整体阈值
       setThresholds(prev => ({ ...prev, [materialId]: newThreshold }));
+    } else if (typeof newThreshold === 'object') {
+      // 多规格物品 - 每个规格单独阈值
+      // 使用所有规格阈值中的最小值作为整体阈值（用于列表排序/过滤）
+      const allValues = Object.values(newThreshold);
+      const minThreshold = allValues.length > 0 ? Math.min(...allValues) : 5;
+      setThresholds(prev => ({ ...prev, [materialId]: minThreshold }));
+      // 同时存储规格级别的阈值
+      setThresholds(prev => {
+        const updated = { ...prev };
+        Object.entries(newThreshold).forEach(([sizeId, val]) => {
+          updated[`${materialId}_${sizeId}`] = val;
+        });
+        return updated;
+      });
     }
     
-    // Note: 库存更新通过补货操作完成，编辑仅修改阈值
-    toast.success('设置已保存');
-  };
-
-  const handleDeleteSize = async (materialId: string, sizeId: string) => {
-    const { deleteMaterialSize } = await import('../utils/materialsDB');
-    const result = await deleteMaterialSize(materialId, sizeId);
-    
-    if (result.success) {
-      // 刷新数据
-      loadData();
-    }
-    
-    return result;
-  };
-
-  const handleDeleteItem = async (materialId: string) => {
-    const { deleteMaterial } = await import('../utils/materialsDB');
-    const result = await deleteMaterial(materialId);
-    
-    if (result) {
-      // 刷新数据
-      loadData();
-    }
-    
-    return result;
+    toast.success('预警设置已保存');
   };
 
   const statCards: Array<{ key: Severity; label: string; val: number; color: string; bg: string; border: string }> = [
@@ -1242,8 +1090,6 @@ export function LowStockAlert() {
           item={editingItem}
           onClose={() => setEditingItem(null)}
           onSave={handleSaveEdit}
-          onDeleteSize={handleDeleteSize}
-          onDeleteItem={handleDeleteItem}
         />
       )}
       {showSettings && (

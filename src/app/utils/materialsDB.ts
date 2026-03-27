@@ -424,6 +424,12 @@ export async function deleteMaterial(materialId: string): Promise<boolean> {
     //   .delete()
     //   .eq('material_id', materialId);
 
+    // 清除缓存
+    invalidateMaterialCache();
+    
+    // 触发更新事件
+    window.dispatchEvent(new CustomEvent('inventoryUpdated'));
+
     toast.success('物资已从数据库中永久删除');
     return true;
   } catch (error) {
