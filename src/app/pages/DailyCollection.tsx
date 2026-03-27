@@ -476,14 +476,19 @@ function ItemCard({ item, onApply }: { item: DisplayItem; onApply: () => void })
               </button>
               {showSizes && (
                 <div className="space-y-1.5 pt-2 border-t border-border/50">
-                  {item.sizes!.map((s) => (
+                  {item.sizes!.filter(s => s.stock > 0).map((s) => (
                     <div key={s.id} className="flex justify-between items-center py-0.5">
                       <span className="text-muted-foreground">{s.label}</span>
-                      <span className={`font-semibold ${s.stock <= 0 ? 'text-red-500' : s.stock <= 3 ? 'text-amber-500' : 'text-emerald-600'}`}>
-                        {s.stock <= 0 ? '无库存' : s.stock}
+                      <span className={`font-semibold ${s.stock <= 3 ? 'text-amber-500' : 'text-emerald-600'}`}>
+                        {s.stock}
                       </span>
                     </div>
                   ))}
+                  {item.sizes!.filter(s => s.stock <= 0).length > 0 && (
+                    <div className="text-xs text-muted-foreground pt-1 border-t border-border/30">
+                      {item.sizes!.filter(s => s.stock <= 0).length} 个规格暂时缺货
+                    </div>
+                  )}
                 </div>
               )}
             </>

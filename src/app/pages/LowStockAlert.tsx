@@ -4,11 +4,12 @@ import {
   Settings2, PackagePlus, X, TrendingDown,
   CheckCircle2, Bell, Filter, ArrowUpRight, Clock, ShieldAlert,
   Pencil, Save, RotateCcw, Info, Tag, FileText,
-  Hash
+  Hash, Trash2, AlertCircle
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { toast } from 'sonner';
 import {
   fetchMaterials,
   updateMaterialStock,
@@ -18,8 +19,6 @@ import {
   SEVERITY_CONFIG,
   type StockSeverity,
 } from '../utils/materialsDB';
-import { AppSelect } from '../components/ui/app-select';
-import { format } from 'date-fns';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface ItemOverride {
@@ -30,6 +29,16 @@ interface ItemOverride {
   unit?: string;
 }
 
+// 扩展 Material 类型，添加运行时计算属性
+interface MaterialWithStatus extends Material {
+  currentThreshold: number;
+  severity: StockSeverity;
+  currentStock: number;
+  lowStockSizes: MaterialSize[];
+  spec?: string;
+  lastRestock?: string;
+}
+
 // 兼容性修复：Cloudflare Workers 自动注入变量可能缺失
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const itemOverrides: Record<string, ItemOverride> = {};
@@ -38,7 +47,7 @@ const stockData: Record<string, number> = {};
 
 // ── Restock Modal ─────────────────────────────────────────────────────────────
 interface RestockModalProps {
-  item: Material;
+  item: MaterialWithStatus;
   onClose: () => void;
   onConfirm: (materialId: string, sizeId: string | null, qty: number) => void;
 }
@@ -57,7 +66,7 @@ function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
 
   const handleConfirm = () => {
     if (!canConfirm) return;
-    onConfirm(item.id, selectedSize.id, numQty);
+    onConfirm(item.id, selectedSize?.id || null, numQty);
     onClose();
   };
 
@@ -218,7 +227,7 @@ function RestockModal({ item, onClose, onConfirm }: RestockModalProps) {
 
 // ── Edit Item Modal ────────────────────────────────────────────────────────────
 interface EditModalProps {
-  item: Material;
+  item: MaterialWithStatus;
   onClose: () => void;
   onSave: (
     materialId: string,
@@ -226,10 +235,9 @@ interface EditModalProps {
     newStock: number,
     newThreshold: number | Record<string, number>
   ) => void;
+  onDeleteSize: (materialId: string, sizeId: string) => Promise<{ success: boolean; message?: string }>;
+  onDeleteItem: (materialId: string) => Promise<boolean>;
 }
-
-const CATEGORIES = ['办公类', '劳保类', '物耗类'];
-const UNITS      = ['个', '支', '包', '把', '本', '件', '盒', '瓶', '卷', '套'];
 
 // 本地辅助函数：根据库存和阈值计算严重等级
 function getSeverity(stock: number, threshold: number): StockSeverity {
@@ -241,15 +249,12 @@ function getSeverity(stock: number, threshold: number): StockSeverity {
 
 type Severity = StockSeverity;
 
-function EditItemModal({ item, onClose, onSave }: EditModalProps) {
+function EditItemModal({ item, onClose, onSave, onDeleteSize, onDeleteItem }: EditModalProps) {
   // Basic info states
   const [name,      setName]      = useState(item.name);
   const [category,  setCategory]  = useState(item.category);
   const [unit,      setUnit]      = useState(item.unit);
   const [stock,     setStock]     = useState(String(item.currentStock));
-  
-  // Check if item has sizes
-  const hasSizes = item.sizes && item.sizes.length > 0;
   
   // Size-specific thresholds
   const [sizeThresholds, setSizeThresholds] = useState<Record<string, string>>(() => {
@@ -259,6 +264,11 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
     });
     return initial;
   });
+
+  // Delete confirmation states
+  const [deleteSizeConfirm, setDeleteSizeConfirm] = useState<{sizeId: string, sizeLabel: string} | null>(null);
+  const [deleteItemConfirm, setDeleteItemConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const numStock     = Math.max(0, Number(stock) || 0);
   const previewSev   = getSeverity(numStock, item.currentThreshold);
@@ -425,7 +435,18 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
                     <div key={size.id} className="p-3 rounded-lg bg-muted/20 border border-border">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-foreground">{size.label}</span>
-                        <span className="text-xs text-muted-foreground">库存: {size.stock} {unit}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">库存: {size.stock} {unit}</span>
+                          {item.sizes.length > 1 && (
+                            <button
+                              onClick={() => setDeleteSizeConfirm({sizeId: size.id, sizeLabel: size.label})}
+                              className="w-6 h-6 rounded-md flex items-center justify-center text-red-500/60 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                              title="删除此规格"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <label className="text-xs text-muted-foreground whitespace-nowrap">预警阈值:</label>
@@ -440,6 +461,25 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
                       </div>
                     </div>
                   ))}
+                </div>
+                
+                {/* Delete entire item warning */}
+                <div className="mt-4 p-3 rounded-lg bg-red-500/5 border border-red-500/20">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-500 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-red-700 mb-1">危险操作</p>
+                      <p className="text-xs text-red-600/80">
+                        删除整个物品将从系统中移除该物品及其所有规格
+                      </p>
+                      <button
+                        onClick={() => setDeleteItemConfirm(true)}
+                        className="mt-2 px-3 py-1.5 rounded-md bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors"
+                      >
+                        删除整个物品
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -503,6 +543,124 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
                 取消
               </Button>
             </div>
+
+            {/* Delete Size Confirmation Modal */}
+            {deleteSizeConfirm && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                <Card className="w-full max-w-sm border-border shadow-2xl">
+                  <div className="p-6 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
+                      <AlertTriangle className="w-7 h-7 text-red-500" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">确认删除规格</h3>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      即将删除规格 <span className="text-foreground font-medium">{deleteSizeConfirm.sizeLabel}</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      此操作将从数据库中永久删除该规格，无法恢复。
+                    </p>
+                  </div>
+                  <div className="flex gap-3 px-6 pb-6">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 h-10 border-border" 
+                      onClick={() => setDeleteSizeConfirm(null)}
+                      disabled={deleting}
+                    >
+                      取消
+                    </Button>
+                    <Button
+                      className="flex-1 h-10 bg-red-500 hover:bg-red-600 text-white"
+                      onClick={async () => {
+                        setDeleting(true);
+                        const result = await onDeleteSize(item.id, deleteSizeConfirm.sizeId);
+                        setDeleting(false);
+                        if (result.success) {
+                          setDeleteSizeConfirm(null);
+                          onClose(); // 关闭编辑模态框
+                        }
+                      }}
+                      disabled={deleting}
+                    >
+                      {deleting ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" />
+                          删除中...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4 mr-1.5" />
+                          确认删除
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* Delete Item Confirmation Modal */}
+            {deleteItemConfirm && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                <Card className="w-full max-w-md border-border shadow-2xl">
+                  <div className="p-6 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
+                      <AlertTriangle className="w-7 h-7 text-red-500" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">确认删除整个物品</h3>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      即将删除物品 <span className="text-foreground font-medium">{item.name}</span>
+                    </p>
+                    <p className="text-xs text-red-600/80 font-medium mb-2">
+                      ⚠️ 警告：此操作将删除该物品及其所有规格，此操作无法撤销！
+                    </p>
+                    <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20">
+                      <p className="text-xs text-red-700">
+                        <span className="font-semibold">影响范围：</span><br />
+                        • {item.sizes.length} 个规格将被删除<br />
+                        • 所有库存记录将被标记为停用<br />
+                        • 相关的库存流水记录将保留
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 px-6 pb-6">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 h-10 border-border" 
+                      onClick={() => setDeleteItemConfirm(false)}
+                      disabled={deleting}
+                    >
+                      取消
+                    </Button>
+                    <Button
+                      className="flex-1 h-10 bg-red-500 hover:bg-red-600 text-white"
+                      onClick={async () => {
+                        setDeleting(true);
+                        const result = await onDeleteItem(item.id);
+                        setDeleting(false);
+                        if (result) {
+                          setDeleteItemConfirm(false);
+                          onClose(); // 关闭编辑模态框
+                        }
+                      }}
+                      disabled={deleting}
+                    >
+                      {deleting ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" />
+                          删除中...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4 mr-1.5" />
+                          确认删除
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            )}
           </div>
         </Card>
       </div>
@@ -512,10 +670,10 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
 
 // ── Threshold Settings Side Panel ─────────────────────────────────────────────
 interface ThresholdPanelProps {
-  thresholds: Record<number, number>;
-  itemOverrides: Record<number, ItemOverride>;
-  allItems: UnifiedInventoryItem[];
-  onChange: (id: number, val: number) => void;
+  thresholds: Record<string, number>;
+  itemOverrides: Record<string, ItemOverride>;
+  allItems: Array<Material & { currentThreshold: number; severity: StockSeverity; currentStock: number; lowStockSizes: MaterialSize[] }>;
+  onChange: (id: string, val: number) => void;
   onClose: () => void;
 }
 function ThresholdPanel({ thresholds, itemOverrides, allItems, onChange, onClose }: ThresholdPanelProps) {
@@ -548,7 +706,7 @@ function ThresholdPanel({ thresholds, itemOverrides, allItems, onChange, onClose
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <input
                     type="number" min="1"
-                    value={thresholds[item.id] ?? item.threshold}
+                    value={thresholds[item.id] ?? item.safe_stock}
                     onChange={(e) => onChange(item.id, Math.max(1, Number(e.target.value)))}
                     className="w-16 h-8 text-center text-sm rounded-lg border border-border bg-muted/50 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                   />
@@ -592,8 +750,8 @@ export function LowStockAlert() {
   const [activeTab, setActiveTab]       = useState<TabKey>('all');
   const [thresholds, setThresholds]     = useState<Record<string, number>>({});
   const [restockedIds, setRestockedIds] = useState<string[]>([]);
-  const [selectedItem, setSelectedItem] = useState<Material | null>(null);
-  const [editingItem, setEditingItem]   = useState<Material | null>(null);
+  const [selectedItem, setSelectedItem] = useState<MaterialWithStatus | null>(null);
+  const [editingItem, setEditingItem]   = useState<MaterialWithStatus | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [dismissedBanner, setDismissedBanner] = useState(false);
   const [materials, setMaterials]       = useState<Material[]>([]);
@@ -631,7 +789,7 @@ export function LowStockAlert() {
         severity: status.severity,
         currentStock: status.overallStock,
         lowStockSizes: status.lowStockSizes,
-      };
+      } as MaterialWithStatus;
     }),
     [materials, thresholds]
   );
@@ -669,8 +827,8 @@ export function LowStockAlert() {
 
   const handleSaveEdit = (
     materialId: string,
-    override: ItemOverride,
-    newStock: number,
+    _override: ItemOverride,
+    _newStock: number,
     newThreshold: number | Record<string, number>
   ) => {
     // Handle threshold update
@@ -680,6 +838,30 @@ export function LowStockAlert() {
     
     // Note: 库存更新通过补货操作完成，编辑仅修改阈值
     toast.success('设置已保存');
+  };
+
+  const handleDeleteSize = async (materialId: string, sizeId: string) => {
+    const { deleteMaterialSize } = await import('../utils/materialsDB');
+    const result = await deleteMaterialSize(materialId, sizeId);
+    
+    if (result.success) {
+      // 刷新数据
+      loadData();
+    }
+    
+    return result;
+  };
+
+  const handleDeleteItem = async (materialId: string) => {
+    const { deleteMaterial } = await import('../utils/materialsDB');
+    const result = await deleteMaterial(materialId);
+    
+    if (result) {
+      // 刷新数据
+      loadData();
+    }
+    
+    return result;
   };
 
   const statCards: Array<{ key: Severity; label: string; val: number; color: string; bg: string; border: string }> = [
@@ -904,9 +1086,9 @@ export function LowStockAlert() {
                                 <span className="w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0" title="已编辑" />
                               )}
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                              {item.category} {item.spec && item.spec !== '—' && <span className="ml-1">· {item.spec}</span>}
-                            </p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.category} {item.specification && item.specification !== '—' && <span className="ml-1">· {item.specification}</span>}
+                          </p>
                           </div>
                         </div>
                       </td>
@@ -958,7 +1140,7 @@ export function LowStockAlert() {
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
                           <Clock className="w-3 h-3 flex-shrink-0" />
-                          {item.lastRestock}
+                          {item.lastRestock || '-'}
                         </div>
                       </td>
 
@@ -1036,13 +1218,15 @@ export function LowStockAlert() {
           item={editingItem}
           onClose={() => setEditingItem(null)}
           onSave={handleSaveEdit}
+          onDeleteSize={handleDeleteSize}
+          onDeleteItem={handleDeleteItem}
         />
       )}
       {showSettings && (
         <ThresholdPanel
           thresholds={thresholds}
           itemOverrides={itemOverrides}
-          allItems={allItems}
+          allItems={enriched}
           onChange={(id, val) => setThresholds(prev => ({ ...prev, [id]: val }))}
           onClose={() => setShowSettings(false)}
         />

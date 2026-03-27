@@ -425,6 +425,81 @@ export async function deleteMaterial(materialId: string): Promise<boolean> {
   }
 }
 
+// 删除规格
+export async function deleteMaterialSize(
+  materialId: string,
+  sizeId: string
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    // 获取当前物资信息
+    const { data: material, error: fetchError } = await supabase
+      .from('materials')
+      .select('*')
+      .eq('id', materialId)
+      .single();
+
+    if (fetchError || !material) {
+      console.error('获取物资失败:', fetchError);
+      toast.error('获取物资信息失败');
+      return { success: false };
+    }
+
+    // 检查是否有规格
+    if (!material.sizes || material.sizes.length === 0) {
+      toast.error('该物品没有规格');
+      return { success: false };
+    }
+
+    // 查找要删除的规格
+    const sizeToDelete = material.sizes.find((s: MaterialSize) => s.id === sizeId);
+    if (!sizeToDelete) {
+      toast.error('规格不存在');
+      return { success: false };
+    }
+
+    // 如果只剩一个规格，不允许删除（至少保留一个规格）
+    if (material.sizes.length === 1) {
+      toast.error('至少保留一个规格，建议删除整个物品');
+      return { success: false, message: '至少保留一个规格' };
+    }
+
+    // 从数组中移除规格
+    const updatedSizes = material.sizes.filter((s: MaterialSize) => s.id !== sizeId);
+    
+    // 重新计算总库存（所有规格之和）
+    const newTotalStock = updatedSizes.reduce((sum: number, s: MaterialSize) => sum + s.stock, 0);
+
+    // 更新数据库
+    const { error: updateError } = await supabase
+      .from('materials')
+      .update({
+        sizes: updatedSizes,
+        stock: newTotalStock,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', materialId);
+
+    if (updateError) {
+      console.error('删除规格失败:', updateError);
+      toast.error('删除规格失败');
+      return { success: false };
+    }
+
+    // 清除缓存
+    invalidateMaterialCache();
+    
+    // 触发更新事件
+    window.dispatchEvent(new CustomEvent('inventoryUpdated'));
+    
+    toast.success(`规格 "${sizeToDelete.label}" 已删除`);
+    return { success: true };
+  } catch (error) {
+    console.error('删除规格异常:', error);
+    toast.error('删除规格异常');
+    return { success: false };
+  }
+}
+
 // 库存状态配置
 export const SEVERITY_CONFIG = {
   empty: {
