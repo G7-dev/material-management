@@ -240,6 +240,8 @@ export function ItemPermission() {
   const [restockedIds, setRestockedIds] = useState<string[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
   const [deletedIds, setDeletedIds]     = useState<string[]>([]);
+  const [selectedSizesToDelete, setSelectedSizesToDelete] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting]         = useState(false);
   const [loading, setLoading]           = useState(false);
 
   // Dynamic item list from Supabase
@@ -716,32 +718,151 @@ export function ItemPermission() {
       {/* Delete Confirmation Modal */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setDeleteTarget(null)}>
-          <Card className="w-full max-w-sm border-border shadow-2xl" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-            <div className="p-6 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
-                <Trash2 className="w-7 h-7 text-red-500" />
+          <Card className="w-full max-w-lg border-border shadow-2xl" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="text-center mb-4">
+                <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-7 h-7 text-red-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">删除物品规格</h3>
+                <p className="text-sm text-muted-foreground">
+                  选择要删除的规格，或删除整个物品
+                </p>
               </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">确认删除物品</h3>
-              <p className="text-sm text-muted-foreground mb-1">
-                即将删除 <span className="text-foreground font-medium">{deleteTarget.name}</span>
-              </p>
-              <p className="text-xs text-muted-foreground">
-                此操作将从系统中软删除该物品（标记为停用）。
-              </p>
+
+              {/* Size selector */}
+              {deleteTarget.sizes && deleteTarget.sizes.length > 0 && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-foreground">选择要删除的规格</span>
+                    <button
+                      onClick={() => {
+                        if (selectedSizesToDelete.size === deleteTarget.sizes.length) {
+                          // 如果已全部选中，则取消全选
+                          setSelectedSizesToDelete(new Set());
+                        } else {
+                          // 否则全选
+                          setSelectedSizesToDelete(new Set(deleteTarget.sizes.map(s => s.id)));
+                        }
+                      }}
+                      className="text-xs text-primary hover:text-primary/80 font-medium"
+                    >
+                      {selectedSizesToDelete.size === deleteTarget.sizes.length ? '取消全选' : '全选'}
+                    </button>
+                  </div>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {deleteTarget.sizes.map((size) => (
+                      <label
+                        key={size.id}
+                        className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-muted/30 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedSizesToDelete.has(size.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedSizesToDelete);
+                            if (e.target.checked) {
+                              newSelected.add(size.id);
+                            } else {
+                              newSelected.delete(size.id);
+                            }
+                            setSelectedSizesToDelete(newSelected);
+                          }}
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary/30"
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-foreground">{size.label}</span>
+                          <span className="text-xs text-muted-foreground ml-2">库存: {size.stock}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  {selectedSizesToDelete.size > 0 && selectedSizesToDelete.size >= deleteTarget.sizes.length - 1 && (
+                    <div className="mt-3 p-2 rounded-lg bg-red-500/5 border border-red-500/20">
+                      <p className="text-xs text-red-700">
+                        ⚠️ 注意：删除后该物品将只剩 {deleteTarget.sizes.length - selectedSizesToDelete.size} 个规格
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Delete entire item warning */}
+              <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20 mb-4">
+                <p className="text-xs text-red-700 font-medium mb-1">⚠️ 危险操作：永久删除整个物品</p>
+                <p className="text-xs text-red-600/80">
+                  此操作将永久删除该物品及其所有规格，数据将从数据库中彻底删除，无法恢复！
+                </p>
+              </div>
             </div>
+            
             <div className="flex gap-3 px-6 pb-6">
-              <Button variant="outline" className="flex-1 h-10 border-border" onClick={() => setDeleteTarget(null)}>
+              <Button variant="outline" className="flex-1 h-10 border-border" onClick={() => {
+                setDeleteTarget(null);
+                setSelectedSizesToDelete(new Set());
+              }} disabled={deleting}>
                 取消
               </Button>
+              
+              {/* Delete selected sizes */}
+              <Button
+                className="h-10 bg-orange-500 hover:bg-orange-600 text-white"
+                onClick={async () => {
+                  if (selectedSizesToDelete.size === 0) {
+                    toast.error('请先选择要删除的规格');
+                    return;
+                  }
+                  setDeleting(true);
+                  const { deleteMaterialSizes } = await import('../utils/materialsDB');
+                  const result = await deleteMaterialSizes(
+                    deleteTarget.id,
+                    Array.from(selectedSizesToDelete)
+                  );
+                  setDeleting(false);
+                  if (result.success) {
+                    setDeleteTarget(null);
+                    setSelectedSizesToDelete(new Set());
+                    loadItems();
+                  }
+                }}
+                disabled={deleting || selectedSizesToDelete.size === 0}
+              >
+                {deleting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" />
+                    删除中...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                    删除选中规格 ({selectedSizesToDelete.size})
+                  </>
+                )}
+              </Button>
+              
+              {/* Delete entire item */}
               <Button
                 className="flex-1 h-10 bg-red-500 hover:bg-red-600 text-white"
-                onClick={() => {
-                  handleDelete(deleteTarget.id);
+                onClick={async () => {
+                  setDeleting(true);
+                  await handleDelete(deleteTarget.id);
+                  setDeleting(false);
                   setDeleteTarget(null);
+                  setSelectedSizesToDelete(new Set());
                 }}
+                disabled={deleting}
               >
-                <Trash2 className="w-4 h-4 mr-1.5" />
-                确认删除
+                {deleting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" />
+                    删除中...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                    删除整个物品
+                  </>
+                )}
               </Button>
             </div>
           </Card>

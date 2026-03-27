@@ -402,12 +402,13 @@ export async function searchMaterials(query: string): Promise<Material[]> {
   }
 }
 
-// 删除物资（软删除）
+// 删除物资（硬删除 - 直接从数据库删除）
 export async function deleteMaterial(materialId: string): Promise<boolean> {
   try {
+    // 直接从数据库删除该物品
     const { error } = await supabase
       .from('materials')
-      .update({ status: 'inactive' })
+      .delete()
       .eq('id', materialId);
 
     if (error) {
@@ -416,7 +417,14 @@ export async function deleteMaterial(materialId: string): Promise<boolean> {
       return false;
     }
 
-    toast.success('物资已删除');
+    // 删除相关的库存流水记录（可选，根据需求决定）
+    // 这里我们选择保留历史记录，只删除物品本身
+    // await supabase
+    //   .from('inventory_logs')
+    //   .delete()
+    //   .eq('material_id', materialId);
+
+    toast.success('物资已从数据库中永久删除');
     return true;
   } catch (error) {
     console.error('删除物资异常:', error);
@@ -496,6 +504,74 @@ export async function deleteMaterialSize(
   } catch (error) {
     console.error('删除规格异常:', error);
     toast.error('删除规格异常');
+    return { success: false };
+  }
+}
+
+// 批量删除规格
+export async function deleteMaterialSizes(
+  materialId: string,
+  sizeIds: string[]
+): Promise<{ success: boolean; deletedCount?: number; message?: string }> {
+  try {
+    // 获取当前物资信息
+    const { data: material, error: fetchError } = await supabase
+      .from('materials')
+      .select('*')
+      .eq('id', materialId)
+      .single();
+
+    if (fetchError || !material) {
+      console.error('获取物资失败:', fetchError);
+      toast.error('获取物资信息失败');
+      return { success: false };
+    }
+
+    // 检查是否有规格
+    if (!material.sizes || material.sizes.length === 0) {
+      toast.error('该物品没有规格');
+      return { success: false };
+    }
+
+    // 如果删除所有规格，不允许（至少保留一个规格）
+    if (sizeIds.length >= material.sizes.length) {
+      toast.error('至少保留一个规格，建议删除整个物品');
+      return { success: false, message: '至少保留一个规格' };
+    }
+
+    // 从数组中移除选中的规格
+    const updatedSizes = material.sizes.filter((s: MaterialSize) => !sizeIds.includes(s.id));
+    
+    // 重新计算总库存（所有规格之和）
+    const newTotalStock = updatedSizes.reduce((sum: number, s: MaterialSize) => sum + s.stock, 0);
+
+    // 更新数据库
+    const { error: updateError } = await supabase
+      .from('materials')
+      .update({
+        sizes: updatedSizes,
+        stock: newTotalStock,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', materialId);
+
+    if (updateError) {
+      console.error('批量删除规格失败:', updateError);
+      toast.error('批量删除规格失败');
+      return { success: false };
+    }
+
+    // 清除缓存
+    invalidateMaterialCache();
+    
+    // 触发更新事件
+    window.dispatchEvent(new CustomEvent('inventoryUpdated'));
+    
+    toast.success(`${sizeIds.length} 个规格已删除`);
+    return { success: true, deletedCount: sizeIds.length };
+  } catch (error) {
+    console.error('批量删除规格异常:', error);
+    toast.error('批量删除规格异常');
     return { success: false };
   }
 }

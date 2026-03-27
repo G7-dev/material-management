@@ -407,17 +407,20 @@ function EditItemModal({ item, onClose, onSave, onDeleteSize, onDeleteItem }: Ed
 
               <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">当前库存</label>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">当前库存（只读）</label>
                   <Input
                     type="number" min="0"
                     value={stock}
-                    onChange={(e) => setStock(e.target.value)}
-                    className={`h-10 bg-muted/50 border-border font-semibold text-center ${
+                    disabled={true}
+                    className={`h-10 bg-muted/30 border-border font-semibold text-center cursor-not-allowed opacity-75 ${
                       numStock === 0 ? 'text-red-600' :
                       numStock <= 5 ? 'text-orange-600' :
                       numStock <= 10 ? 'text-amber-600' : 'text-emerald-600'
                     }`}
                   />
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    💡 提示：当前库存不能在此修改，请使用"补货"功能调整库存
+                  </p>
                 </div>
               </div>
             </div>
@@ -462,21 +465,42 @@ function EditItemModal({ item, onClose, onSave, onDeleteSize, onDeleteItem }: Ed
                     </div>
                   ))}
                 </div>
+
+                {/* Overall threshold setting for items without sizes */}
+                {(!item.sizes || item.sizes.length === 0) && (
+                  <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/15">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-xs font-medium text-foreground">整体预警设置</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className="text-xs text-muted-foreground whitespace-nowrap">预警阈值:</label>
+                      <Input
+                        type="number" min="1"
+                        value={stock}
+                        onChange={(e) => setStock(e.target.value)}
+                        className="h-8 bg-muted/50 border-border text-sm flex-1"
+                        placeholder="输入预警值"
+                      />
+                      <span className="text-xs text-muted-foreground">{unit}</span>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Delete entire item warning */}
                 <div className="mt-4 p-3 rounded-lg bg-red-500/5 border border-red-500/20">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 text-red-500 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-xs font-medium text-red-700 mb-1">危险操作</p>
+                      <p className="text-xs font-medium text-red-700 mb-1">⚠️ 危险操作：永久删除</p>
                       <p className="text-xs text-red-600/80">
-                        删除整个物品将从系统中移除该物品及其所有规格
+                        删除整个物品将永久删除该物品及其所有规格，数据将从数据库中彻底删除，无法恢复！
                       </p>
                       <button
                         onClick={() => setDeleteItemConfirm(true)}
                         className="mt-2 px-3 py-1.5 rounded-md bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors"
                       >
-                        删除整个物品
+                        永久删除整个物品
                       </button>
                     </div>
                   </div>
@@ -607,19 +631,19 @@ function EditItemModal({ item, onClose, onSave, onDeleteSize, onDeleteItem }: Ed
                     <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
                       <AlertTriangle className="w-7 h-7 text-red-500" />
                     </div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">确认删除整个物品</h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">确认永久删除</h3>
                     <p className="text-sm text-muted-foreground mb-1">
-                      即将删除物品 <span className="text-foreground font-medium">{item.name}</span>
+                      即将永久删除物品 <span className="text-foreground font-medium">{item.name}</span>
                     </p>
                     <p className="text-xs text-red-600/80 font-medium mb-2">
-                      ⚠️ 警告：此操作将删除该物品及其所有规格，此操作无法撤销！
+                      ⚠️ 警告：此操作将从数据库中永久删除该物品及其所有规格，无法恢复！
                     </p>
                     <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20">
                       <p className="text-xs text-red-700">
                         <span className="font-semibold">影响范围：</span><br />
-                        • {item.sizes.length} 个规格将被删除<br />
-                        • 所有库存记录将被标记为停用<br />
-                        • 相关的库存流水记录将保留
+                        • {item.sizes.length} 个规格将被永久删除<br />
+                        • 该物品将从数据库中彻底移除<br />
+                        • 相关的库存流水记录将保留（用于审计）
                       </p>
                     </div>
                   </div>
