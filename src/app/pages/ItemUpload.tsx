@@ -420,7 +420,7 @@ export function ItemUpload() {
 
     // 刷新缓存
     if (newId) {
-      const refreshed = await fetchMaterials();
+      const refreshed = await fetchMaterials(false);
       setAllMaterials(refreshed);
     }
 

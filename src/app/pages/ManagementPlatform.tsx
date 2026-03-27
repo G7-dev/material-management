@@ -92,7 +92,7 @@ export function ManagementPlatform() {
         setCollectionRanking(ranking);
 
         // 加载库存数据并计算预警
-        const materialsData = await fetchMaterials();
+        const materialsData = await fetchMaterials(false);
         setMaterials(materialsData);
         
         const alerts = materialsData.map(material => {

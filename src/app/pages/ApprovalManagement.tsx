@@ -356,7 +356,7 @@ export function ApprovalManagement() {
         const baseItemName = approval.itemName.split(' (')[0];
         
         // 查找对应的库存物品
-        const materials = await fetchMaterials();
+        const materials = await fetchMaterials(false);
         const targetItem = materials.find(m => m.name === baseItemName);
         
         if (targetItem) {

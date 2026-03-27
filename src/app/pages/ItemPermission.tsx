@@ -250,7 +250,7 @@ export function ItemPermission() {
   const loadItems = useCallback(async () => {
     setLoading(true);
     try {
-      const materials = await fetchMaterials();
+      const materials = await fetchMaterials(false);
       const items: Item[] = materials
         .filter(m => m.status === 'active')
         .map(m => {

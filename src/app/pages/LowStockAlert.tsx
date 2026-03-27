@@ -260,7 +260,9 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
   const [name,      setName]      = useState(item.name);
   const [category,  setCategory]  = useState(item.category);
   const [unit,      setUnit]      = useState(item.unit);
-  const [stock,     setStock]     = useState(String(item.currentStock));
+  
+  // Threshold state - used for both single-item and size-specific thresholds
+  const [threshold, setThreshold] = useState(String(item.currentThreshold));
   
   // Size-specific thresholds
   const [sizeThresholds, setSizeThresholds] = useState<Record<string, string>>(() => {
@@ -271,24 +273,26 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
     return initial;
   });
 
-  const numStock     = Math.max(0, Number(stock) || 0);
-  const previewSev   = getSeverity(numStock, item.currentThreshold);
+  const numStock     = item.currentStock;
+  const numThreshold = Math.max(0, Number(threshold) || 0);
+  const hasSizes     = item.sizes && item.sizes.length > 0;
+  const previewSev   = getSeverity(numStock, numThreshold);
   const previewCfg   = SEVERITY_CONFIG[previewSev];
   const origSev      = getSeverity(item.currentStock, item.currentThreshold);
   const origCfg      = SEVERITY_CONFIG[origSev];
 
-  const isDirty =
-    name !== item.name || category !== item.category || unit !== item.unit ||
-    numStock !== item.currentStock || 
-    Object.keys(sizeThresholds).some(id => 
-      Number(sizeThresholds[id]) !== item.currentThreshold
-    );
+  const isDirty = hasSizes
+    ? Object.keys(sizeThresholds).some(id => 
+        Number(sizeThresholds[id]) !== item.currentThreshold &&
+        Number(sizeThresholds[id]) > 0
+      )
+    : numThreshold !== item.currentThreshold && numThreshold > 0;
 
   const handleReset = () => {
     setName(item.name); 
     setCategory(item.category); 
     setUnit(item.unit);
-    setStock(String(item.currentStock));
+    setThreshold(String(item.currentThreshold));
     const resetThresholds: Record<string, string> = {};
     item.sizes.forEach(size => {
       resetThresholds[size.id] = String(item.currentThreshold);
@@ -297,13 +301,17 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
   };
 
   const handleSave = () => {
-    // Save size-specific thresholds
-    const sizeThresholdMap: Record<string, number> = {};
-    Object.keys(sizeThresholds).forEach(id => {
-      sizeThresholdMap[id] = Math.max(1, Number(sizeThresholds[id]) || 1);
-    });
-    
-    onSave(item.id, { name, category, unit }, numStock, sizeThresholdMap);
+    if (hasSizes) {
+      // Save size-specific thresholds
+      const sizeThresholdMap: Record<string, number> = {};
+      Object.keys(sizeThresholds).forEach(id => {
+        sizeThresholdMap[id] = Math.max(1, Number(sizeThresholds[id]) || 1);
+      });
+      onSave(item.id, { name, category, unit }, numStock, sizeThresholdMap);
+    } else {
+      // Save overall threshold
+      onSave(item.id, { name, category, unit }, numStock, numThreshold);
+    }
     onClose();
   };
 
@@ -414,7 +422,7 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
                   <label className="block text-sm font-medium text-foreground mb-1.5">当前库存（只读）</label>
                   <Input
                     type="number" min="0"
-                    value={stock}
+                    value={numStock}
                     disabled={true}
                     className={`h-10 bg-muted/30 border-border font-semibold text-center cursor-not-allowed opacity-75 ${
                       numStock === 0 ? 'text-red-600' :
@@ -458,73 +466,62 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
                     </div>
                   ))}
                 </div>
+              </div>
+            ) : (
+              <div className="mb-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">预警阈值设置</span>
+                </div>
+                <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">预警阈值</label>
+                    <Input
+                      type="number" min="1"
+                      value={threshold}
+                      onChange={(e) => setThreshold(e.target.value)}
+                      className="h-10 bg-muted/50 border-border font-semibold text-center"
+                      placeholder="输入预警阈值"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      库存低于此值时将触发预警，当前值: {item.currentThreshold} {unit}
+                    </p>
+                  </div>
+                </div>
 
-                {/* Overall threshold setting for items without sizes */}
-                {(!item.sizes || item.sizes.length === 0) && (
-                  <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/15">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertTriangle className="w-3.5 h-3.5 text-primary" />
-                      <span className="text-xs font-medium text-foreground">整体预警设置</span>
+                {/* Live Preview */}
+                {numThreshold > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">库存水位预览</span>
+                      <div className="flex items-center gap-2">
+                        {previewSev !== origSev && (
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded-md border ${origCfg.bg} ${origCfg.color} ${origCfg.border}`}>
+                              {origCfg.label}
+                            </span>
+                            <span className="text-xs text-muted-foreground">→</span>
+                          </div>
+                        )}
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border ${previewCfg.bg} ${previewCfg.color} ${previewCfg.border}`}>
+                          {previewCfg.label}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <label className="text-xs text-muted-foreground whitespace-nowrap">预警阈值:</label>
-                      <Input
-                        type="number" min="1"
-                        value={stock}
-                        onChange={(e) => setStock(e.target.value)}
-                        className="h-8 bg-muted/50 border-border text-sm flex-1"
-                        placeholder="输入预警值"
+                    <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(100, Math.round((numStock / numThreshold) * 100))}%`, background: previewCfg.bar }}
                       />
-                      <span className="text-xs text-muted-foreground">{unit}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>库存 <span className={`font-semibold ${previewCfg.color}`}>{numStock} {unit}</span></span>
+                      <span>{Math.min(100, Math.round((numStock / numThreshold) * 100))}%</span>
+                      <span>阈值 <span className="font-semibold text-foreground">{numThreshold} {unit}</span></span>
                     </div>
                   </div>
                 )}
               </div>
-            ) : (
-              <>
-                {/* Live Preview Bar */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">库存水位预览</span>
-                    <div className="flex items-center gap-2">
-                      {previewSev !== origSev && (
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-xs font-medium px-1.5 py-0.5 rounded-md border ${origCfg.bg} ${origCfg.color} ${origCfg.border}`}>
-                            {origCfg.label}
-                          </span>
-                          <span className="text-xs text-muted-foreground">→</span>
-                        </div>
-                      )}
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border ${previewCfg.bg} ${previewCfg.color} ${previewCfg.border}`}>
-                        {previewCfg.label}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="h-2.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(100, Math.round((numStock / item.currentThreshold) * 100))}%`, background: previewCfg.bar }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>库存 <span className={`font-semibold ${previewCfg.color}`}>{numStock} {unit}</span></span>
-                    <span>{Math.min(100, Math.round((numStock / item.currentThreshold) * 100))}%</span>
-                    <span>阈值 <span className="font-semibold text-foreground">{item.currentThreshold} {unit}</span></span>
-                  </div>
-                </div>
-
-                {/* Threshold tip */}
-                {numStock !== item.currentThreshold && (
-                <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-primary/5 border border-primary/15">
-                  <Info className="w-3.5 h-3.5 text-primary mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-primary/80">
-                    预警阈值已从 <span className="font-semibold">{item.currentThreshold}</span> 调整为{' '}
-                    <span className="font-semibold">{numStock}</span> {unit}，
-                    库存低于此值时将触发预警
-                  </p>
-                </div>
-              )}
-            </>
             )}
           </div>
 
@@ -642,7 +639,7 @@ export function LowStockAlert() {
   // Load data from database
   const loadData = useCallback(async () => {
     setLoading(true);
-    const data = await fetchMaterials();
+    const data = await fetchMaterials(false);
     setMaterials(data);
     setLoading(false);
   }, []);
@@ -685,14 +682,45 @@ export function LowStockAlert() {
 
   const alertCount = counts.empty + counts.critical + counts.warning;
 
+  // Merge items with same name into one entry with combined sizes
+  const merged = useMemo(() => {
+    const itemMap = new Map<string, MaterialWithStatus>();
+
+    enriched.forEach(item => {
+      const existing = itemMap.get(item.name);
+      if (existing) {
+        // 合并 sizes：把当前物品的 sizes 添加到已有物品
+        const newSizes = [...(existing.sizes || [])];
+        (item.sizes || []).forEach(size => {
+          if (!newSizes.find(s => s.id === size.id)) {
+            newSizes.push(size);
+          }
+        });
+        existing.sizes = newSizes;
+        // 合并库存
+        existing.currentStock += item.currentStock;
+        existing.stock += item.stock;
+        // 取更严重的等级
+        const severityOrder = ['empty', 'critical', 'warning', 'normal'];
+        if (severityOrder.indexOf(item.severity) < severityOrder.indexOf(existing.severity)) {
+          existing.severity = item.severity;
+        }
+      } else {
+        itemMap.set(item.name, { ...item, sizes: [...(item.sizes || [])] });
+      }
+    });
+
+    return Array.from(itemMap.values());
+  }, [enriched]);
+
   const filtered = useMemo(() =>
-    enriched.filter(item => {
+    merged.filter(item => {
       const q = search.toLowerCase();
       const matchSearch = item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q);
       const matchTab    = activeTab === 'all' || item.severity === activeTab;
       return matchSearch && matchTab;
     }),
-    [enriched, search, activeTab]
+    [merged, search, activeTab]
   );
 
   const handleRestock = async (materialId: string, sizeId: string | null, qty: number) => {

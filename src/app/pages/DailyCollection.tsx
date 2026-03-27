@@ -548,7 +548,7 @@ export function DailyCollection() {
 
   const loadItems = async () => {
     setDataLoading(true);
-    const materials = await fetchMaterials();
+    const materials = await fetchMaterials(false);
     
     // 先创建所有物品的基础列表
     const rawItems: DisplayItem[] = materials.map(m => {
