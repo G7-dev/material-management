@@ -38,6 +38,8 @@ interface MaterialWithStatus extends Material {
   lowStockSizes: MaterialSize[];
   spec?: string;
   lastRestock?: string;
+  // 合并相关属性
+  sourceIds?: string[];
 }
 
 // 兼容性修复：Cloudflare Workers 自动注入变量可能缺失
@@ -676,23 +678,66 @@ export function LowStockAlert() {
     [materials, thresholds]
   );
 
+  // 按物品名称合并：将同名物品的多条记录合并为一行显示
+  const merged = useMemo(() => {
+    const itemMap = new Map<string, MaterialWithStatus>();
+
+    enriched.forEach(item => {
+      const existing = itemMap.get(item.name);
+      if (existing) {
+        // 合并 sizes
+        const combinedSizes = [...(existing.sizes || [])];
+        (item.sizes || []).forEach(size => {
+          if (!combinedSizes.find(s => s.id === size.id)) {
+            combinedSizes.push(size);
+          }
+        });
+
+        // 库存直接取各记录 currentStock 之和（每个记录的 currentStock 已由 getMaterialStockStatus 正确计算）
+        existing.currentStock += item.currentStock;
+
+        // 合并低库存规格
+        existing.lowStockSizes = [...existing.lowStockSizes, ...item.lowStockSizes];
+
+        // 取最严重的等级
+        const severityOrder = ['empty', 'critical', 'warning', 'normal'];
+        if (severityOrder.indexOf(item.severity) < severityOrder.indexOf(existing.severity)) {
+          existing.severity = item.severity;
+        }
+
+        // 合并来源ID
+        existing.sourceIds = [...(existing.sourceIds || []), item.id];
+        existing.sizes = combinedSizes;
+      } else {
+        itemMap.set(item.name, {
+          ...item,
+          sizes: [...(item.sizes || [])],
+          lowStockSizes: [...item.lowStockSizes],
+          sourceIds: [item.id],
+        });
+      }
+    });
+
+    return Array.from(itemMap.values());
+  }, [enriched]);
+
   const counts = useMemo(() => ({
-    empty:    enriched.filter(i => i.severity === 'empty').length,
-    critical: enriched.filter(i => i.severity === 'critical').length,
-    warning:  enriched.filter(i => i.severity === 'warning').length,
-    normal:   enriched.filter(i => i.severity === 'normal').length,
-  }), [enriched]);
+    empty:    merged.filter(i => i.severity === 'empty').length,
+    critical: merged.filter(i => i.severity === 'critical').length,
+    warning:  merged.filter(i => i.severity === 'warning').length,
+    normal:   merged.filter(i => i.severity === 'normal').length,
+  }), [merged]);
 
   const alertCount = counts.empty + counts.critical + counts.warning;
 
   const filtered = useMemo(() =>
-    enriched.filter(item => {
+    merged.filter(item => {
       const q = search.toLowerCase();
       const matchSearch = item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q);
       const matchTab    = activeTab === 'all' || item.severity === activeTab;
       return matchSearch && matchTab;
     }),
-    [enriched, search, activeTab]
+    [merged, search, activeTab]
   );
 
   const handleRestock = async (materialId: string, sizeId: string | null, qty: number) => {
@@ -713,19 +758,26 @@ export function LowStockAlert() {
     _newStock: number,
     newThreshold: number | Record<string, number>
   ) => {
+    // 找到合并后的物品，获取所有源记录ID
+    const mergedItem = merged.find(m => m.id === materialId);
+    const allIds = mergedItem?.sourceIds || [materialId];
+
     // Handle threshold update
     if (typeof newThreshold === 'number') {
-      // 单规格物品 - 整体阈值
-      setThresholds(prev => ({ ...prev, [materialId]: newThreshold }));
-    } else if (typeof newThreshold === 'object') {
-      // 多规格物品 - 每个规格单独阈值
-      // 使用所有规格阈值中的最小值作为整体阈值（用于列表排序/过滤）
-      const allValues = Object.values(newThreshold);
-      const minThreshold = allValues.length > 0 ? Math.min(...allValues) : 5;
-      setThresholds(prev => ({ ...prev, [materialId]: minThreshold }));
-      // 同时存储规格级别的阈值
+      // 整体阈值 - 应用到所有源记录
       setThresholds(prev => {
         const updated = { ...prev };
+        allIds.forEach(id => { updated[id] = newThreshold; });
+        return updated;
+      });
+    } else if (typeof newThreshold === 'object') {
+      // 多规格物品 - 使用最小值作为整体阈值，应用到所有源记录
+      const allValues = Object.values(newThreshold);
+      const minThreshold = allValues.length > 0 ? Math.min(...allValues) : 5;
+      setThresholds(prev => {
+        const updated = { ...prev };
+        allIds.forEach(id => { updated[id] = minThreshold; });
+        // 同时存储规格级别的阈值
         Object.entries(newThreshold).forEach(([sizeId, val]) => {
           updated[`${materialId}_${sizeId}`] = val;
         });
@@ -958,9 +1010,21 @@ export function LowStockAlert() {
                                 <span className="w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0" title="已编辑" />
                               )}
                             </div>
-                          <p className="text-xs text-muted-foreground">
-                            {item.category} {item.specification && item.specification !== '—' && <span className="ml-1">· {item.specification}</span>}
-                          </p>
+                            <p className="text-xs text-muted-foreground">
+                            {item.category}
+                            {item.sizes && item.sizes.length > 0 && (
+                              <span className="ml-1">· {item.sizes.length} 个规格</span>
+                            )}
+                            </p>
+                            {item.lowStockSizes && item.lowStockSizes.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {item.lowStockSizes.map(s => (
+                                  <span key={s.id} className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/8 text-red-600 border border-red-500/15">
+                                    {s.label}: {s.stock}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
