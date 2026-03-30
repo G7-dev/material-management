@@ -248,10 +248,27 @@ export function PurchaseManagement() {
 
       if (error) throw error;
 
+      // 获取所有 user_id 去重
+      const userIds = [...new Set((data || []).map((item: any) => item.user_id))];
+      
+      // 查询 profiles 表获取用户真实姓名
+      const { data: usersData, error: usersError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+
+      if (usersError) throw usersError;
+
+      // 创建用户映射
+      const userMap = new Map<string, string>();
+      usersData?.forEach((user: any) => {
+        userMap.set(user.id, user.full_name || '未知用户');
+      });
+
       const reqs: Requisition[] = (data || []).map((item: any) => ({
         id: item.id,
         user_id: item.user_id,
-        applicant_name: item.applicant_name || '未知用户',
+        applicant_name: userMap.get(item.user_id) || '未知用户',
         department: item.department || '未指定',
         purchase_name: item.purchase_name,
         purchase_specification: item.purchase_specification || '-',
