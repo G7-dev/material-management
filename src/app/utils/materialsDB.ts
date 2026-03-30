@@ -403,6 +403,37 @@ export async function searchMaterials(query: string): Promise<Material[]> {
   }
 }
 
+// 获取物资的最近补货时间
+export async function fetchMaterialLastRestock(materialId: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('inventory_logs')
+      .select('created_at')
+      .eq('material_id', materialId)
+      .eq('operation_type', 'restock')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    // 格式化日期时间
+    const date = new Date(data.created_at);
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    console.error('获取最近补货时间失败:', error);
+    return null;
+  }
+}
+
 // 删除物资（硬删除 - 直接从数据库删除）
 export async function deleteMaterial(materialId: string): Promise<boolean> {
   try {

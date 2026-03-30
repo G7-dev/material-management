@@ -12,6 +12,7 @@ import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
 import {
   fetchMaterials,
+  fetchMaterialLastRestock,
   updateMaterialStock,
   type Material,
   type MaterialSize,
@@ -645,7 +646,19 @@ export function LowStockAlert() {
     // 先清除缓存，确保从数据库获取最新数据
     invalidateMaterialCache();
     const data = await fetchMaterials(false);
-    setMaterials(data);
+    
+    // 为每个物品获取最近补货时间
+    const materialsWithLastRestock = await Promise.all(
+      data.map(async (material) => {
+        const lastRestock = await fetchMaterialLastRestock(material.id);
+        return {
+          ...material,
+          lastRestock: lastRestock || undefined
+        };
+      })
+    );
+    
+    setMaterials(materialsWithLastRestock);
     setLoading(false);
   }, []);
 
@@ -750,19 +763,12 @@ export function LowStockAlert() {
       setRestockedIds(prev => [...prev, materialId]);
       setTimeout(() => setRestockedIds(prev => prev.filter(id => id !== materialId)), 3000);
       
-      // 更新最近补货时间
-      const now = new Date();
-      const formattedDate = now.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      // 更新最近补货时间（从数据库获取最新记录）
+      const lastRestock = await fetchMaterialLastRestock(materialId);
       
       // 更新 materials 数组中的 lastRestock 字段
       setMaterials(prev => prev.map(m => 
-        m.id === materialId ? { ...m, lastRestock: formattedDate } : m
+        m.id === materialId ? { ...m, lastRestock: lastRestock || undefined } : m
       ));
     }
   };
