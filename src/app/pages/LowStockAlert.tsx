@@ -749,6 +749,21 @@ export function LowStockAlert() {
     if (result.success) {
       setRestockedIds(prev => [...prev, materialId]);
       setTimeout(() => setRestockedIds(prev => prev.filter(id => id !== materialId)), 3000);
+      
+      // 更新最近补货时间
+      const now = new Date();
+      const formattedDate = now.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      // 更新 materials 数组中的 lastRestock 字段
+      setMaterials(prev => prev.map(m => 
+        m.id === materialId ? { ...m, lastRestock: formattedDate } : m
+      ));
     }
   };
 
