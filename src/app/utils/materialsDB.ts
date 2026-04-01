@@ -387,8 +387,7 @@ export async function searchMaterials(query: string): Promise<Material[]> {
     const { data, error } = await supabase
       .from('materials')
       .select('*')
-      .ilike('name', `%${query}%`)
-      .or(`category.ilike.%${query}%`)
+      .or(`name.ilike.%${query}%,category.ilike.%${query}%`)
       .order('updated_at', { ascending: false });
 
     if (error) {

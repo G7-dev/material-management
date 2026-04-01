@@ -16,6 +16,7 @@ import { EnhancedSelect } from '../components/ui/enhanced-select';
 import { DatePicker } from '../components/ui/date-picker';
 import { addMaterial, fetchMaterials } from '../utils/materialsDB';
 import type { Material } from '../utils/materialsDB';
+import { uploadImage } from '../utils/imageUpload';
 
 const tips = [
   { icon: ImageIcon, text: '建议上传清晰正面图，分辨率不低于 800×800px' },
@@ -322,6 +323,7 @@ export function ItemUpload() {
   const navigate = useNavigate();
   const [dragOver, setDragOver]           = useState(false);
   const [previewImage, setPreviewImage]   = useState<string | null>(null);
+  const [selectedFile, setSelectedFile]   = useState<File | null>(null);
   const [formData, setFormData]           = useState({ ...EMPTY_FORM });
   const [isUploading, setIsUploading]     = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -407,6 +409,17 @@ export function ItemUpload() {
     
     setIsUploading(true);
 
+    // 上传图片到 Supabase Storage（如果有选择图片）
+    let imageUrl: string | null = null;
+    if (selectedFile) {
+      imageUrl = await uploadImage(selectedFile, 'items');
+      if (!imageUrl) {
+        // uploadImage 内部已经 toast 了错误信息
+        setIsUploading(false);
+        return;
+      }
+    }
+
     const newId = await addMaterial({
       name: formData.name,
       category: formData.category,
@@ -416,6 +429,7 @@ export function ItemUpload() {
       safe_stock: parseInt(formData.lowStockThreshold) || 0,
       unit_price: parseFloat(formData.unitPrice) || 0,
       item_code: formData.itemCode.trim() || undefined,
+      image_url: imageUrl || undefined,
     });
 
     // 刷新缓存
@@ -434,6 +448,7 @@ export function ItemUpload() {
     setSavedItem(null);
     setFormData({ ...EMPTY_FORM });
     setPreviewImage(null);
+    setSelectedFile(null);
   };
 
   const handleSaveDraft = () => {
@@ -513,7 +528,7 @@ export function ItemUpload() {
                 <img src={previewImage} alt="预览" className="w-full h-52 object-cover" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                   <button
-                    onClick={() => setPreviewImage(null)}
+                    onClick={() => { setPreviewImage(null); setSelectedFile(null); }}
                     className="flex items-center gap-1.5 px-4 py-2 bg-white/90 text-foreground rounded-lg text-sm font-medium hover:bg-white transition-colors"
                   >
                     <X className="w-4 h-4" />
@@ -534,6 +549,7 @@ export function ItemUpload() {
                   setDragOver(false);
                   const file = e.dataTransfer.files[0];
                   if (file && file.type.startsWith('image/')) {
+                    setSelectedFile(file);
                     setPreviewImage(URL.createObjectURL(file));
                   }
                 }}
@@ -550,6 +566,7 @@ export function ItemUpload() {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file && file.type.startsWith('image/')) {
+                      setSelectedFile(file);
                       setPreviewImage(URL.createObjectURL(file));
                     }
                   }}
@@ -920,7 +937,6 @@ export function ItemUpload() {
                 { key: 'name',          label: '物品名称',   filled: !!formData.name },
                 { key: 'category',      label: '物品分类',   filled: !!formData.category },
                 { key: 'quantity',      label: '上架数量',   filled: !!formData.quantity },
-                { key: 'stockPlatform', label: '组件库存台', filled: !!formData.stockPlatform },
               ].map((item) => (
                 <div
                   key={item.key}
@@ -970,20 +986,18 @@ export function ItemUpload() {
               </button>
             </div>
             <div className="space-y-2.5">
-              {[
-                { name: '订书机',   category: '办公用品', qty: '10个', date: '3月17日' },
-                { name: 'A4打印纸', category: '耗材',     qty: '50包', date: '3月15日' },
-                { name: 'U盘 64G', category: '电子设备', qty: '5个',  date: '3月12日' },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+              {allMaterials.slice(0, 5).map((item) => (
+                <div key={item.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
                   <div className="w-8 h-8 rounded-lg bg-primary/8 flex items-center justify-center flex-shrink-0 border border-primary/10">
                     <Package className="w-4 h-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">{item.category} · {item.qty}</p>
+                    <p className="text-xs text-muted-foreground">{item.category} · {item.stock}{item.unit}</p>
                   </div>
-                  <span className="text-xs text-muted-foreground flex-shrink-0">{item.date}</span>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">
+                    {item.created_at ? new Date(item.created_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) : ''}
+                  </span>
                 </div>
               ))}
             </div>

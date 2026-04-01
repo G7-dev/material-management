@@ -62,10 +62,9 @@ export function ManagementPlatform() {
         
         // 从Supabase获取近一个月的已批准日常领用记录
         const { data: requisitionsData, error: reqError } = await supabase
-          .from('requisitions')
-          .select('purchase_name, purchase_quantity, created_at, status, requisition_type')
+          .from('application_records')
+          .select('item_name, quantity, created_at, status')
           .eq('status', 'approved')
-          .eq('requisition_type', 'daily_request')
           .gte('created_at', oneMonthAgo.toISOString())
           .lte('created_at', today.toISOString());
 
@@ -74,8 +73,8 @@ export function ManagementPlatform() {
         // 按物品名称分组统计数量
         const itemCounts: Record<string, number> = {};
         requisitionsData?.forEach(record => {
-          const itemName = record.purchase_name || '未知物品';
-          const quantity = parseInt(record.purchase_quantity) || 1;
+          const itemName = record.item_name || '未知物品';
+          const quantity = parseInt(record.quantity) || 1;
           itemCounts[itemName] = (itemCounts[itemName] || 0) + quantity;
         });
 

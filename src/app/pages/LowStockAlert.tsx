@@ -1157,7 +1157,7 @@ export function LowStockAlert() {
           </div>
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            最后更新：2026-03-18 10:30
+            最后更新：{new Date().toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(/\//g, '-')}
           </p>
         </div>
       </Card>

@@ -11,6 +11,7 @@ import { EnhancedSelect } from '../components/ui/enhanced-select';
 import { DatePicker } from '../components/ui/date-picker';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+import { uploadImage } from '../utils/imageUpload';
 
 export function ItemPurchase() {
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ export function ItemPurchase() {
   const [department, setDepartment] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   
   const DEPARTMENTS = ['设备部', '技术部', '生产一部', '生产二部', '供应部', '储运部', '能源部', 'TPM'];
@@ -122,13 +124,14 @@ export function ItemPurchase() {
       return;
     }
     
-    // Read file as data URL
+    // Store file and create preview
+    setSelectedFile(file);
     const reader = new FileReader();
     reader.onload = (event) => {
       const result = event.target?.result as string;
       if (result) {
         setSelectedImage(result);
-        toast.success('图片上传成功');
+        toast.success('图片已选择');
       }
     };
     reader.readAsDataURL(file);
@@ -176,6 +179,17 @@ export function ItemPurchase() {
           .eq('id', user.id);
       }
       
+      // Upload image to Supabase Storage if selected
+      let imageUrl: string | null = null;
+      if (selectedFile) {
+        imageUrl = await uploadImage(selectedFile, 'purchase');
+        if (!imageUrl) {
+          // uploadImage already showed error toast
+          setLoading(false);
+          return;
+        }
+      }
+
       // Submit to requisitions table
       const { error } = await supabase
         .from('requisitions')
@@ -185,15 +199,16 @@ export function ItemPurchase() {
           status: 'pending',
           purchase_name: itemName,
           purchase_specification: specification,
-          purchase_model: itemCategory, // 使用分类作为模型
+          purchase_model: itemCategory,
           purchase_unit: unit || '个',
           purchase_quantity: quantity,
           purchase_reason: purchaseReason,
-          purpose: itemCategory, // 将分类也存入用途
+          purpose: itemCategory,
           estimated_delivery_date: expectedDate,
           applicant_name: profile.full_name || '未知用户',
           department: department,
           employee_id: employeeId.trim(),
+          image_url: imageUrl || null,
           created_at: new Date().toISOString(),
         });
       
@@ -212,6 +227,8 @@ export function ItemPurchase() {
       setExpectedDate('');
       setPurchaseReason('');
       setEmployeeId('');
+      setSelectedImage(null);
+      setSelectedFile(null);
       
       // Navigate to application records after 2 seconds
       setTimeout(() => {

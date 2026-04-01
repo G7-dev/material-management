@@ -92,10 +92,9 @@ export function Dashboard() {
         
         // 从Supabase获取近一个月的已批准日常领用记录
         const { data, error } = await supabase
-          .from('requisitions')
-          .select('purchase_name, purchase_quantity, created_at, status, requisition_type')
+          .from('application_records')
+          .select('item_name, quantity, created_at, status')
           .eq('status', 'approved')
-          .eq('requisition_type', 'daily_request')
           .gte('created_at', oneMonthAgo.toISOString())
           .lte('created_at', today.toISOString());
 
@@ -104,8 +103,8 @@ export function Dashboard() {
         // 按物品名称分组统计数量
         const itemCounts: Record<string, number> = {};
         data?.forEach(record => {
-          const itemName = record.purchase_name || '未知物品';
-          const quantity = parseInt(record.purchase_quantity) || 1;
+          const itemName = record.item_name || '未知物品';
+          const quantity = parseInt(record.quantity) || 1;
           itemCounts[itemName] = (itemCounts[itemName] || 0) + quantity;
         });
 
@@ -114,7 +113,7 @@ export function Dashboard() {
           .map(([name, count]) => ({
             name,
             count,
-            category: '办公用品' // 默认分类，可以根据需要调整
+            category: '办公用品'
           }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 8);
@@ -153,7 +152,7 @@ export function Dashboard() {
         </div>
         <div className="text-right px-5 py-3 rounded-xl bg-muted border border-border">
           <p className="text-xs text-muted-foreground">今天是</p>
-          <p className="text-sm font-semibold text-foreground">2026年3月18日</p>
+          <p className="text-sm font-semibold text-foreground">{new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
       </div>
 

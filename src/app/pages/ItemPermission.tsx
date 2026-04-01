@@ -339,13 +339,14 @@ export function ItemPermission() {
 
   // Merge items with same name into one item with multiple size variants
   const mergedItems = (() => {
-    const itemMap = new Map<string, Item>();
+    const itemMap = new Map<string, Item & { sourceIds: string[] }>();
 
     allItems.forEach(item => {
       if (deletedIds.includes(item.id)) return;
 
       const existingItem = itemMap.get(item.name);
       if (existingItem) {
+        existingItem.sourceIds.push(item.id);
         // 从 specification 字段提取实际规格名
         const specLabel = item.spec !== '—' && item.spec.startsWith('规格: ')
           ? item.spec.replace('规格: ', '')
@@ -364,8 +365,9 @@ export function ItemPermission() {
         const specLabel = item.spec !== '—' && item.spec.startsWith('规格: ')
           ? item.spec.replace('规格: ', '')
           : item.spec !== '—' ? item.spec : '默认';
-        const newItem: Item = {
+        const newItem: Item & { sourceIds: string[] } = {
           ...item,
+          sourceIds: [item.id],
           sizes: item.sizes && item.sizes.length > 0
             ? [...item.sizes]
             : [{

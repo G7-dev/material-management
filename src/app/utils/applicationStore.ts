@@ -134,7 +134,7 @@ export async function updateApplicationStatus(
     const { error } = await supabase
       .from('application_records')
       .update(updates)
-      .filter('id', 'eq', id);
+      .eq('id', id);
 
     if (error) {
       console.error('更新申请状态失败:', error);
@@ -150,7 +150,7 @@ export async function deleteApplicationRecord(id: string): Promise<void> {
     const { error } = await supabase
       .from('application_records')
       .delete()
-      .filter('id', 'eq', id);
+      .eq('id', id);
 
     if (error) {
       console.error('删除申请记录失败:', error);

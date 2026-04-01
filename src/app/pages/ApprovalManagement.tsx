@@ -278,6 +278,9 @@ export function ApprovalManagement() {
     status: ''
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   // 每次 approvals 变化时同步写入 localStorage
   useEffect(() => {
@@ -352,22 +355,35 @@ export function ApprovalManagement() {
       
       // 如果是日常领用，更新库存
       if (approval.applicationType === '日常领用') {
-        // 解析物品名称（可能包含规格信息）
+        // 解析物品名称（可能包含规格信息，如 "A4打印纸 (70g)"）
         const baseItemName = approval.itemName.split(' (')[0];
+        const sizeLabel = (approval.itemName.match(/\((.+)\)/) || [])[1];
         
         // 查找对应的库存物品
         const materials = await fetchMaterials(false);
         const targetItem = materials.find(m => m.name === baseItemName);
         
         if (targetItem) {
-          // 使用 materialsDB 扣减库存
           const requestQuantity = parseInt(approval.quantity) || 0;
+          
+          // 尝试匹配规格 ID
+          let sizeId: string | null = null;
+          if (sizeLabel && targetItem.sizes && targetItem.sizes.length > 0) {
+            const matchedSize = targetItem.sizes.find(s =>
+              s.label === sizeLabel || s.id === sizeLabel
+            );
+            if (matchedSize) {
+              sizeId = matchedSize.id;
+            }
+          }
+          
+          // 使用 materialsDB 扣减库存（传入 sizeId 以扣减具体规格）
           await requestMaterialOut(
             targetItem.id,
-            null, // sizeId
+            sizeId,
             requestQuantity,
-            approval.id, // referenceId
-            `审批通过：${approval.applicant} 领用 ${baseItemName} ${requestQuantity} ${targetItem.unit}`
+            approval.id,
+            `审批通过：${approval.applicant} 领用 ${baseItemName}${sizeLabel ? ' (' + sizeLabel + ')' : ''} ${requestQuantity} ${targetItem.unit}`
           );
         } else {
           console.warn(`未找到库存物品: ${baseItemName}`);
@@ -384,6 +400,7 @@ export function ApprovalManagement() {
       
       // 关闭模态框
       setApprovingItem(null);
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
       
       console.log('批准操作成功完成');
     } catch (error) {
@@ -411,6 +428,7 @@ export function ApprovalManagement() {
       
       // 关闭模态框
       setRejectingItem(null);
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
       
       console.log('驳回操作成功完成');
     } catch (error) {
@@ -419,6 +437,68 @@ export function ApprovalManagement() {
       // 恢复状态 - 重新加载数据
       const localApprovals = await loadApprovals();
       setApprovals(localApprovals);
+    }
+  };
+
+  // 批量审批
+  const handleBatchApprove = async () => {
+    const pendingSelected = approvals.filter(a => a.status === 'pending' && selectedIds.has(a.id));
+    if (pendingSelected.length === 0) return;
+    
+    if (!window.confirm(`确认批量批准 ${pendingSelected.length} 条申请？`)) return;
+    
+    let successCount = 0;
+    for (const approval of pendingSelected) {
+      try {
+        await handleApprove(approval.id);
+        successCount++;
+      } catch (e) {
+        console.error(`批量审批失败 [${approval.id}]:`, e);
+      }
+    }
+    setSelectedIds(new Set());
+    toast.success(`成功批准 ${successCount} 条申请`);
+  };
+
+  // 批量驳回
+  const handleBatchReject = async () => {
+    const pendingSelected = approvals.filter(a => a.status === 'pending' && selectedIds.has(a.id));
+    if (pendingSelected.length === 0) return;
+    
+    const reason = prompt(`请输入 ${pendingSelected.length} 条申请的统一驳回理由：`);
+    if (!reason || !reason.trim()) return;
+    
+    let successCount = 0;
+    for (const approval of pendingSelected) {
+      try {
+        await handleReject(approval.id, reason.trim());
+        successCount++;
+      } catch (e) {
+        console.error(`批量驳回失败 [${approval.id}]:`, e);
+      }
+    }
+    setSelectedIds(new Set());
+    toast.success(`成功驳回 ${successCount} 条申请`);
+  };
+
+  // 切换选中
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // 全选当前页
+  const toggleSelectAll = () => {
+    const pageItems = pagedFiltered;
+    const allSelected = pageItems.every(a => selectedIds.has(a.id));
+    if (allSelected) {
+      setSelectedIds(prev => { const next = new Set(prev); pageItems.forEach(a => next.delete(a.id)); return next; });
+    } else {
+      setSelectedIds(prev => { const next = new Set(prev); pageItems.forEach(a => next.add(a.id)); return next; });
     }
   };
 
@@ -463,6 +543,18 @@ export function ApprovalManagement() {
     pending:  'bg-amber-50 text-amber-600',
     approved: 'bg-emerald-50 text-emerald-600',
     rejected: 'bg-red-50 text-red-600',
+  };
+
+  // 分页逻辑
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pagedFiltered = filtered.slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE);
+
+  // 切换 tab 时重置页码
+  const handleTabChange = (tab: ApprovalStatus | 'all') => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+    setSelectedIds(new Set());
   };
 
   return (
@@ -628,7 +720,7 @@ export function ApprovalManagement() {
           {tabs.map(tab => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
                 activeTab === tab.key
                   ? 'bg-primary text-white shadow-sm'
@@ -650,6 +742,23 @@ export function ApprovalManagement() {
 
       {/* Approval Table */}
       <Card className="border-border bg-white overflow-hidden">
+        {/* Batch Actions */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 px-6 py-3 bg-primary/5 border-b border-primary/10">
+            <span className="text-sm text-foreground font-medium">
+              已选择 {selectedIds.size} 条
+            </span>
+            <Button size="sm" className="h-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xs gap-1" onClick={handleBatchApprove}>
+              <CheckCircle2 className="w-3.5 h-3.5" /> 批量批准
+            </Button>
+            <Button size="sm" className="h-8 bg-red-500 hover:bg-red-600 text-white text-xs gap-1" onClick={handleBatchReject}>
+              <XCircle className="w-3.5 h-3.5" /> 批量驳回
+            </Button>
+            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setSelectedIds(new Set())}>
+              取消选择
+            </Button>
+          </div>
+        )}
         {dataLoading ? (
           <div className="p-6 space-y-4">
             {/* Skeleton header row */}
@@ -687,6 +796,14 @@ export function ApprovalManagement() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead className="font-semibold text-foreground text-center w-10">
+                  <input
+                    type="checkbox"
+                    checked={pagedFiltered.length > 0 && pagedFiltered.every(a => selectedIds.has(a.id))}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-border cursor-pointer"
+                  />
+                </TableHead>
                 <TableHead className="font-semibold text-foreground text-center">序号</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">申请人</TableHead>
                 <TableHead className="font-semibold text-foreground text-center">工号</TableHead>
@@ -704,15 +821,15 @@ export function ApprovalManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.length === 0 ? (
+              {pagedFiltered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={13} className="text-center py-16 text-muted-foreground">
+                  <TableCell colSpan={14} className="text-center py-16 text-muted-foreground">
                     <Package className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     暂无匹配记录
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((approval, index) => (
+                pagedFiltered.map((approval, index) => (
                   <TableRow
                     key={approval.id}
                     className={`hover:bg-accent/50 ${
@@ -720,7 +837,16 @@ export function ApprovalManagement() {
                       approval.status === 'rejected' ? 'bg-red-500/2' : ''
                     }`}
                   >
-                    <TableCell className="font-medium text-center">{index + 1}</TableCell>
+                    <TableCell className="text-center w-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(approval.id)}
+                        onChange={() => toggleSelect(approval.id)}
+                        disabled={approval.status !== 'pending'}
+                        className="w-4 h-4 rounded border-border cursor-pointer disabled:opacity-30"
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium text-center">{(safeCurrentPage - 1) * PAGE_SIZE + index + 1}</TableCell>
                     <TableCell className="text-center">
                       <div>
                         <p className="font-medium text-foreground">{approval.applicant}</p>
@@ -785,10 +911,10 @@ export function ApprovalManagement() {
         <div className="flex items-center justify-between px-6 py-4 border-t border-border">
           <p className="text-sm text-muted-foreground">共 {filtered.length} 条记录</p>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled className="border-border">上一页</Button>
-            <Button size="sm" className="bg-primary text-white">1</Button>
-            <Button variant="outline" size="sm" disabled className="border-border">下一页</Button>
-            <span className="text-sm text-muted-foreground ml-2">/ 10 条/页</span>
+            <Button variant="outline" size="sm" disabled={safeCurrentPage <= 1} onClick={() => setCurrentPage(p => p - 1)} className="border-border">上一页</Button>
+            <span className="text-sm text-foreground">{safeCurrentPage} / {totalPages}</span>
+            <Button variant="outline" size="sm" disabled={safeCurrentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)} className="border-border">下一页</Button>
+            <span className="text-sm text-muted-foreground ml-2">{PAGE_SIZE} 条/页</span>
           </div>
         </div>
         </>
