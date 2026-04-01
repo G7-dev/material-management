@@ -326,7 +326,7 @@ export function LoginPage() {
           {/* Footer */}
           <div className="mt-8 text-center">
             <p className="text-xs text-muted-foreground">
-              © 2024 物资领用系统 | 企业内部使用
+              © 2026 物资领用系统 | 企业内部使用
             </p>
           </div>
         </div>

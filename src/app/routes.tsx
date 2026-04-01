@@ -26,6 +26,19 @@ function AuthWrapper() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // 检测浏览器是否重新打开（非刷新）
+        // sessionStorage 在浏览器关闭后自动清除，刷新页面保留
+        const SESSION_KEY = 'app_session_active';
+        const isExistingTab = sessionStorage.getItem(SESSION_KEY);
+
+        if (!isExistingTab) {
+          // 新的浏览器窗口/标签页，清除登录状态
+          await supabase.auth.signOut({ scope: 'local' });
+          setAuthenticated(false);
+          setLoading(false);
+          return;
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         setAuthenticated(!!session);
       } catch (error) {
@@ -35,6 +48,9 @@ function AuthWrapper() {
         setLoading(false);
       }
     };
+
+    // 标记当前标签页为活跃会话
+    sessionStorage.setItem('app_session_active', 'true');
 
     checkAuth();
 
