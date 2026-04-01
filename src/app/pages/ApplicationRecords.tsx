@@ -75,7 +75,7 @@ export function ApplicationRecords() {
           confirmed_at: new Date().toISOString(),
           archived_at: new Date().toISOString()
         })
-        .filter('id', 'eq', requisitionId);
+        .eq('id', requisitionId);
 
       if (error) throw error;
 
@@ -87,8 +87,8 @@ export function ApplicationRecords() {
         const { data } = await supabase
           .from('requisitions')
           .select('*')
-          .filter('user_id', 'eq', user.id)
-          .filter('status', 'neq', 'archived') // Don't show archived in user view
+          .eq('user_id', user.id)
+          .neq('status', 'archived') // Don't show archived in user view
           .order('created_at', { ascending: false });
         setRequisitions(data || []);
       }
@@ -109,7 +109,7 @@ export function ApplicationRecords() {
           status: 'cancelled',
           cancelled_at: new Date().toISOString()
         })
-        .filter('id', 'eq', requisitionId);
+        .eq('id', requisitionId);
 
       if (error) throw error;
 
@@ -121,7 +121,7 @@ export function ApplicationRecords() {
         const { data } = await supabase
           .from('requisitions')
           .select('*')
-          .filter('user_id', 'eq', user.id)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
         setRequisitions(data || []);
       }

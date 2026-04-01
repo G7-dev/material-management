@@ -312,6 +312,7 @@ export function ItemPermission() {
 
     const result = await restockMaterial(itemId, sizeIdOrNull, quantity, `${item.name} 手动补货`);
     if (result.success) {
+      toast.success('补货成功');
       setRestockedIds(prev => [...prev, itemId]);
       setTimeout(() => {
         setRestockedIds(prev => prev.filter(id => id !== itemId));
@@ -323,6 +324,7 @@ export function ItemPermission() {
   const handleDelete = async (itemId: string) => {
     const success = await deleteMaterial(itemId);
     if (success) {
+      toast.success('物品已删除');
       setDeletedIds(prev => [...prev, itemId]);
       setTimeout(() => {
         setDeletedIds(prev => prev.filter(id => id !== itemId));
@@ -824,6 +826,7 @@ export function ItemPermission() {
                   );
                   setDeleting(false);
                   if (result.success) {
+                    toast.success(`${result.deletedCount} 个规格已删除`);
                     setDeleteTarget(null);
                     setSelectedSizesToDelete(new Set());
                     loadItems();

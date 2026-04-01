@@ -230,7 +230,7 @@ export async function addMaterial(material: {
         notes: '初始上架'
       });
       
-      toast.success('物资添加成功');
+      // UI 层负责展示成功提示
       return data.id;
     }
     
@@ -271,7 +271,7 @@ export async function updateMaterialStock(
     const result = data && data[0];
     if (result) {
       const action = operationType === 'restock' ? '补货' : operationType === 'request_out' ? '出库' : '调整';
-      toast.success(`${action}成功`);
+      // UI 层负责展示成功提示
       
       // 触发库存更新事件
       window.dispatchEvent(new CustomEvent('inventoryUpdated'));
@@ -461,7 +461,7 @@ export async function deleteMaterial(materialId: string): Promise<boolean> {
     // 触发更新事件
     window.dispatchEvent(new CustomEvent('inventoryUpdated'));
 
-    toast.success('物资已从数据库中永久删除');
+    // UI 层负责展示成功提示
     return true;
   } catch (error) {
     console.error('删除物资异常:', error);
@@ -536,7 +536,7 @@ export async function deleteMaterialSize(
     // 触发更新事件
     window.dispatchEvent(new CustomEvent('inventoryUpdated'));
     
-    toast.success(`规格 "${sizeToDelete.label}" 已删除`);
+    // UI 层负责展示成功提示
     return { success: true };
   } catch (error) {
     console.error('删除规格异常:', error);
@@ -604,7 +604,7 @@ export async function deleteMaterialSizes(
     // 触发更新事件
     window.dispatchEvent(new CustomEvent('inventoryUpdated'));
     
-    toast.success(`${sizeIds.length} 个规格已删除`);
+    // UI 层负责展示成功提示
     return { success: true, deletedCount: sizeIds.length };
   } catch (error) {
     console.error('批量删除规格异常:', error);

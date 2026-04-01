@@ -300,7 +300,7 @@ export function ApprovalManagement() {
         const { data, error } = await supabase
           .from('requisitions')
           .select('*')
-          .filter('status', 'eq', 'archived')
+          .eq('status', 'archived')
           .order('created_at', { ascending: false });
 
         if (error) throw error;

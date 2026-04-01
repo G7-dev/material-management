@@ -243,7 +243,7 @@ export function PurchaseManagement() {
       const { data, error } = await supabase
         .from('requisitions')
         .select('*')
-        .filter('status', 'neq', 'archived') // Don't show archived in purchase management
+        .neq('status', 'archived') // Don't show archived in purchase management
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -330,7 +330,7 @@ export function PurchaseManagement() {
           status: 'arrival_notified',
           notification_time: notificationTime
         })
-        .filter('id', 'eq', id);
+        .eq('id', id);
 
       if (error) throw error;
 
@@ -411,7 +411,7 @@ export function PurchaseManagement() {
       const { data } = await supabase
         .from('requisitions')
         .select('*')
-        .filter('status', 'eq', 'confirmed');
+        .eq('status', 'confirmed');
 
       if (data) {
         for (const req of data) {

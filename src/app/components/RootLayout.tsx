@@ -11,6 +11,7 @@ export function RootLayout() {
       </main>
       <Toaster
         position="top-center"
+        richColors
         toastOptions={{
           style: {
             borderRadius: '12px',
