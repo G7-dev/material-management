@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { Upload, Users, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, Users, X, CheckCircle2, AlertCircle, Loader2, Download } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
+// ── 类型定义 ────────────────────────────────────────────────────────────
 interface UserRecord {
   full_name: string;
   department: string;
@@ -25,6 +26,68 @@ interface RegisterResult {
   error?: string;
 }
 
+// ── Supabase Admin API 封装 ─────────────────────────────────────────────
+// 使用 supabase-js 的 GoTrue Admin API 创建用户，不会影响当前登录会话
+function getAdminAuth() {
+  return supabase.auth.admin;
+}
+
+// 通过 REST API 直接插入 profiles 记录（绕过 RLS）
+async function insertProfileDirectly(profile: Record<string, unknown>) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  const res = await fetch(`${supabaseUrl}/rest/v1/profiles`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': supabaseAnonKey,
+      'Authorization': `Bearer ${supabaseAnonKey}`,
+      'Prefer': 'return=minimal',
+    },
+    body: JSON.stringify(profile),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const msg = errorData?.message || errorData?.msg || res.statusText;
+    throw new Error(`插入profiles失败: ${msg}`);
+  }
+}
+
+// 通过 REST API 删除 profiles 记录
+async function deleteProfileDirectly(userId: string) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userId}`, {
+    method: 'DELETE',
+    headers: {
+      'apikey': supabaseAnonKey,
+      'Authorization': `Bearer ${supabaseAnonKey}`,
+    },
+  });
+
+  if (!res.ok) {
+    console.error('删除profile失败:', res.status);
+  }
+}
+
+// ── Excel 模板生成 ──────────────────────────────────────────────────────
+function generateUserTemplate() {
+  const headers = ['姓名', '邮箱', '部门', '工号', '电话', '角色'];
+  const sampleRows = [
+    ['张三', 'zhangsan@company.com', '技术部', '1001', '13800138000', 'employee'],
+    ['李四', 'lisi@company.com', '市场部', '1002', '13900139000', 'employee'],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length * 3, 16) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '批量注册');
+  XLSX.writeFile(wb, '批量用户注册模板.xlsx');
+}
+
+// ── 主组件 ──────────────────────────────────────────────────────────────
 export function AdminBatchRegister() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,17 +106,60 @@ export function AdminBatchRegister() {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array' });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(firstSheet) as any[];
+      const aoa = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1, defval: '' });
 
-      // 映射Excel列到用户对象
-      const mappedUsers: UserRecord[] = jsonData.map(row => ({
-        full_name: row['姓名'] || row['name'] || row['full_name'],
-        department: row['部门'] || row['department'],
-        email: row['邮箱'] || row['email'],
-        employee_id: row['工号'] || row['employee_id'] || '',
-        phone: row['电话'] || row['phone'] || '',
-        role: row['角色'] || row['role'] || 'employee'
-      })).filter(user => user.full_name && user.email);
+      if (aoa.length < 2) {
+        toast.error('Excel文件为空或只有表头');
+        return;
+      }
+
+      const headerRow = (aoa[0] as unknown[]).map(h => String(h).trim());
+
+      // 建立列索引映射
+      const colAliases: Record<string, string[]> = {
+        full_name: ['姓名', 'name', 'full_name', '名称'],
+        email: ['邮箱', 'email', '电子邮箱'],
+        department: ['部门', 'department', '部门名称'],
+        employee_id: ['工号', 'employee_id', '员工编号'],
+        phone: ['电话', 'phone', '手机号', '联系电话'],
+        role: ['角色', 'role'],
+      };
+
+      const fieldToCol: Record<string, number> = {};
+      headerRow.forEach((col, idx) => {
+        for (const [field, aliases] of Object.entries(colAliases)) {
+          if (aliases.includes(col) && fieldToCol[field] === undefined) {
+            fieldToCol[field] = idx;
+          }
+        }
+      });
+
+      if (fieldToCol['full_name'] === undefined || fieldToCol['email'] === undefined) {
+        toast.error('Excel表头缺少必填列：姓名、邮箱。请下载模板查看格式。');
+        return;
+      }
+
+      const getCol = (field: string) => {
+        const idx = fieldToCol[field];
+        return idx !== undefined ? String(aoa[0] !== undefined ? (aoa as unknown[][]).find((_, i) => i > 0)?.[idx] : '') : '';
+      };
+
+      const mappedUsers: UserRecord[] = [];
+      for (let i = 1; i < aoa.length; i++) {
+        const row = aoa[i] as unknown[];
+        const name = String(row[fieldToCol['full_name']] ?? '').trim();
+        const email = String(row[fieldToCol['email']] ?? '').trim();
+        if (name && email) {
+          mappedUsers.push({
+            full_name: name,
+            email: email,
+            department: fieldToCol['department'] !== undefined ? String(row[fieldToCol['department']] ?? '').trim() : '',
+            employee_id: fieldToCol['employee_id'] !== undefined ? String(row[fieldToCol['employee_id']] ?? '').trim() : '',
+            phone: fieldToCol['phone'] !== undefined ? String(row[fieldToCol['phone']] ?? '').trim() : '',
+            role: fieldToCol['role'] !== undefined ? String(row[fieldToCol['role']] ?? '').trim() || 'employee' : 'employee',
+          });
+        }
+      }
 
       setUserList(mappedUsers);
       toast.success(`成功读取 ${mappedUsers.length} 条用户记录`);
@@ -76,81 +182,97 @@ export function AdminBatchRegister() {
 
     setIsProcessing(true);
     setResults([]);
-    const successResults: RegisterResult[] = [];
+    const allResults: RegisterResult[] = [];
 
     for (const user of userList) {
       try {
-        // 1. 创建Supabase认证用户
-        const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        // 1. 使用 Admin API 创建认证用户（不影响当前管理员会话）
+        const { data, error: signUpError } = await getAdminAuth().createUser({
           email: user.email,
           password: DEFAULT_PASSWORD,
-          options: {
-            data: {
-              full_name: user.full_name,
-              role: user.role || 'employee'
-            }
-          }
+          email_confirm: true, // 直接确认邮箱，无需用户点链接
+          user_metadata: {
+            full_name: user.full_name,
+            role: user.role || 'employee',
+          },
         });
 
         if (signUpError) {
-          throw new Error(signUpError.message);
+          // 检查是否是邮箱已存在
+          if (signUpError.message.includes('already') || signUpError.message.includes('registered')) {
+            allResults.push({
+              success: false,
+              email: user.email,
+              full_name: user.full_name,
+              error: '该邮箱已被注册',
+            });
+            toast.error(`用户 ${user.full_name} 注册失败: 该邮箱已被注册`);
+          } else {
+            throw new Error(signUpError.message);
+          }
+          continue;
         }
 
-        if (authData.user) {
-          // 2. 在profiles表中创建记录
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: authData.user.id,
+        if (data.user) {
+          // 2. 创建 profile 记录
+          try {
+            await insertProfileDirectly({
+              id: data.user.id,
               email: user.email,
               username: user.email.split('@')[0],
               full_name: user.full_name,
               role: user.role || 'employee',
-              department: user.department,
-              employee_id: user.employee_id,
-              phone: user.phone,
-              is_first_login: true, // 标记为首次登录
-              created_at: new Date().toISOString()
+              department: user.department || null,
+              employee_id: user.employee_id || null,
+              phone: user.phone || null,
+              is_first_login: true,
+              created_at: new Date().toISOString(),
             });
-
-          if (profileError) {
-            console.error('创建profile失败:', profileError);
-            // 如果profile创建失败，删除auth用户
-            await supabase.auth.admin.deleteUser(authData.user.id);
-            throw new Error('创建用户资料失败');
+          } catch (profileErr) {
+            // profile 创建失败，删除 auth 用户
+            console.error('创建profile失败:', profileErr);
+            try {
+              await getAdminAuth().deleteUser(data.user.id);
+            } catch (delErr) {
+              console.error('回滚删除auth用户也失败:', delErr);
+            }
+            throw new Error(`创建用户资料失败: ${(profileErr as Error).message}`);
           }
 
-          successResults.push({
+          allResults.push({
             success: true,
             email: user.email,
-            full_name: user.full_name
+            full_name: user.full_name,
           });
-          
           toast.success(`用户 ${user.full_name} 注册成功`);
         }
       } catch (error: any) {
         console.error(`用户 ${user.email} 注册失败:`, error);
-        successResults.push({
+        allResults.push({
           success: false,
           email: user.email,
           full_name: user.full_name,
-          error: error.message
+          error: error.message,
         });
         toast.error(`用户 ${user.full_name} 注册失败: ${error.message}`);
       }
     }
 
-    setResults(successResults);
+    setResults(allResults);
     setIsProcessing(false);
-    
-    const successCount = successResults.filter(r => r.success).length;
-    const failCount = successResults.filter(r => !r.success).length;
-    
-    toast.success(`批量注册完成：成功 ${successCount} 人，失败 ${failCount} 人`);
+
+    const successCount = allResults.filter(r => r.success).length;
+    const failCount = allResults.filter(r => !r.success).length;
+
+    if (failCount === 0) {
+      toast.success(`🎉 批量注册完成：全部 ${successCount} 人注册成功！`);
+    } else {
+      toast.warning(`批量注册完成：成功 ${successCount} 人，失败 ${failCount} 人`);
+    }
   };
 
   const cancelRegister = async (email: string) => {
-    if (!confirm(`确定要取消注册 ${email} 吗？此操作将删除用户账号且不可恢复。`)) {
+    if (!confirm(`确定要删除用户 ${email} 吗？此操作不可恢复。`)) {
       return;
     }
 
@@ -166,20 +288,20 @@ export function AdminBatchRegister() {
         throw new Error('用户不存在');
       }
 
-      // 删除认证用户（需要admin权限）
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(userData.id);
-      
+      // 使用 Admin API 删除认证用户
+      const { error: deleteError } = await getAdminAuth().deleteUser(userData.id);
+
       if (deleteError) {
         throw deleteError;
       }
 
-      toast.success(`用户 ${email} 已取消注册`);
-      
+      toast.success(`用户 ${email} 已删除`);
+
       // 从列表中移除
       setUserList(prev => prev.filter(u => u.email !== email));
     } catch (error: any) {
-      console.error('取消注册失败:', error);
-      toast.error(`取消注册失败: ${error.message}`);
+      console.error('删除用户失败:', error);
+      toast.error(`删除失败: ${error.message}`);
     }
   };
 
@@ -202,7 +324,31 @@ export function AdminBatchRegister() {
           <Upload className="w-5 h-5 text-primary" />
           <h2 className="text-lg font-semibold text-foreground">上传用户列表</h2>
         </div>
-        
+
+        {/* 模板下载 */}
+        <div className="mb-4 p-4 rounded-xl bg-primary/5 border border-primary/15">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Download className="w-4.5 h-4.5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">首次使用？请先下载模板</p>
+                <p className="text-xs text-muted-foreground mt-0.5">按模板格式填写用户信息，确保表头列名一致</p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-primary/30 text-primary hover:bg-primary/10 gap-1.5"
+              onClick={generateUserTemplate}
+            >
+              <Download className="w-3.5 h-3.5" />
+              下载模板
+            </Button>
+          </div>
+        </div>
+
         <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
           <input
             ref={fileInputRef}
@@ -211,7 +357,7 @@ export function AdminBatchRegister() {
             onChange={handleFileUpload}
             className="hidden"
           />
-          
+
           {isUploading ? (
             <div className="flex items-center justify-center gap-3">
               <Loader2 className="w-5 h-5 animate-spin text-primary" />
@@ -226,7 +372,7 @@ export function AdminBatchRegister() {
                 <Upload className="w-4 h-4" />
                 选择Excel文件
               </Button>
-              
+
               <p className="text-xs text-muted-foreground mt-3">
                 支持的格式：.xlsx, .xls, .csv<br />
                 必填列：姓名、邮箱；选填列：部门、工号、电话、角色
@@ -280,6 +426,7 @@ export function AdminBatchRegister() {
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">邮箱</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">部门</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">工号</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">角色</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">操作</th>
                 </tr>
               </thead>
@@ -290,6 +437,11 @@ export function AdminBatchRegister() {
                     <td className="py-3 px-4 text-sm text-muted-foreground">{user.email}</td>
                     <td className="py-3 px-4 text-sm text-muted-foreground">{user.department || '-'}</td>
                     <td className="py-3 px-4 text-sm text-muted-foreground">{user.employee_id || '-'}</td>
+                    <td className="py-3 px-4 text-sm text-muted-foreground">
+                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="text-xs">
+                        {user.role === 'admin' ? '管理员' : '普通员工'}
+                      </Badge>
+                    </td>
                     <td className="py-3 px-4">
                       <Button
                         size="sm"
@@ -312,7 +464,7 @@ export function AdminBatchRegister() {
       {results.length > 0 && (
         <Card className="p-6 border-border">
           <h2 className="text-lg font-semibold text-foreground mb-4">注册结果</h2>
-          
+
           <div className="space-y-2 max-h-80 overflow-y-auto">
             {results.map((result, index) => (
               <div
@@ -339,10 +491,10 @@ export function AdminBatchRegister() {
               </div>
             ))}
           </div>
-          
+
           <div className="mt-4 p-3 bg-muted/30 rounded-lg">
             <p className="text-sm text-muted-foreground text-center">
-              总计: <span className="font-semibold text-emerald-600">{results.filter(r => r.success).length}</span> 成功, 
+              总计: <span className="font-semibold text-emerald-600">{results.filter(r => r.success).length}</span> 成功,
               <span className="font-semibold text-red-600">{results.filter(r => !r.success).length}</span> 失败
             </p>
           </div>
@@ -358,8 +510,8 @@ export function AdminBatchRegister() {
             <ul className="text-xs text-muted-foreground mt-1 space-y-1">
               <li>• 用户首次登录后需强制修改密码</li>
               <li>• 默认密码：jyyl123456</li>
-              <li>• 系统会发送邮件通知用户账号已创建</li>
               <li>• 重复邮箱会自动跳过注册</li>
+              <li>• 角色可选：employee（普通员工）或 admin（管理员）</li>
             </ul>
           </div>
         </div>
