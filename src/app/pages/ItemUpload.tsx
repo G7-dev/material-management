@@ -1,12 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import {
   PackagePlus, CloudUpload, Upload, X, CheckCircle2, AlertCircle,
   Package, Tag, Layers, Hash, Calendar, FileText,
   Info, Sparkles, ChevronRight, Image as ImageIcon, Loader2,
   Save, ArrowRight, RotateCcw, AlertTriangle, BellRing,
-  ChevronDown, Check, Pencil,
+  ChevronDown, Check, Pencil, FileSpreadsheet, Table2,
+  Download, Trash2, Eye, ShieldCheck, ShieldX, ShieldAlert,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -42,6 +44,181 @@ const EMPTY_FORM = {
 };
 
 const UNIT_OPTIONS = ['件', '个', '包', '张', '本', '盒', '套', '卷', '瓶', '箱'];
+
+// ── 批量上架相关类型 ──────────────────────────────────────────────────────
+interface BatchItem {
+  _row: number;            // Excel 行号（从1开始，0 = 表头）
+  _status: 'valid' | 'error' | 'duplicate' | 'warning';
+  _errors: string[];
+  name: string;
+  category: string;
+  specModel: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  itemCode: string;
+  lowStockThreshold: number;
+  notes: string;
+}
+
+const BATCH_REQUIRED_COLS = ['物品名称', '分类', '数量'] as const;
+const BATCH_OPTIONAL_COLS = ['规格型号', '单位', '单价(元)', '物品编码', '预警数量', '备注'] as const;
+const BATCH_ALL_COLS = [...BATCH_REQUIRED_COLS, ...BATCH_OPTIONAL_COLS] as const;
+
+const EMPTY_BATCH_ITEM = (): BatchItem => ({
+  _row: 0,
+  _status: 'valid',
+  _errors: [],
+  name: '',
+  category: '',
+  specModel: '',
+  unit: '件',
+  quantity: 0,
+  unitPrice: 0,
+  itemCode: '',
+  lowStockThreshold: 0,
+  notes: '',
+});
+
+// 列名映射：支持多种常见表头写法
+const COL_ALIASES: Record<string, string> = {
+  '物品名称': 'name', '名称': 'name', '物资名称': 'name', '品名': 'name',
+  '分类': 'category', '物品分类': 'category', '类别': 'category',
+  '数量': 'quantity', '上架数量': 'quantity', '库存数量': 'quantity',
+  '规格型号': 'specModel', '规格': 'specModel', '型号': 'specModel',
+  '单位': 'unit',
+  '单价(元)': 'unitPrice', '单价': 'unitPrice', '价格': 'unitPrice',
+  '物品编码': 'itemCode', '编码': 'itemCode', '物资编码': 'itemCode',
+  '预警数量': 'lowStockThreshold', '安全库存': 'lowStockThreshold',
+  '备注': 'notes', '说明': 'notes',
+};
+
+// 生成批量上架Excel模板
+function generateBatchTemplate() {
+  const headers = [...BATCH_ALL_COLS];
+  const sampleRows = [
+    ['A4打印纸', '办公类', '100', 'A4 70g', '包', '25', 'BG-A4-001', '15', '日常办公用纸'],
+    ['劳保手套', '劳保类', '200', 'L码 棉纱', '双', '8', 'LB-SJ-001', '30', '仓库作业用'],
+    ['签字笔', '办公类', '150', '0.5mm 黑色', '支', '2', 'BG-BI-001', '20', '会议和日常签字用'],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+  // 设置列宽
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length * 2.5, 12) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '批量上架');
+  XLSX.writeFile(wb, '物资批量上架模板.xlsx');
+}
+
+// 解析上传的Excel文件
+function parseExcelFile(file: File): Promise<BatchItem[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target!.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' });
+
+        // 第一行作为表头映射
+        const firstRow = XLSX.utils.sheet_to_json<string[]>(worksheet, { header: 1 })[0] as string[] || [];
+        const colMap: Record<string, string> = {};
+        firstRow.forEach((col) => {
+          const trimmed = String(col).trim();
+          if (COL_ALIASES[trimmed]) {
+            colMap[trimmed] = COL_ALIASES[trimmed];
+          }
+        });
+
+        if (!colMap['name'] || !colMap['category'] || !colMap['quantity']) {
+          reject(new Error('Excel表头缺少必要列：物品名称、分类、数量。请下载模板查看格式要求。'));
+          return;
+        }
+
+        const items: BatchItem[] = jsonData.map((row, idx) => {
+          const item = EMPTY_BATCH_ITEM();
+          item._row = idx + 2; // Excel行号（第1行是表头）
+          item.name = String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'name') || ''] || '').trim();
+          item.category = String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'category') || ''] || '').trim();
+          item.quantity = parseInt(String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'quantity') || ''] || '0')) || 0;
+          item.specModel = String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'specModel') || ''] || '').trim();
+          item.unit = String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'unit') || ''] || '件').trim();
+          item.unitPrice = parseFloat(String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'unitPrice') || ''] || '0')) || 0;
+          item.itemCode = String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'itemCode') || ''] || '').trim();
+          item.lowStockThreshold = parseInt(String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'lowStockThreshold') || ''] || '0')) || 0;
+          item.notes = String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'notes') || ''] || '').trim();
+          return item;
+        }).filter(item => item.name || item.category); // 过滤完全空行
+
+        resolve(items);
+      } catch (err) {
+        reject(new Error('Excel文件解析失败，请检查文件格式。'));
+      }
+    };
+    reader.onerror = () => reject(new Error('文件读取失败。'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// 验证批量数据
+function validateBatchItems(
+  items: BatchItem[],
+  existingMaterials: Material[]
+): { valid: BatchItem[]; invalid: BatchItem[]; duplicates: BatchItem[] } {
+  const valid: BatchItem[] = [];
+  const invalid: BatchItem[] = [];
+  const duplicates: BatchItem[] = [];
+
+  // 构建已存在物资的key集合
+  const existingKeys = new Set(
+    existingMaterials.map(m => `${m.name.toLowerCase()}|${(m.specification || '').toLowerCase()}`)
+  );
+
+  // 在Excel内部检测重复
+  const seenKeys = new Set<string>();
+
+  for (const item of items) {
+    const errors: string[] = [];
+
+    if (!item.name) errors.push('缺少物品名称');
+    if (!item.category) errors.push('缺少物品分类');
+    if (!item.quantity || item.quantity <= 0) errors.push('数量必须大于0');
+
+    if (item.lowStockThreshold > 0 && item.quantity > 0 && item.lowStockThreshold >= item.quantity) {
+      errors.push('预警数量不能大于或等于上架数量');
+    }
+
+    // 检查Excel内部重复
+    const itemKey = `${item.name.toLowerCase()}|${item.specModel.toLowerCase()}`;
+    if (seenKeys.has(itemKey)) {
+      item._status = 'duplicate';
+      errors.push('Excel内部重复');
+    }
+    seenKeys.add(itemKey);
+
+    // 检查与数据库重复
+    if (existingKeys.has(itemKey)) {
+      item._status = 'duplicate';
+      errors.push('数据库中已存在');
+    }
+
+    if (errors.length > 0) {
+      item._errors = errors;
+      if (item._status === 'duplicate') {
+        duplicates.push(item);
+      } else {
+        item._status = 'error';
+        invalid.push(item);
+      }
+    } else {
+      item._status = 'valid';
+      valid.push(item);
+    }
+  }
+
+  return { valid, invalid, duplicates };
+}
 
 // ── UnitSelect: 预设单位 + 自主编辑 ──────────────────────────────────────────
 function UnitSelect({
@@ -318,9 +495,508 @@ function CancelConfirmDialog({
   );
 }
 
+// ── BatchUploadSection: 批量上架区域 ──────────────────────────────────────────
+function BatchUploadSection({ existingMaterials, onSuccess }: { existingMaterials: Material[]; onSuccess: () => void }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName]       = useState<string | null>(null);
+  const [parsedItems, setParsedItems] = useState<BatchItem[]>([]);
+  const [validItems, setValidItems]   = useState<BatchItem[]>([]);
+  const [invalidItems, setInvalidItems] = useState<BatchItem[]>([]);
+  const [duplicateItems, setDuplicateItems] = useState<BatchItem[]>([]);
+  const [isParsing, setIsParsing]     = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitResult, setSubmitResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
+  const [dragOver, setDragOver]       = useState(false);
+
+  const hasParsed = parsedItems.length > 0;
+  const canSubmit = validItems.length > 0 && !isSubmitting;
+
+  const handleFileSelect = useCallback(async (file: File) => {
+    if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
+      toast.error('请上传 Excel 文件（.xlsx / .xls / .csv）');
+      return;
+    }
+
+    setIsParsing(true);
+    setSubmitResult(null);
+
+    try {
+      const items = await parseExcelFile(file);
+      if (items.length === 0) {
+        toast.error('Excel中没有有效数据');
+        setIsParsing(false);
+        return;
+      }
+
+      setFileName(file.name);
+      setParsedItems(items);
+
+      const { valid, invalid, duplicates } = validateBatchItems(items, existingMaterials);
+      setValidItems(valid);
+      setInvalidItems(invalid);
+      setDuplicateItems(duplicates);
+
+      if (duplicates.length > 0) {
+        toast.warning(`发现 ${duplicates.length} 条重复记录（已自动排除）`);
+      }
+      if (invalid.length > 0) {
+        toast.warning(`${invalid.length} 条数据有误，请修正后再提交`);
+      }
+      toast.success(`解析完成：共 ${items.length} 条，可提交 ${valid.length} 条`);
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setIsParsing(false);
+    }
+  }, [existingMaterials]);
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setIsSubmitting(true);
+    setSubmitResult(null);
+
+    let successCount = 0;
+    let failedCount = 0;
+    const errors: string[] = [];
+
+    for (const item of validItems) {
+      const id = await addMaterial({
+        name: item.name,
+        category: item.category,
+        specification: item.specModel || undefined,
+        unit: item.unit || '件',
+        stock: item.quantity,
+        safe_stock: item.lowStockThreshold || Math.max(1, Math.round(item.quantity * 0.15)),
+        unit_price: item.unitPrice || 0,
+        item_code: item.itemCode || undefined,
+      });
+
+      if (id) {
+        successCount++;
+      } else {
+        failedCount++;
+        errors.push(`第${item._row}行「${item.name}」上架失败`);
+      }
+    }
+
+    // 清除缓存
+    invalidateMaterialCacheGlobal();
+    onSuccess();
+
+    setSubmitResult({ success: successCount, failed: failedCount, errors });
+    setIsSubmitting(false);
+
+    if (failedCount === 0) {
+      toast.success(`🎉 全部上架成功！共 ${successCount} 条物资已入库`);
+    } else {
+      toast.warning(`上架完成：成功 ${successCount} 条，失败 ${failedCount} 条`);
+    }
+  };
+
+  const handleReset = () => {
+    setFileName(null);
+    setParsedItems([]);
+    setValidItems([]);
+    setInvalidItems([]);
+    setDuplicateItems([]);
+    setSubmitResult(null);
+  };
+
+  const handleRemoveInvalid = (row: number) => {
+    setParsedItems(prev => prev.filter(i => i._row !== row));
+    setInvalidItems(prev => prev.filter(i => i._row !== row));
+  };
+
+  const handleEditItem = (row: number, field: keyof BatchItem, value: string | number) => {
+    const updatedParsed = parsedItems.map(i =>
+      i._row === row ? { ...i, [field]: value, _status: 'valid' as const, _errors: [] as string[] } : i
+    );
+    setParsedItems(updatedParsed);
+    // 重新验证所有数据
+    const { valid, invalid, duplicates } = validateBatchItems(updatedParsed, existingMaterials);
+    setValidItems(valid);
+    setInvalidItems(invalid);
+    setDuplicateItems(duplicates);
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Step 1: 上传文件 */}
+      {!hasParsed && (
+        <Card className="p-6 border-border">
+          <div className="flex items-center gap-2 mb-5">
+            <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center">
+              <FileSpreadsheet className="w-3.5 h-3.5 text-primary" />
+            </div>
+            <h3 className="font-semibold text-foreground">上传 Excel 文件</h3>
+          </div>
+
+          {/* 模板下载 */}
+          <div className="mb-5 p-4 rounded-xl bg-primary/5 border border-primary/15">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Download className="w-4.5 h-4.5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">首次使用？请先下载模板</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">按模板格式填写物资信息，确保表头列名一致</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-primary/30 text-primary hover:bg-primary/10 gap-1.5"
+                onClick={generateBatchTemplate}
+              >
+                <Download className="w-3.5 h-3.5" />
+                下载模板
+              </Button>
+            </div>
+          </div>
+
+          {/* 必填列说明 */}
+          <div className="mb-5 flex flex-wrap gap-2">
+            <span className="text-xs text-muted-foreground mr-1">必填列：</span>
+            {BATCH_REQUIRED_COLS.map(col => (
+              <span key={col} className="inline-flex items-center px-2.5 py-1 rounded-md bg-rose-50 text-rose-600 text-xs font-medium border border-rose-200">
+                {col}
+              </span>
+            ))}
+            <span className="text-xs text-muted-foreground mx-1">选填列：</span>
+            {BATCH_OPTIONAL_COLS.map(col => (
+              <span key={col} className="inline-flex items-center px-2.5 py-1 rounded-md bg-muted/50 text-muted-foreground text-xs border border-border">
+                {col}
+              </span>
+            ))}
+          </div>
+
+          {/* 拖拽上传区 */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              const file = e.dataTransfer.files[0];
+              if (file) handleFileSelect(file);
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-12 cursor-pointer transition-all duration-300 text-center ${
+              dragOver
+                ? 'border-primary bg-primary/5 scale-[1.01]'
+                : 'border-border hover:border-primary/50 hover:bg-primary/3'
+            }`}
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileSelect(file);
+              }}
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+            />
+            {isParsing ? (
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                <p className="text-sm text-muted-foreground">正在解析文件...</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-3">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                  dragOver ? 'bg-primary/20 scale-110' : 'bg-primary/8'
+                }`}>
+                  <FileSpreadsheet className="w-7 h-7 text-primary" />
+                </div>
+                <p className="font-medium text-foreground">
+                  {dragOver ? '释放文件开始解析' : '点击或拖拽上传 Excel 文件'}
+                </p>
+                <p className="text-sm text-muted-foreground">支持 .xlsx / .xls / .csv 格式</p>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* Step 2: 数据预览与提交 */}
+      {hasParsed && (
+        <>
+          {/* 文件信息 + 操作栏 */}
+          <Card className="p-5 border-border">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                  <Table2 className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">{fileName}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    共 {parsedItems.length} 条数据
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 text-xs mr-3">
+                  {validItems.length > 0 && (
+                    <span className="flex items-center gap-1 text-emerald-600">
+                      <ShieldCheck className="w-3.5 h-3.5" /> 可提交 {validItems.length}
+                    </span>
+                  )}
+                  {invalidItems.length > 0 && (
+                    <span className="flex items-center gap-1 text-rose-500">
+                      <ShieldX className="w-3.5 h-3.5" /> 有误 {invalidItems.length}
+                    </span>
+                  )}
+                  {duplicateItems.length > 0 && (
+                    <span className="flex items-center gap-1 text-amber-500">
+                      <ShieldAlert className="w-3.5 h-3.5" /> 重复 {duplicateItems.length}
+                    </span>
+                  )}
+                </div>
+                <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5" onClick={handleReset}>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  重新上传
+                </Button>
+              </div>
+            </div>
+
+            {/* 进度条 */}
+            <div className="h-2 bg-muted rounded-full overflow-hidden flex">
+              {validItems.length > 0 && (
+                <div
+                  className="h-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${(validItems.length / parsedItems.length) * 100}%` }}
+                />
+              )}
+              {(invalidItems.length + duplicateItems.length) > 0 && (
+                <div
+                  className="h-full bg-rose-400 transition-all duration-500"
+                  style={{ width: `${((invalidItems.length + duplicateItems.length) / parsedItems.length) * 100}%` }}
+                />
+              )}
+            </div>
+          </Card>
+
+          {/* 数据预览表格 */}
+          <Card className="border-border overflow-hidden">
+            <div className="p-5 border-b border-border flex items-center gap-2">
+              <Eye className="w-4 h-4 text-primary" />
+              <h3 className="font-semibold text-foreground">数据预览</h3>
+              <span className="text-xs text-muted-foreground ml-1">（有误的行可点击单元格修正）</span>
+            </div>
+            <div className="overflow-x-auto max-h-[480px] overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">
+                  <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                    <th className="px-4 py-3 w-16 font-medium">行号</th>
+                    <th className="px-4 py-3 font-medium">物品名称 *</th>
+                    <th className="px-4 py-3 font-medium">分类 *</th>
+                    <th className="px-4 py-3 font-medium">规格型号</th>
+                    <th className="px-4 py-3 font-medium">单位</th>
+                    <th className="px-4 py-3 font-medium w-24">数量 *</th>
+                    <th className="px-4 py-3 font-medium w-24">单价</th>
+                    <th className="px-4 py-3 font-medium">编码</th>
+                    <th className="px-4 py-3 font-medium w-24">预警数量</th>
+                    <th className="px-4 py-3 font-medium">状态</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {parsedItems.map((item) => {
+                    const isError = item._status === 'error';
+                    const isDuplicate = item._status === 'duplicate';
+                    return (
+                      <tr
+                        key={item._row}
+                        className={`transition-colors ${
+                          isError ? 'bg-rose-50/50' : isDuplicate ? 'bg-amber-50/50' : 'hover:bg-muted/30'
+                        }`}
+                      >
+                        <td className="px-4 py-2.5 text-muted-foreground text-xs">{item._row}</td>
+                        <td className="px-4 py-2.5">
+                          {isError ? (
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={e => handleEditItem(item._row, 'name', e.target.value)}
+                              className="w-full h-8 px-2 rounded-md border border-rose-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-200"
+                            />
+                          ) : (
+                            <span className="font-medium text-foreground">{item.name}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {isError ? (
+                            <input
+                              type="text"
+                              value={item.category}
+                              onChange={e => handleEditItem(item._row, 'category', e.target.value)}
+                              className="w-full h-8 px-2 rounded-md border border-rose-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-200"
+                            />
+                          ) : (
+                            <span className="text-foreground">{item.category}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{item.specModel || '—'}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{item.unit || '件'}</td>
+                        <td className="px-4 py-2.5">
+                          {isError ? (
+                            <input
+                              type="number"
+                              value={item.quantity || ''}
+                              onChange={e => handleEditItem(item._row, 'quantity', parseInt(e.target.value) || 0)}
+                              className="w-full h-8 px-2 rounded-md border border-rose-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-200"
+                              min={1}
+                            />
+                          ) : (
+                            <span className="font-medium text-foreground">{item.quantity}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{item.unitPrice ? `¥${item.unitPrice}` : '—'}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground text-xs">{item.itemCode || '—'}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{item.lowStockThreshold || '—'}</td>
+                        <td className="px-4 py-2.5">
+                          {item._status === 'valid' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3" /> 有效
+                            </span>
+                          )}
+                          {isError && (
+                            <div className="space-y-1">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-600 border border-rose-200">
+                                <AlertCircle className="w-3 h-3" /> 有误
+                              </span>
+                              <div className="flex flex-col gap-0.5 mt-1">
+                                {item._errors.map((err, i) => (
+                                  <p key={i} className="text-[10px] text-rose-500 leading-tight">{err}</p>
+                                ))}
+                              </div>
+                              <button
+                                onClick={() => handleRemoveInvalid(item._row)}
+                                className="flex items-center gap-1 text-[10px] text-rose-400 hover:text-rose-600 mt-0.5 transition-colors"
+                              >
+                                <Trash2 className="w-2.5 h-2.5" /> 移除该行
+                              </button>
+                            </div>
+                          )}
+                          {isDuplicate && (
+                            <div className="space-y-1">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600 border border-amber-200">
+                                <ShieldAlert className="w-3 h-3" /> 重复
+                              </span>
+                              <p className="text-[10px] text-amber-500">{item._errors[0]}</p>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* 提交结果 */}
+          {submitResult && (
+            <Card className={`p-5 border ${submitResult.failed === 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-amber-200 bg-amber-50/50'}`}>
+              <div className="flex items-center gap-3 mb-3">
+                {submitResult.failed === 0 ? (
+                  <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                ) : (
+                  <AlertTriangle className="w-6 h-6 text-amber-500" />
+                )}
+                <div>
+                  <p className={`font-semibold ${submitResult.failed === 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {submitResult.failed === 0 ? '全部上架成功！' : '部分上架成功'}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    成功 {submitResult.success} 条{submitResult.failed > 0 ? `，失败 ${submitResult.failed} 条` : ''}
+                  </p>
+                </div>
+              </div>
+              {submitResult.errors.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  {submitResult.errors.map((err, i) => (
+                    <p key={i} className="text-xs text-rose-500 flex items-center gap-1.5">
+                      <X className="w-3 h-3 flex-shrink-0" /> {err}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* 操作按钮 */}
+          {!submitResult && (
+            <div className="flex gap-3">
+              <Button
+                className="flex-1 h-12 bg-gradient-to-r from-primary to-secondary hover:shadow-lg hover:shadow-primary/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!canSubmit}
+                onClick={handleSubmit}
+              >
+                {isSubmitting ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />正在批量上架 ({validItems.length} 条)...</>
+                ) : (
+                  <><Upload className="w-4 h-4 mr-2" />确认批量上架 ({validItems.length} 条)</>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                className="px-6 h-12 border-border gap-1.5"
+                onClick={handleReset}
+              >
+                <RotateCcw className="w-4 h-4" />
+                重新上传
+              </Button>
+            </div>
+          )}
+
+          {/* 提交后操作 */}
+          {submitResult && (
+            <div className="flex gap-3">
+              <Button
+                className="flex-1 h-12 bg-gradient-to-r from-primary to-secondary hover:shadow-lg hover:shadow-primary/25 transition-all duration-300 gap-2"
+                onClick={handleReset}
+              >
+                <Upload className="w-4 h-4" />
+                继续批量上架
+              </Button>
+              <Button
+                variant="outline"
+                className="px-6 h-12 border-border gap-1.5"
+                onClick={() => {
+                  const validOnly = [...validItems, ...duplicateItems].map(i => ({
+                    物品名称: i.name, 分类: i.category, 规格: i.specModel,
+                    单位: i.unit, 数量: i.quantity, 单价: i.unitPrice,
+                  }));
+                  const ws = XLSX.utils.json_to_sheet(validOnly);
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, '已上架');
+                  XLSX.writeFile(wb, `上架结果_${new Date().toLocaleDateString('zh-CN')}.xlsx`);
+                  toast.success('上架记录已导出');
+                }}
+              >
+                <Download className="w-4 h-4" />
+                导出记录
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── 缓存清除辅助 ─────────────────────────────────────────────────────────
+function invalidateMaterialCacheGlobal() {
+  window.dispatchEvent(new CustomEvent('inventoryUpdated'));
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 export function ItemUpload() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab]         = useState<'single' | 'batch'>('single');
   const [dragOver, setDragOver]           = useState(false);
   const [previewImage, setPreviewImage]   = useState<string | null>(null);
   const [selectedFile, setSelectedFile]   = useState<File | null>(null);
@@ -491,23 +1167,45 @@ export function ItemUpload() {
           </div>
           <p className="text-muted-foreground mt-1 ml-13">添加新物品到系统库存，填写完整信息以便管理和领用</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm text-primary font-medium">表单完成度 {progress}%</span>
-          </div>
+        {/* Tab 切换 */}
+        <div className="flex items-center bg-muted/60 rounded-xl p-1 border border-border">
+          <button
+            onClick={() => setActiveTab('single')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              activeTab === 'single'
+                ? 'bg-white text-foreground shadow-sm border border-border'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <PackagePlus className="w-4 h-4" />
+            单个上架
+          </button>
+          <button
+            onClick={() => setActiveTab('batch')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              activeTab === 'batch'
+                ? 'bg-white text-foreground shadow-sm border border-border'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            批量上架
+          </button>
         </div>
       </div>
 
-      {/* Progress Bar */}
-      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500 rounded-full"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
+      {/* Progress Bar - 仅单个上架时显示 */}
+      {activeTab === 'single' && (
+        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500 rounded-full"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
 
-      {/* Main Content */}
+      {/* 单个上架 */}
+      {activeTab === 'single' && (
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
         {/* Left: Form */}
@@ -1004,6 +1702,18 @@ export function ItemUpload() {
           </Card>
         </div>
       </div>
+
+      </div>
+      </div>
+      )}
+
+      {/* 批量上架 */}
+      {activeTab === 'batch' && (
+        <BatchUploadSection existingMaterials={allMaterials} onSuccess={async () => {
+          const refreshed = await fetchMaterials(false);
+          setAllMaterials(refreshed);
+        }} />
+      )}
 
       {/* Overlays */}
       {uploadSuccess && savedItem && (
