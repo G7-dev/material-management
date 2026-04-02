@@ -1702,9 +1702,6 @@ export function ItemUpload() {
           </Card>
         </div>
       </div>
-
-      </div>
-      </div>
       )}
 
       {/* 批量上架 */}
