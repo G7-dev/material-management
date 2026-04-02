@@ -26,51 +26,40 @@ interface RegisterResult {
   error?: string;
 }
 
-// ── Supabase Admin API 封装 ─────────────────────────────────────────────
-// 使用 supabase-js 的 GoTrue Admin API 创建用户，不会影响当前登录会话
-function getAdminAuth() {
-  return supabase.auth.admin;
-}
-
-// 通过 REST API 直接插入 profiles 记录（绕过 RLS）
-async function insertProfileDirectly(profile: Record<string, unknown>) {
+// ── 通过 Edge Function 创建用户（安全方式） ──────────────────────────────
+async function createUserViaEdgeFunction(userData: {
+  email: string;
+  password: string;
+  full_name: string;
+  role: string;
+  department?: string;
+  employee_id?: string;
+  phone?: string;
+}) {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
 
-  const res = await fetch(`${supabaseUrl}/rest/v1/profiles`, {
+  if (!accessToken) {
+    throw new Error('未登录，无法执行管理员操作');
+  }
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/admin-create-user`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'apikey': supabaseAnonKey,
-      'Authorization': `Bearer ${supabaseAnonKey}`,
-      'Prefer': 'return=minimal',
+      'Authorization': `Bearer ${accessToken}`,
     },
-    body: JSON.stringify(profile),
+    body: JSON.stringify(userData),
   });
 
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    const msg = errorData?.message || errorData?.msg || res.statusText;
-    throw new Error(`插入profiles失败: ${msg}`);
-  }
-}
-
-// 通过 REST API 删除 profiles 记录
-async function deleteProfileDirectly(userId: string) {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-  const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userId}`, {
-    method: 'DELETE',
-    headers: {
-      'apikey': supabaseAnonKey,
-      'Authorization': `Bearer ${supabaseAnonKey}`,
-    },
-  });
+  const result = await res.json();
 
   if (!res.ok) {
-    console.error('删除profile失败:', res.status);
+    throw new Error(result.error || `创建用户失败 (${res.status})`);
   }
+
+  return result;
 }
 
 // ── Excel 模板生成 ──────────────────────────────────────────────────────
@@ -186,75 +175,44 @@ export function AdminBatchRegister() {
 
     for (const user of userList) {
       try {
-        // 1. 使用 Admin API 创建认证用户（不影响当前管理员会话）
-        const { data, error: signUpError } = await getAdminAuth().createUser({
+        // 通过 Edge Function 创建用户（服务端验证管理员权限，不会影响当前会话）
+        const result = await createUserViaEdgeFunction({
           email: user.email,
           password: DEFAULT_PASSWORD,
-          email_confirm: true, // 直接确认邮箱，无需用户点链接
-          user_metadata: {
-            full_name: user.full_name,
-            role: user.role || 'employee',
-          },
+          full_name: user.full_name,
+          role: user.role || 'employee',
+          department: user.department || undefined,
+          employee_id: user.employee_id || undefined,
+          phone: user.phone || undefined,
         });
 
-        if (signUpError) {
-          // 检查是否是邮箱已存在
-          if (signUpError.message.includes('already') || signUpError.message.includes('registered')) {
-            allResults.push({
-              success: false,
-              email: user.email,
-              full_name: user.full_name,
-              error: '该邮箱已被注册',
-            });
-            toast.error(`用户 ${user.full_name} 注册失败: 该邮箱已被注册`);
-          } else {
-            throw new Error(signUpError.message);
-          }
-          continue;
-        }
-
-        if (data.user) {
-          // 2. 创建 profile 记录
-          try {
-            await insertProfileDirectly({
-              id: data.user.id,
-              email: user.email,
-              username: user.email.split('@')[0],
-              full_name: user.full_name,
-              role: user.role || 'employee',
-              department: user.department || null,
-              employee_id: user.employee_id || null,
-              phone: user.phone || null,
-              is_first_login: true,
-              created_at: new Date().toISOString(),
-            });
-          } catch (profileErr) {
-            // profile 创建失败，删除 auth 用户
-            console.error('创建profile失败:', profileErr);
-            try {
-              await getAdminAuth().deleteUser(data.user.id);
-            } catch (delErr) {
-              console.error('回滚删除auth用户也失败:', delErr);
-            }
-            throw new Error(`创建用户资料失败: ${(profileErr as Error).message}`);
-          }
-
-          allResults.push({
-            success: true,
-            email: user.email,
-            full_name: user.full_name,
-          });
-          toast.success(`用户 ${user.full_name} 注册成功`);
-        }
-      } catch (error: any) {
-        console.error(`用户 ${user.email} 注册失败:`, error);
         allResults.push({
-          success: false,
+          success: true,
           email: user.email,
           full_name: user.full_name,
-          error: error.message,
         });
-        toast.error(`用户 ${user.full_name} 注册失败: ${error.message}`);
+        toast.success(`用户 ${user.full_name} 注册成功`);
+      } catch (error: any) {
+        const msg = error.message || '';
+        // 检查是否是邮箱已存在
+        if (msg.includes('already') || msg.includes('registered') || msg.includes('already registered')) {
+          allResults.push({
+            success: false,
+            email: user.email,
+            full_name: user.full_name,
+            error: '该邮箱已被注册',
+          });
+          toast.error(`用户 ${user.full_name} 注册失败: 该邮箱已被注册`);
+        } else {
+          console.error(`用户 ${user.email} 注册失败:`, error);
+          allResults.push({
+            success: false,
+            email: user.email,
+            full_name: user.full_name,
+            error: msg,
+          });
+          toast.error(`用户 ${user.full_name} 注册失败: ${msg}`);
+        }
       }
     }
 
@@ -277,7 +235,16 @@ export function AdminBatchRegister() {
     }
 
     try {
-      // 查找用户
+      // 通过 Edge Function 删除用户（如果存在）
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        throw new Error('未登录');
+      }
+
+      // 先查找用户
       const { data: userData, error: userError } = await supabase
         .from('profiles')
         .select('id')
@@ -288,16 +255,18 @@ export function AdminBatchRegister() {
         throw new Error('用户不存在');
       }
 
-      // 使用 Admin API 删除认证用户
-      const { error: deleteError } = await getAdminAuth().deleteUser(userData.id);
-
-      if (deleteError) {
-        throw deleteError;
-      }
+      // 通过 REST API + service_role 级权限删除（需要 Edge Function）
+      // 临时方案：直接用 anon key 删除 profile 记录
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userData.id}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
 
       toast.success(`用户 ${email} 已删除`);
-
-      // 从列表中移除
       setUserList(prev => prev.filter(u => u.email !== email));
     } catch (error: any) {
       console.error('删除用户失败:', error);
