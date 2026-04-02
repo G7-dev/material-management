@@ -119,37 +119,54 @@ function parseExcelFile(file: File): Promise<BatchItem[]> {
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' });
 
-        // 第一行作为表头映射
-        const firstRow = XLSX.utils.sheet_to_json<string[]>(worksheet, { header: 1 })[0] as string[] || [];
-        const colMap: Record<string, string> = {};
-        firstRow.forEach((col) => {
-          const trimmed = String(col).trim();
-          if (COL_ALIASES[trimmed]) {
-            colMap[trimmed] = COL_ALIASES[trimmed];
-          }
+        // 用 header:1 获取原始二维数组，通过列索引映射更可靠
+        const aoa = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1, defval: '' });
+        if (aoa.length < 2) {
+          reject(new Error('Excel文件为空或只有表头，没有数据行。'));
+          return;
+        }
+
+        const headerRow = (aoa[0] as unknown[]).map(h => String(h).trim());
+
+        // 建立列索引映射：field name → 列索引
+        const fieldToColIdx: Record<string, number> = {};
+        headerRow.forEach((col, idx) => {
+          const field = COL_ALIASES[col];
+          if (field) fieldToColIdx[field] = idx;
         });
 
-        if (!colMap['name'] || !colMap['category'] || !colMap['quantity']) {
+        if (fieldToColIdx['name'] === undefined || fieldToColIdx['category'] === undefined || fieldToColIdx['quantity'] === undefined) {
           reject(new Error('Excel表头缺少必要列：物品名称、分类、数量。请下载模板查看格式要求。'));
           return;
         }
 
-        const items: BatchItem[] = jsonData.map((row, idx) => {
+        const items: BatchItem[] = [];
+        for (let i = 1; i < aoa.length; i++) {
+          const row = aoa[i] as unknown[];
           const item = EMPTY_BATCH_ITEM();
-          item._row = idx + 2; // Excel行号（第1行是表头）
-          item.name = String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'name') || ''] || '').trim();
-          item.category = String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'category') || ''] || '').trim();
-          item.quantity = parseInt(String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'quantity') || ''] || '0')) || 0;
-          item.specModel = String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'specModel') || ''] || '').trim();
-          item.unit = String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'unit') || ''] || '件').trim();
-          item.unitPrice = parseFloat(String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'unitPrice') || ''] || '0')) || 0;
-          item.itemCode = String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'itemCode') || ''] || '').trim();
-          item.lowStockThreshold = parseInt(String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'lowStockThreshold') || ''] || '0')) || 0;
-          item.notes = String(row[firstRow.find(h => COL_ALIASES[String(h).trim()] === 'notes') || ''] || '').trim();
-          return item;
-        }).filter(item => item.name || item.category); // 过滤完全空行
+          item._row = i + 1; // Excel行号（第1行是表头）
+
+          const getCol = (field: string) => {
+            const colIdx = fieldToColIdx[field];
+            return colIdx !== undefined ? String(row[colIdx] ?? '').trim() : '';
+          };
+
+          item.name = getCol('name');
+          item.category = getCol('category');
+          item.quantity = parseInt(getCol('quantity')) || 0;
+          item.specModel = getCol('specModel');
+          item.unit = getCol('unit') || '件';
+          item.unitPrice = parseFloat(getCol('unitPrice')) || 0;
+          item.itemCode = getCol('itemCode');
+          item.lowStockThreshold = parseInt(getCol('lowStockThreshold')) || 0;
+          item.notes = getCol('notes');
+
+          // 过滤完全空行
+          if (item.name || item.category) {
+            items.push(item);
+          }
+        }
 
         resolve(items);
       } catch (err) {
