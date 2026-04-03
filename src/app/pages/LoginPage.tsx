@@ -57,7 +57,7 @@ export function LoginPage() {
           .rpc('get_email_by_username', { username_input: email });
         
         if (error || !emailData) {
-          toast.error('用户名不存在');
+          toast.error('用户名/姓名不存在');
           setLoading(false);
           return;
         }

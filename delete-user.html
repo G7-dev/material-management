@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>删除用户</title>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; background: #f5f7fa; }
+    .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    h1 { color: #d32f2f; margin-bottom: 20px; }
+    .warning { background: #ffebee; color: #c62828; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 8px; font-weight: 500; }
+    input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+    button { width: 100%; padding: 14px; background: #d32f2f; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+    button:hover { background: #b71c1c; }
+    .result { margin-top: 20px; padding: 16px; border-radius: 8px; display: none; }
+    .success { background: #d1fae5; color: #065f46; }
+    .error { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚠️ 删除用户账号</h1>
+    
+    <div class="warning">
+      <strong>警告！</strong>此操作将永久删除用户账号，无法恢复！
+    </div>
+
+    <form id="deleteForm">
+      <div class="form-group">
+        <label>当前管理员邮箱</label>
+        <input type="email" id="adminEmail" required placeholder="your@email.com">
+      </div>
+      
+      <div class="form-group">
+        <label>当前管理员密码</label>
+        <input type="password" id="adminPassword" required placeholder="输入当前管理员密码">
+      </div>
+      
+      <div class="form-group">
+        <label>要删除的用户邮箱</label>
+        <input type="email" id="deleteEmail" value="lihong@company.com" required>
+      </div>
+
+      <button type="submit" id="submitBtn">永久删除用户账号</button>
+    </form>
+
+    <div id="result" class="result"></div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    const supabaseUrl = 'https://urqhhixldzhqauvafktq.supabase.co';
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVycWhoaXhsZHpocWF1dmFma3RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2OTA4MzMsImV4cCI6MjA4OTI2NjgzM30.5Wa62K3yR1V5Za31OhGhgJIkaihhfJhY2awladof-qM';
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+    document.getElementById('deleteForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      if (!confirm('确定要永久删除这个用户账号吗？此操作不可恢复！')) {
+        return;
+      }
+
+      const submitBtn = document.getElementById('submitBtn');
+      const resultDiv = document.getElementById('result');
+      
+      submitBtn.disabled = true;
+      submitBtn.textContent = '删除中...';
+      resultDiv.style.display = 'none';
+
+      try {
+        const adminEmail = document.getElementById('adminEmail').value;
+        const adminPassword = document.getElementById('adminPassword').value;
+        const deleteEmail = document.getElementById('deleteEmail').value;
+
+        // 1. 登录当前管理员
+        const { data: { session }, error: loginError } = await supabase.auth.signInWithPassword({
+          email: adminEmail,
+          password: adminPassword
+        });
+
+        if (loginError || !session) {
+          throw new Error(loginError?.message || '登录失败');
+        }
+
+        // 2. 先查询用户ID
+        const { data: profile, error: queryError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', deleteEmail)
+          .single();
+
+        if (queryError || !profile) {
+          throw new Error('用户不存在');
+        }
+
+        // 3. 调用 Edge Function 删除用户（通过 service_role）
+        const response = await fetch(`${supabaseUrl}/functions/v1/admin-delete-user`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            userId: profile.id,
+            email: deleteEmail
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || `删除失败: ${response.status}`);
+        }
+
+        // 4. 登出
+        await supabase.auth.signOut();
+
+        // 5. 显示成功
+        resultDiv.className = 'result success';
+        resultDiv.innerHTML = `<strong>✅ 用户已永久删除</strong><br>邮箱: ${deleteEmail}`;
+        resultDiv.style.display = 'block';
+
+      } catch (error) {
+        console.error('删除失败:', error);
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<strong>删除失败:</strong> ${error.message}`;
+        resultDiv.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '永久删除用户账号';
+      }
+    });
+  </script>
+</body>
+</html>

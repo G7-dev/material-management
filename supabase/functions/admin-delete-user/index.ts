@@ -1,4 +1,4 @@
-// Supabase Edge Function: admin-create-user
+// Supabase Edge Function: admin-delete-user
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -7,20 +7,13 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
-  // 处理 CORS 预检请求
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Supabase Edge Runtime 自动注入的认证信息
     const authHeader = req.headers.get('Authorization')
-    const clientInfo = req.headers.get('x-client-info')
-
-    console.log('=== Debug Info ===')
-    console.log('Authorization header:', authHeader ? authHeader.substring(0, 30) + '...' : 'MISSING')
-    console.log('x-client-info:', clientInfo)
-
+    
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Missing authorization' }), {
         status: 401,
@@ -28,41 +21,31 @@ Deno.serve(async (req) => {
       })
     }
 
-    // 创建客户端
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
 
-    // 用用户的 token 验证身份
+    // 验证调用者身份
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     })
 
     const { data: { user }, error: authError } = await userClient.auth.getUser()
 
-    console.log('getUser result:', { userId: user?.id, error: authError?.message })
-
     if (authError || !user) {
-      return new Response(JSON.stringify({ 
-        error: 'Unauthorized',
-        details: authError?.message 
-      }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // 用 service_role key 创建 admin 客户端
+    // 验证管理员权限
     const adminClient = createClient(supabaseUrl, serviceRoleKey)
-
-    // 验证管理员
     const { data: profile, error: profileError } = await adminClient
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
-
-    console.log('profile check:', { profile, error: profileError?.message })
 
     if (profileError || !profile || profile.role !== 'admin') {
       return new Response(JSON.stringify({ error: 'Forbidden: admin only' }), {
@@ -71,59 +54,52 @@ Deno.serve(async (req) => {
       })
     }
 
-    // 解析请求体
+    // 解析请求
     const body = await req.json()
-    const { email, password, full_name, role, department, employee_id, phone } = body
+    const { userId, email } = body
 
-    if (!email || !password) {
-      return new Response(JSON.stringify({ error: 'Email and password are required' }), {
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'userId is required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // 创建认证用户
-    const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: full_name || '', role: role || 'employee' },
-    })
-
-    if (createError) {
-      return new Response(JSON.stringify({ error: createError.message }), {
+    // 防止删除自己
+    if (userId === user.id) {
+      return new Response(JSON.stringify({ error: 'Cannot delete yourself' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // 创建 profile
-    const { error: insertError } = await adminClient.from('profiles').insert({
-      id: newUser.user.id,
-      email,
-      username: full_name || email.split('@')[0],
-      full_name: full_name || '',
-      role: role || 'employee',
-      department: department || null,
-      employee_id: employee_id || null,
-      phone: phone || null,
-      is_first_login: true,
-    })
+    // 1. 删除 auth 用户（需要 service_role）
+    const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(userId)
 
-    if (insertError) {
-      await adminClient.auth.admin.deleteUser(newUser.user.id)
+    if (deleteAuthError) {
       return new Response(
-        JSON.stringify({ error: `创建profile失败: ${insertError.message}` }),
+        JSON.stringify({ error: `删除auth用户失败: ${deleteAuthError.message}` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    // 2. 删除 profile 记录（已经通过外键级联删除，这里做双重保险）
+    const { error: deleteProfileError } = await adminClient
+      .from('profiles')
+      .delete()
+      .eq('id', userId)
+
+    if (deleteProfileError) {
+      console.warn('删除profile记录失败:', deleteProfileError.message)
+      // 不返回错误，因为auth用户已删除
+    }
+
     return new Response(
-      JSON.stringify({ success: true, userId: newUser.user.id, email }),
+      JSON.stringify({ success: true, message: 'User deleted successfully', userId, email }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
+
   } catch (err) {
-    console.log('Error:', err.message)
     return new Response(
       JSON.stringify({ error: err.message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

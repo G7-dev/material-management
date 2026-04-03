@@ -12,13 +12,20 @@ RETURNS TEXT AS $$
 DECLARE
   user_email TEXT;
 BEGIN
-  -- 从 profiles 表中查找用户名对应的邮箱
+  -- 优先按 username 精确匹配，再按 full_name 匹配
   SELECT email INTO user_email
   FROM public.profiles
   WHERE username = username_input
   LIMIT 1;
   
-  -- 如果找到返回邮箱，否则返回 NULL
+  -- 如果 username 没找到，尝试按 full_name（姓名）匹配
+  IF user_email IS NULL THEN
+    SELECT email INTO user_email
+    FROM public.profiles
+    WHERE full_name = username_input
+    LIMIT 1;
+  END IF;
+  
   RETURN user_email;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
