@@ -147,9 +147,9 @@ function RestockModal({ item, sizeStock, onClose, onConfirm }: RestockModalProps
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <Card className="w-full max-w-lg border-border shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
+      <Card className="w-full max-w-lg border-border shadow-2xl flex flex-col max-h-[90vh]">
+        {/* Header - 固定不滚动 */}
+        <div className="flex items-center justify-between p-6 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
               <PackagePlus className="w-4.5 h-4.5 text-primary" />
@@ -169,8 +169,8 @@ function RestockModal({ item, sizeStock, onClose, onConfirm }: RestockModalProps
           </button>
         </div>
 
-        {/* Body */}
-        <div className="p-6 space-y-5">
+        {/* Body - 可滚动区域 */}
+        <div className="p-6 space-y-5 overflow-y-auto min-h-0 flex-1">
           {/* Size Preview Grid */}
           <SizePreviewGrid
             item={item}
@@ -251,8 +251,8 @@ function RestockModal({ item, sizeStock, onClose, onConfirm }: RestockModalProps
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex gap-3 p-6 pt-0">
+        {/* Footer - 固定不滚动 */}
+        <div className="flex gap-3 p-6 pt-4 border-t border-border/60 bg-background shrink-0">
           <Button
             onClick={handleConfirm}
             disabled={!canConfirm}
