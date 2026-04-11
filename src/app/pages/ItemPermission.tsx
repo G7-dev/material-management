@@ -13,7 +13,7 @@ import { Badge } from '../components/ui/badge';
 import { AppSelect } from '../components/ui/app-select';
 import * as XLSX from 'xlsx';
 import {
-  fetchMaterials, restockMaterial, deleteMaterial,
+  fetchMaterials, restockMaterial, restockMaterialByDepartment, deleteMaterial,
   type Material, type MaterialSize,
 } from '../utils/materialsDB';
 import { invalidateMaterialCache } from '../utils/cache';
@@ -40,6 +40,7 @@ interface Item {
   sizes: SizeVariant[];
   image?: string;
   safe_stock: number;
+  departmentStocks?: Record<string, number>;
 }
 
 // ── Per-item per-size stock map ───────────────────────────────────────────────
@@ -115,7 +116,7 @@ interface RestockModalProps {
   item: Item;
   sizeStock: Record<string, number>;
   onClose: () => void;
-  onConfirm: (itemId: string, sizeId: string, quantity: number) => void;
+  onConfirm: (itemId: string, sizeId: string, quantity: number, department: string) => void;
 }
 
 function RestockModal({ item, sizeStock, onClose, onConfirm }: RestockModalProps) {
@@ -124,17 +125,22 @@ function RestockModal({ item, sizeStock, onClose, onConfirm }: RestockModalProps
   );
   const [quantity, setQuantity] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+
+  const DEPARTMENTS = ['设备部', '人事行政部', '生产一部', '生产二部', '技术部', '能源部', 'TPM', '储运部', '供应部'];
 
   const qty        = parseInt(quantity) || 0;
   const currentQty = selectedSize ? (sizeStock[selectedSize.id] ?? selectedSize.stock) : 0;
   const afterStock = currentQty + qty;
+  const currentDeptStock = selectedDepartment ? (item.departmentStocks?.[selectedDepartment] || 0) : 0;
+  const afterDeptStock = currentDeptStock + qty;
 
-  const canConfirm = selectedSize && qty > 0 && !submitting;
+  const canConfirm = selectedSize && qty > 0 && selectedDepartment && !submitting;
 
   const handleConfirm = async () => {
     if (!canConfirm) return;
     setSubmitting(true);
-    await onConfirm(item.id, selectedSize.id, qty);
+    await onConfirm(item.id, selectedSize.id, qty, selectedDepartment);
     setSubmitting(false);
     onClose();
   };
@@ -179,13 +185,43 @@ function RestockModal({ item, sizeStock, onClose, onConfirm }: RestockModalProps
 
           {/* Form fields - compact layout */}
           <div className="space-y-3">
+            {/* 补货部门 */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                补货部门 <span className="text-destructive">*</span>
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {DEPARTMENTS.map(dept => {
+                  const isSelected = selectedDepartment === dept;
+                  const deptStock = item.departmentStocks?.[dept] || 0;
+                  return (
+                    <button
+                      key={dept}
+                      type="button"
+                      onClick={() => setSelectedDepartment(dept)}
+                      className={`px-2 py-2 rounded-lg border text-left transition-all duration-200 ${
+                        isSelected
+                          ? 'border-primary/60 bg-primary/8 ring-2 ring-primary/20'
+                          : 'border-border hover:border-primary/30 hover:bg-muted/40'
+                      }`}
+                    >
+                      <p className={`text-xs font-semibold leading-tight ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                        {dept}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">库存 {deptStock}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* 补货数量 */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
                 补货数量 <span className="text-destructive">*</span>
                 {selectedSize && (
                   <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    当前：{currentQty} 件
+                    当前总库存：{currentQty} 件
                   </span>
                 )}
               </label>
@@ -196,16 +232,18 @@ function RestockModal({ item, sizeStock, onClose, onConfirm }: RestockModalProps
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="请输入本次补货数量"
                 className="h-10 bg-muted/50 border-border"
-                disabled={!selectedSize}
+                disabled={!selectedSize || !selectedDepartment}
               />
             </div>
 
             {/* After-stock preview */}
-            {selectedSize && qty > 0 && (
+            {selectedSize && qty > 0 && selectedDepartment && (
               <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-500/8 border border-emerald-500/20">
                 <TrendingUp className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                 <p className="text-sm text-emerald-700">
-                  <span className="font-semibold">{selectedSize.label}</span> 补货后库存将变为{' '}
+                  <span className="font-semibold">{selectedDepartment}</span> 库存 {currentDeptStock} →{' '}
+                  <span className="font-semibold">{afterDeptStock}</span>
+                  件，总库存{' '}
                   <span className="font-semibold">{afterStock} 件</span>
                 </p>
               </div>
@@ -277,6 +315,7 @@ export function ItemPermission() {
             sizes,
             image: m.image_url || undefined,
             safe_stock: m.safe_stock,
+            departmentStocks: m.department_stocks || {},
           };
         });
       setAllItems(items);
@@ -303,16 +342,16 @@ export function ItemPermission() {
     loadItems();
   }, [loadItems]);
 
-  const handleRestock = async (itemId: string, sizeId: string, quantity: number) => {
+  const handleRestock = async (itemId: string, sizeId: string, quantity: number, department: string) => {
     const item = allItems.find(i => i.id === itemId);
     if (!item) return;
 
     const isDefaultSize = sizeId === 'default';
     const sizeIdOrNull = isDefaultSize ? null : sizeId;
 
-    const result = await restockMaterial(itemId, sizeIdOrNull, quantity, `${item.name} 手动补货`);
+    const result = await restockMaterialByDepartment(itemId, sizeIdOrNull, quantity, department, `${item.name} 手动补货`);
     if (result.success) {
-      toast.success('补货成功');
+      toast.success(`已向「${department}」补货 ${quantity} 件`);
       setRestockedIds(prev => [...prev, itemId]);
       setTimeout(() => {
         setRestockedIds(prev => prev.filter(id => id !== itemId));

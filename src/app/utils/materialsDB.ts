@@ -312,6 +312,50 @@ export async function restockMaterial(
   return updateMaterialStock(materialId, sizeId, quantity, 'restock', notes);
 }
 
+// 按部门补货：更新总库存 + 对应部门的 department_stocks
+export async function restockMaterialByDepartment(
+  materialId: string,
+  sizeId: string | null,
+  quantity: number,
+  department: string,
+  notes?: string
+): Promise<{ success: boolean; newStock?: number; newSizeStock?: number }> {
+  try {
+    // 1. 更新总库存（原有的逻辑）
+    const result = await updateMaterialStock(materialId, sizeId, quantity, 'restock', notes ? `${notes}（→${department}）` : `补货至${department}`);
+    if (!result.success) return result;
+
+    // 2. 更新 department_stocks JSON 字段
+    const { data: current, error: fetchError } = await supabase
+      .from('materials')
+      .select('department_stocks')
+      .eq('id', materialId)
+      .single();
+
+    if (fetchError) {
+      console.error('获取部门库存失败:', fetchError);
+      // 总库存已成功更新，部门库存更新失败不影响主流程
+      return result;
+    }
+
+    const deptStocks = (current?.department_stocks as Record<string, number>) || {};
+    deptStocks[department] = (deptStocks[department] || 0) + quantity;
+
+    await supabase
+      .from('materials')
+      .update({ department_stocks: deptStocks })
+      .eq('id', materialId);
+
+    invalidateMaterialCache();
+    window.dispatchEvent(new CustomEvent('inventoryUpdated'));
+
+    return result;
+  } catch (error) {
+    console.error('按部门补货异常:', error);
+    return { success: false };
+  }
+}
+
 // 申领出库
 export async function requestMaterialOut(
   materialId: string,
