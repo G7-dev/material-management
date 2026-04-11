@@ -81,13 +81,17 @@ function ApplyModal({
 
   const hasSizes = item.sizes && item.sizes.length > 0;
   const totalStock = calculateTotalStock(item);
+  
+  // 规格库存上限：选了具体规格就用该规格库存作为上限
+  const sizeStockCap = selectedSize ? selectedSize.stock : Infinity;
   const maxStock = selectedSize ? selectedSize.stock : totalStock;
 
   // 获取有库存的部门列表
-  const availableDepartments = item.departmentStocks 
+  // 当选择了具体规格时，可用数量 = min(部门总库存, 规格库存)，避免跨规格超卖
+  const availableDepartments = item.departmentStocks
     ? Object.entries(item.departmentStocks)
-        .filter(([_, stock]) => stock > 0)
-        .map(([dept, stock]) => ({ dept, stock }))
+        .map(([dept, stock]) => ({ dept, stock: Math.min(stock, sizeStockCap) }))
+        .filter(({ stock }) => stock > 0)
     : [];
 
   // 当员工选择部门后，自动匹配部门库存
@@ -297,7 +301,7 @@ function ApplyModal({
           {/* 部门库存选择 — 只在选了部门后才显示 */}
           {department && (
             (() => {
-              const ownDeptStock = item.departmentStocks?.[department] || 0;
+              const ownDeptStock = Math.min(item.departmentStocks?.[department] || 0, sizeStockCap);
               const ownDeptHasStock = ownDeptStock > 0;
               // 其他有库存的部门（仅本部门无库存时才展示）
               const otherDepts = availableDepartments.filter(({ dept }) => dept !== department);
