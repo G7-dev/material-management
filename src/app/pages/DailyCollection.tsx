@@ -3,6 +3,7 @@ import {
   Package, Search, ArrowRight, X, ShoppingBag, CheckCircle2,
   ChevronDown, ChevronUp, User, Building2, Hash, FileText,
   Sparkles, Box, Minus, Plus, Layers, Calendar, Clock,
+  AlertCircle,
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -33,6 +34,7 @@ interface DisplayItem {
   notes: string;
   sizes?: SizeVariant[];
   image?: string;
+  departmentStocks?: { [department: string]: number }; // 各部门库存
 }
 
 // ── Departments ───────────────────────────────────────────────────────────────
@@ -75,11 +77,30 @@ function ApplyModal({
   const [expectedDate, setExpectedDate] = useState<Date | undefined>(undefined);
   const [expectedTime, setExpectedTime] = useState('9:00'); // 默认9:00
   const [submitting, setSubmitting] = useState(false);
+  const [selectedDeptStock, setSelectedDeptStock] = useState<string>(''); // 选择从哪个部门领用
 
   const hasSizes = item.sizes && item.sizes.length > 0;
   const totalStock = calculateTotalStock(item);
   const maxStock = selectedSize ? selectedSize.stock : totalStock;
 
+  // 获取有库存的部门列表
+  const availableDepartments = item.departmentStocks 
+    ? Object.entries(item.departmentStocks)
+        .filter(([_, stock]) => stock > 0)
+        .map(([dept, stock]) => ({ dept, stock }))
+    : [];
+
+  // 当员工选择部门后，自动匹配部门库存
+  useEffect(() => {
+    if (department && item.departmentStocks) {
+      const deptStock = item.departmentStocks[department] || 0;
+      if (deptStock > 0) {
+        setSelectedDeptStock(department);
+      }
+    }
+  }, [department, item.departmentStocks]);
+
+  const hasDeptStocks = !!item.departmentStocks && Object.keys(item.departmentStocks).length > 0;
   const canSubmit =
     name.trim() &&
     employeeId.trim() &&
@@ -89,7 +110,8 @@ function ApplyModal({
     expectedTime &&
     quantity > 0 &&
     maxStock > 0 &&
-    (!hasSizes || selectedSize);
+    (!hasSizes || selectedSize) &&
+    (!hasDeptStocks || selectedDeptStock); // 有部门库存数据时才要求选择
 
   // 如果没有多规格但有sizes数组（合并后的单规格），自动选中第一个
   useEffect(() => {
@@ -271,6 +293,84 @@ function ApplyModal({
               variant="filled"
             />
           </div>
+
+          {/* 部门库存选择 — 只在选了部门后才显示 */}
+          {department && (
+            (() => {
+              const ownDeptStock = item.departmentStocks?.[department] || 0;
+              const ownDeptHasStock = ownDeptStock > 0;
+              // 其他有库存的部门（仅本部门无库存时才展示）
+              const otherDepts = availableDepartments.filter(({ dept }) => dept !== department);
+
+              return (
+                <div>
+                  <label className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-indigo-500/60" />
+                    领用来源
+                  </label>
+
+                  {/* 本部门有库存：直接显示，不展示其他部门 */}
+                  {ownDeptHasStock ? (
+                    <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded-full">
+                          本部门
+                        </span>
+                        <span className="text-sm font-semibold text-foreground">{department}</span>
+                      </div>
+                      <span className="text-sm font-bold text-emerald-600">
+                        可领 {ownDeptStock} {item.unit || '件'}
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      {/* 本部门无库存提示 */}
+                      <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-center gap-2 mb-2.5">
+                        <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+                        <span className="text-xs text-amber-700">
+                          您所在部门「{department}」暂无库存，请从以下部门领用
+                        </span>
+                      </div>
+                      {/* 其他有库存部门列表 */}
+                      {otherDepts.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          {otherDepts.map(({ dept, stock }) => {
+                            const isSelected = selectedDeptStock === dept;
+                            const isLowStock = stock <= 3;
+                            return (
+                              <button
+                                key={dept}
+                                type="button"
+                                onClick={() => setSelectedDeptStock(dept)}
+                                className={`p-3 rounded-xl border text-left transition-all duration-200 ${
+                                  isSelected
+                                    ? 'border-indigo-500/50 bg-indigo-500/5 ring-2 ring-indigo-500/20'
+                                    : 'border-border hover:border-indigo-500/30 hover:bg-indigo-500/[0.02]'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className={`text-sm font-semibold ${isSelected ? 'text-indigo-600' : 'text-foreground'}`}>
+                                    {dept}
+                                  </span>
+                                  <span className={`text-sm font-bold ${isLowStock ? 'text-amber-500' : 'text-emerald-600'}`}>
+                                    可领 {stock} {item.unit || '件'}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-3">
+                          该物品目前暂无可领用库存
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()
+          )}
 
           {/* Quantity */}
           <div>
@@ -565,6 +665,7 @@ export function DailyCollection() {
         notes: '',
         sizes: hasSizes ? m.sizes : [{ id: 'default', label: m.specification || '标准', spec: m.specification || '', stock: m.stock }],
         image: m.image_url || undefined,
+        departmentStocks: m.department_stocks || {}, // 传递部门库存
       };
     });
     

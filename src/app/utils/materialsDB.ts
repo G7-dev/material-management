@@ -11,6 +11,11 @@ export interface MaterialSize {
   stock: number;
 }
 
+// 部门库存接口
+export interface DepartmentStock {
+  [department: string]: number;
+}
+
 // 物资接口
 export interface Material {
   id: string;
@@ -26,6 +31,7 @@ export interface Material {
   image_url?: string;
   status: 'active' | 'inactive';
   sizes: MaterialSize[];
+  department_stocks?: DepartmentStock; // 各部门库存
   created_at: string;
   updated_at: string;
   created_by?: string;
@@ -189,6 +195,7 @@ export async function addMaterial(material: {
   item_code?: string;
   image_url?: string;
   sizes?: MaterialSize[];
+  department_stocks?: DepartmentStock; // 各部门库存
 }): Promise<string | null> {
   try {
     // 确保 safe_stock 有合理值
@@ -208,6 +215,7 @@ export async function addMaterial(material: {
         item_code: material.item_code || null,
         image_url: material.image_url,
         sizes: material.sizes || [],
+        department_stocks: material.department_stocks || {},
         status: 'active'
       })
       .select('id')

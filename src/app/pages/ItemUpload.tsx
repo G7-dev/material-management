@@ -45,6 +45,17 @@ const EMPTY_FORM = {
 
 const UNIT_OPTIONS = ['件', '个', '包', '张', '本', '盒', '套', '卷', '瓶', '箱'];
 
+// ── 部门列表 ──────────────────────────────────────────────────────────────
+const DEPARTMENTS = [
+  '设备部', '人事行政部', '生产一部', '生产二部', 
+  '技术部', '能源部', 'TPM', '储运部', '供应部'
+];
+
+// ── 部门库存接口 ─────────────────────────────────────────────────────────
+interface DepartmentStocks {
+  [department: string]: number;
+}
+
 // ── 批量上架相关类型 ──────────────────────────────────────────────────────
 interface BatchItem {
   _row: number;            // Excel 行号（从1开始，0 = 表头）
@@ -400,6 +411,149 @@ function UnitSelect({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Department Stock Modal ───────────────────────────────────────────────
+function DepartmentStockModal({
+  open,
+  onClose,
+  onConfirm,
+  initialStocks,
+  unit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: (stocks: DepartmentStocks, total: number) => void;
+  initialStocks: DepartmentStocks;
+  unit: string;
+}) {
+  const [stocks, setStocks] = useState<DepartmentStocks>(initialStocks);
+
+  // 当初始值变化时更新内部状态
+  useEffect(() => {
+    setStocks(initialStocks);
+  }, [initialStocks, open]);
+
+  const totalStock = Object.values(stocks).reduce((sum, val) => sum + (val || 0), 0);
+
+  const handleStockChange = (dept: string, value: string) => {
+    const numValue = parseInt(value) || 0;
+    setStocks(prev => ({
+      ...prev,
+      [dept]: Math.max(0, numValue)
+    }));
+  };
+
+  const handleConfirm = () => {
+    onConfirm(stocks, totalStock);
+    onClose();
+  };
+
+  const handleReset = () => {
+    const emptyStocks: DepartmentStocks = {};
+    DEPARTMENTS.forEach(d => emptyStocks[d] = 0);
+    setStocks(emptyStocks);
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative bg-white rounded-2xl shadow-2xl shadow-primary/20 border border-border w-full max-w-lg mx-4 overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-2 duration-300">
+        <div className="h-1.5 bg-gradient-to-r from-primary via-secondary to-accent" />
+        
+        {/* Header */}
+        <div className="p-6 pb-4 border-b border-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                <Layers className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-bold text-foreground text-lg">分配部门库存</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">请为各部门分配上架数量</p>
+              </div>
+            </div>
+            <button 
+              onClick={onClose}
+              className="p-2 rounded-xl hover:bg-muted/60 transition-colors"
+            >
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 max-h-[60vh] overflow-y-auto">
+          <div className="space-y-3">
+            {DEPARTMENTS.map((dept) => (
+              <div 
+                key={dept} 
+                className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-colors group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary/8 flex items-center justify-center">
+                    <Hash className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <span className="font-medium text-foreground text-sm">{dept}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    value={stocks[dept] || ''}
+                    onChange={(e) => handleStockChange(dept, e.target.value)}
+                    placeholder="0"
+                    className="w-24 h-10 px-3 rounded-lg border border-border bg-white text-right text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
+                  />
+                  <span className="text-xs text-muted-foreground w-8">{unit || '件'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer with total */}
+        <div className="p-6 pt-4 border-t border-border bg-muted/20">
+          {/* Total display */}
+          <div className="flex items-center justify-between mb-4 p-4 rounded-xl bg-primary/5 border border-primary/15">
+            <span className="text-sm font-medium text-foreground">总计数量</span>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-primary">{totalStock}</span>
+              <span className="text-sm text-muted-foreground">{unit || '件'}</span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1 h-11 border-border gap-2"
+              onClick={handleReset}
+            >
+              <RotateCcw className="w-4 h-4" />
+              清空
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 h-11 border-border"
+              onClick={onClose}
+            >
+              取消
+            </Button>
+            <Button
+              className="flex-1 h-11 bg-gradient-to-r from-primary to-secondary hover:shadow-lg hover:shadow-primary/25 transition-all gap-2"
+              onClick={handleConfirm}
+              disabled={totalStock === 0}
+            >
+              <Check className="w-4 h-4" />
+              确认分配
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1027,6 +1181,14 @@ export function ItemUpload() {
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const nameInputRef = useRef<HTMLDivElement>(null);
   const [allMaterials, setAllMaterials]   = useState<Material[]>([]);
+  
+  // 部门库存相关状态
+  const [showDeptModal, setShowDeptModal] = useState(false);
+  const [departmentStocks, setDepartmentStocks] = useState<DepartmentStocks>(() => {
+    const initial: DepartmentStocks = {};
+    DEPARTMENTS.forEach(d => initial[d] = 0);
+    return initial;
+  });
 
   // 加载所有物资用于自动填充和建议
   useEffect(() => {
@@ -1123,6 +1285,7 @@ export function ItemUpload() {
       unit_price: parseFloat(formData.unitPrice) || 0,
       item_code: formData.itemCode.trim() || undefined,
       image_url: imageUrl || undefined,
+      department_stocks: departmentStocks, // 添加部门库存数据
     });
 
     // 刷新缓存
@@ -1136,12 +1299,22 @@ export function ItemUpload() {
     setUploadSuccess(true);
   };
 
+  // 部门分配确认回调
+  const handleDeptStockConfirm = (stocks: DepartmentStocks, total: number) => {
+    setDepartmentStocks(stocks);
+    handleFieldChange('quantity', total.toString());
+  };
+
   const handleAfterSuccess = () => {
     setUploadSuccess(false);
     setSavedItem(null);
     setFormData({ ...EMPTY_FORM });
     setPreviewImage(null);
     setSelectedFile(null);
+    // 重置部门库存
+    const emptyStocks: DepartmentStocks = {};
+    DEPARTMENTS.forEach(d => emptyStocks[d] = 0);
+    setDepartmentStocks(emptyStocks);
   };
 
   const handleSaveDraft = () => {
@@ -1427,17 +1600,55 @@ export function ItemUpload() {
               <h3 className="font-semibold text-foreground">库存信息</h3>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              {/* 上架数量 - 点击打开部门分配弹窗 */}
+              <div className="col-span-2">
                 <label className="block text-sm font-medium text-foreground mb-2">
                   上架数量 <span className="text-destructive">*</span>
                 </label>
-                <Input
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => handleFieldChange('quantity', e.target.value)}
-                  placeholder="请输入数量"
-                  className="h-11 bg-muted/50 border-border"
-                />
+                <button
+                  type="button"
+                  onClick={() => setShowDeptModal(true)}
+                  className={`w-full flex items-center justify-between gap-2 px-4 h-11 rounded-lg border text-sm transition-all duration-200 outline-none ${
+                    formData.quantity
+                      ? 'border-primary/60 bg-primary/5 text-foreground'
+                      : 'border-border bg-muted/50 text-muted-foreground hover:border-primary/30'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-primary" />
+                    {formData.quantity ? (
+                      <span className="font-semibold text-primary">{formData.quantity} {formData.unit || '件'}</span>
+                    ) : (
+                      '点击分配各部门数量'
+                    )}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {formData.quantity && (
+                      <span className="text-xs text-muted-foreground">
+                        {Object.values(departmentStocks).filter(v => v > 0).length} 个部门
+                      </span>
+                    )}
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                </button>
+                {/* 部门分配预览 */}
+                {formData.quantity && Object.values(departmentStocks).some(v => v > 0) && (
+                  <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
+                    <p className="text-xs text-muted-foreground mb-2">分配详情：</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(departmentStocks)
+                        .filter(([_, qty]) => qty > 0)
+                        .map(([dept, qty]) => (
+                          <span 
+                            key={dept}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/8 text-primary text-xs font-medium border border-primary/15"
+                          >
+                            {dept}: {qty}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
               {/* ── 低库存预警数量 ── */}
               <div className="col-span-2">
@@ -1743,6 +1954,15 @@ export function ItemUpload() {
           onCancel={() => setShowCancelConfirm(false)}
         />
       )}
+      
+      {/* 部门分配弹窗 */}
+      <DepartmentStockModal
+        open={showDeptModal}
+        onClose={() => setShowDeptModal(false)}
+        onConfirm={handleDeptStockConfirm}
+        initialStocks={departmentStocks}
+        unit={formData.unit}
+      />
     </div>
   );
 }
