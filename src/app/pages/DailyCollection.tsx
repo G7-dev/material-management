@@ -94,15 +94,21 @@ function ApplyModal({
         .filter(({ stock }) => stock > 0)
     : [];
 
-  // 当员工选择部门后，自动匹配部门库存
+  // 当员工选择部门或规格时，自动匹配/重置领用来源
   useEffect(() => {
-    if (department && item.departmentStocks) {
-      const deptStock = item.departmentStocks[department] || 0;
-      if (deptStock > 0) {
-        setSelectedDeptStock(department);
-      }
+    if (!department || !item.departmentStocks) return;
+    
+    const deptRawStock = item.departmentStocks[department] || 0;
+    const effectiveStock = Math.min(deptRawStock, sizeStockCap);
+    
+    // 本部门在当前规格下有库存 → 自动选中本部门
+    if (effectiveStock > 0) {
+      setSelectedDeptStock(department);
+    } else {
+      // 本部门无库存 → 清空，让用户从其他部门选择
+      setSelectedDeptStock('');
     }
-  }, [department, item.departmentStocks]);
+  }, [department, item.departmentStocks, selectedSize, sizeStockCap]);
 
   const hasDeptStocks = !!item.departmentStocks && Object.keys(item.departmentStocks).length > 0;
   const canSubmit =
