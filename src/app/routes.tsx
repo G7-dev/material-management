@@ -15,6 +15,7 @@ import { LowStockAlert } from "./pages/LowStockAlert";
 import { PurchaseManagement } from "./pages/PurchaseManagement";
 import { AdminBatchRegister } from "./pages/AdminBatchRegister";
 import { ForgotPassword } from "./pages/ForgotPassword";
+import { ResetPassword } from "./pages/ResetPassword";
 import { Package } from "lucide-react";
 
 // Auth wrapper component
@@ -91,6 +92,10 @@ export const router = createBrowserRouter([
   {
     path: "/forgot-password",
     Component: ForgotPassword,
+  },
+  {
+    path: "/reset-password",
+    Component: ResetPassword,
   },
   {
     path: "/",
